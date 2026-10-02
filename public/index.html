@@ -286,6 +286,30 @@ body:not(.is-admin) .admin-only{display:none !important;}
 .modal-card{max-width:400px;margin:14vh auto 0;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--yellow);
   border-radius:var(--radius);padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
 
+/* ---- Excel-style column filter ---- */
+.xl-th{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.xl-btn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:3px;width:20px;height:18px;
+  font-size:10px;line-height:1;padding:0;cursor:pointer;}
+.xl-btn:hover{border-color:var(--ink-soft);color:var(--ink);}
+.xl-btn.on{background:var(--yellow);border-color:var(--yellow-deep);color:#17181A;}
+.xl-box{position:fixed;z-index:120;width:260px;overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,.25);padding:6px;font-size:12.5px;text-transform:none;letter-spacing:0;}
+.xl-act{display:block;width:100%;text-align:left;background:none;border:none;color:var(--ink);font:500 12.5px 'Inter',sans-serif;padding:6px 8px;border-radius:3px;cursor:pointer;}
+.xl-act:hover:not([disabled]){background:var(--panel-2);}
+.xl-act[disabled]{color:var(--faint);cursor:default;}
+.xl-sep{height:1px;background:var(--line);margin:5px 0;}
+.xl-sec{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);padding:4px 8px;}
+.xl-search{margin:4px 0 6px;font-size:12.5px;padding:6px 8px;}
+.xl-list{max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:3px;padding:4px 0;}
+.xl-item{display:flex;align-items:center;gap:7px;margin:0;padding:3px 8px;font-size:12.5px;font-weight:400;color:var(--ink);
+  text-transform:none;letter-spacing:0;cursor:pointer;}
+.xl-item:hover{background:var(--panel-2);}
+.xl-item input{width:auto;margin:0;}
+.xl-item em{margin-left:auto;font-style:normal;font-size:11px;color:var(--faint);}
+.xl-all{font-weight:600;}
+.xl-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}
+.xl-foot .btn{padding:6px 14px;}
+
 /* ---- Map links in Location cells ---- */
 .loc-cell{word-break:break-word;}
 .loc-cell span{display:block;margin-bottom:4px;}
@@ -595,18 +619,6 @@ body:not(.is-admin) .admin-only{display:none !important;}
             </div>
           </div>
 
-          <div class="form-row" style="grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;align-items:end;margin-bottom:16px;">
-            <div><label>Search plate / company</label><input id="cr_search" placeholder="e.g. AKLI, BPB 1195..." oninput="renderComplianceTable()"></div>
-            <div><label>Company</label><select id="cr_company" onchange="renderComplianceTable()"><option value="">All</option></select></div>
-            <div><label>Category</label><select id="cr_category" onchange="renderComplianceTable()"><option value="">All</option></select></div>
-            <div><label>Location</label><select id="cr_location" onchange="renderComplianceTable()"><option value="">All</option></select></div>
-            <div><label>Status</label><select id="cr_status" onchange="renderComplianceTable()">
-              <option value="">All</option>
-              <option value="overdue">Overdue only</option>
-              <option value="soon">Due ≤ 30 days</option>
-            </select></div>
-          </div>
-
           <div style="max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
@@ -615,7 +627,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <tbody id="complianceBody"></tbody>
           </table>
           </div>
-          <div id="complianceCount" style="font-size:11px;color:var(--ink-soft);margin-top:8px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="complianceCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="crClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll()">✕ Clear all filters</button></div>
         </div>
 
       </section>
@@ -1682,35 +1694,143 @@ function calcComplianceStatus(dmy){
   return "ok";
 }
 function populateComplianceFilters(){
-  const curCompany = document.getElementById("cr_company").value;
-  const curCategory = document.getElementById("cr_category").value;
-  const curLocation = document.getElementById("cr_location").value;
-  const companies = [...new Set(complianceData.map(d=>d.company))].sort();
-  const categories = [...new Set(complianceData.map(d=>d.category))].sort();
-  const locations = [...new Set(complianceData.map(d=>d.location))].sort();
-  document.getElementById("cr_company").innerHTML = `<option value="">All companies</option>` + companies.map(c=>`<option value="${c}" ${c===curCompany?"selected":""}>${c}</option>`).join("");
-  document.getElementById("cr_category").innerHTML = `<option value="">All categories</option>` + categories.map(c=>`<option value="${c}" ${c===curCategory?"selected":""}>${c}</option>`).join("");
-  document.getElementById("cr_location").innerHTML = `<option value="">All locations</option>` + locations.map(c=>`<option value="${c}" ${c===curLocation?"selected":""}>${c}</option>`).join("");
-  document.getElementById("cr_countSub").textContent = `${complianceData.length} vehicles · ${companies.length} companies`;
+  const companies = new Set(complianceData.map(d=>d.company));
+  document.getElementById("cr_countSub").textContent = `${complianceData.length} vehicles · ${companies.size} companies`;
 }
-function renderComplianceTable(){
-  const search = document.getElementById("cr_search").value.trim().toLowerCase();
-  const company = document.getElementById("cr_company").value;
-  const category = document.getElementById("cr_category").value;
-  const location = document.getElementById("cr_location").value;
-  const status = document.getElementById("cr_status").value;
+/* ===== Excel-style column filters for the Compliance Register =====
+   Every header has a ▾ button: sort, search, tick values ((Blanks) included); date
+   columns list values by year and can also be filtered by status (Overdue / Due soon /
+   OK). Values offered in a column respect the filters set on the other columns. */
+const XL_COLS = [
+  {key:"company",  label:"Company"},
+  {key:"category", label:"Category"},
+  {key:"plate",    label:"Plate"},
+  {key:"location", label:"Location"},
+  {key:"roadTax",    label:"Road Tax",   date:true, status:"roadTaxStatus"},
+  {key:"inspection", label:"Inspection", date:true, status:"inspectionStatus"},
+  {key:"insurance",  label:"Insurance",  date:true, status:"insuranceStatus"},
+  {key:"jkkp",       label:"JKKP",       date:true, status:"jkkpStatus"},
+  {key:"apad",       label:"APAD",       date:true, status:"apadStatus"},
+];
+const XL_BLANK = "(Blanks)";
+const xlValues = {};     // col key -> Set of allowed value keys (absent = no filter)
+const xlStatuses = {};   // date col key -> Set of allowed statuses
+let xlSort = null;       // {key, dir: 1 | -1}
+let xlOpenKey = null;
 
-  let rows = complianceData.filter(d=>{
-    if(company && d.company!==company) return false;
-    if(category && d.category!==category) return false;
-    if(location && d.location!==location) return false;
-    if(status && !rowHasStatus(d,status)) return false;
-    if(search && !(d.plate.toLowerCase().includes(search) || d.company.toLowerCase().includes(search) || d.category.toLowerCase().includes(search))) return false;
-    return true;
+function xlValueKey(col, d){
+  const v = d[col.key];
+  if(v==null || String(v).trim()==="") return XL_BLANK;
+  return col.date ? String(v).split("/")[2] || XL_BLANK : String(v).trim();
+}
+function xlPasses(d, exceptKey){
+  for(const col of XL_COLS){
+    if(col.key===exceptKey) continue;
+    const allowed = xlValues[col.key];
+    if(allowed && !allowed.has(xlValueKey(col,d))) return false;
+    const st = xlStatuses[col.key];
+    if(st && !st.has(d[col.status] || "blank")) return false;
+  }
+  return true;
+}
+function xlIsActive(key){ return !!(xlValues[key] || xlStatuses[key]); }
+function xlSortRows(rows){
+  if(!xlSort) return rows;
+  const col = XL_COLS.find(c=>c.key===xlSort.key);
+  const val = d => col.date ? (dmyToIso(d[col.key]) || "") : String(d[col.key]||"").toLowerCase();
+  return rows.slice().sort((a,b)=>{
+    const x = val(a), y = val(b);
+    if(!x && y) return 1; if(x && !y) return -1;          // blanks always last
+    return x < y ? -xlSort.dir : x > y ? xlSort.dir : 0;
   });
+}
+function xlHeaderHtml(){
+  return XL_COLS.map(c=>{
+    const on = xlIsActive(c.key) || (xlSort && xlSort.key===c.key);
+    const icon = xlIsActive(c.key) ? "⛉" : xlSort && xlSort.key===c.key ? (xlSort.dir>0 ? "↑" : "↓") : "▾";
+    return `<th><span class="xl-th"><span>${c.label}</span><button type="button" class="xl-btn${on?" on":""}" onclick="xlOpen('${c.key}', this, event)" aria-label="Filter ${c.label}" title="Filter / sort">${icon}</button></span></th>`;
+  }).join("");
+}
+function xlOpen(key, btn, ev){
+  if(ev) ev.stopPropagation();
+  if(xlOpenKey===key){ xlClose(); return; }
+  xlClose();
+  xlOpenKey = key;
+  const col = XL_COLS.find(c=>c.key===key);
+  const base = complianceData.filter(d=>xlPasses(d, key));
+  const counts = new Map();
+  base.forEach(d=>{ const k = xlValueKey(col,d); counts.set(k,(counts.get(k)||0)+1); });
+  const vals = [...counts.keys()].filter(k=>k!==XL_BLANK).sort((a,b)=> col.date ? b.localeCompare(a) : a.localeCompare(b));
+  if(counts.has(XL_BLANK)) vals.push(XL_BLANK);
+  const allowed = xlValues[key];
+  const st = xlStatuses[key];
+  const box = document.createElement("div");
+  box.id = "xlFilterBox"; box.className = "xl-box";
+  box.onclick = e=>e.stopPropagation();
+  const sortA = col.date ? "Sort Oldest to Newest" : "Sort A → Z";
+  const sortZ = col.date ? "Sort Newest to Oldest" : "Sort Z → A";
+  const statusBlock = col.date ? `<div class="xl-sec">Filter by Status</div>
+    ${[["overdue","Overdue"],["soon","Due soon"],["ok","OK"],["blank","No date"]].map(([v,l])=>`<label class="xl-item"><input type="checkbox" data-st="${v}" ${!st||st.has(v)?"checked":""}> <span>${l}</span></label>`).join("")}
+    <div class="xl-sep"></div>` : "";
+  box.innerHTML = `
+    <button type="button" class="xl-act" onclick="xlSetSort('${key}',1)">${xlSort&&xlSort.key===key&&xlSort.dir>0?"✓ ":""}↑ <span>${sortA}</span></button>
+    <button type="button" class="xl-act" onclick="xlSetSort('${key}',-1)">${xlSort&&xlSort.key===key&&xlSort.dir<0?"✓ ":""}↓ <span>${sortZ}</span></button>
+    <button type="button" class="xl-act" ${xlIsActive(key)?"":"disabled"} onclick="xlClearCol('${key}')">⛉ <span>Clear Filter From "${col.label}"</span></button>
+    <div class="xl-sep"></div>
+    ${statusBlock}
+    <input type="search" class="xl-search" placeholder="Search" oninput="xlFilterList(this.value)">
+    <div class="xl-list">
+      <label class="xl-item xl-all"><input type="checkbox" id="xlAll" ${!allowed?"checked":""} onchange="xlToggleAll(this.checked)"> <span>(Select All)</span></label>
+      ${vals.map(v=>`<label class="xl-item" data-v="${escHtml(v.toLowerCase())}"><input type="checkbox" data-val="${escHtml(v)}" ${!allowed||allowed.has(v)?"checked":""} onchange="xlSyncAll()"> <span>${escHtml(v)}</span><em>${counts.get(v)}</em></label>`).join("")}
+    </div>
+    <div class="xl-foot"><button type="button" class="btn ghost" onclick="xlClose()">Cancel</button><button type="button" class="btn yellow" onclick="xlApply('${key}')">OK</button></div>`;
+  document.body.appendChild(box);
+  const r = btn.getBoundingClientRect();
+  const w = 260;
+  box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+  box.style.top = Math.min(r.bottom + 4, window.innerHeight - 120) + "px";
+  box.style.maxHeight = (window.innerHeight - Math.min(r.bottom + 4, window.innerHeight - 120) - 12) + "px";
+  setTimeout(()=>{ const s = box.querySelector(".xl-search"); if(s) s.focus(); }, 0);
+}
+function xlClose(){ const b = document.getElementById("xlFilterBox"); if(b) b.remove(); xlOpenKey = null; }
+function xlFilterList(q){
+  q = q.trim().toLowerCase();
+  document.querySelectorAll("#xlFilterBox .xl-item[data-v]").forEach(l=>{ l.style.display = !q || l.dataset.v.includes(q) ? "" : "none"; });
+}
+function xlToggleAll(on){
+  document.querySelectorAll("#xlFilterBox .xl-item[data-v]").forEach(l=>{ if(l.style.display!=="none") l.querySelector("input").checked = on; });
+}
+function xlSyncAll(){
+  const boxes = [...document.querySelectorAll("#xlFilterBox input[data-val]")];
+  document.getElementById("xlAll").checked = boxes.every(b=>b.checked);
+}
+function xlApply(key){
+  const col = XL_COLS.find(c=>c.key===key);
+  const boxes = [...document.querySelectorAll("#xlFilterBox input[data-val]")];
+  const picked = boxes.filter(b=>b.checked).map(b=>b.dataset.val);
+  if(picked.length===boxes.length) delete xlValues[key]; else xlValues[key] = new Set(picked);
+  if(col.date){
+    const sts = [...document.querySelectorAll("#xlFilterBox input[data-st]")];
+    const on = sts.filter(b=>b.checked).map(b=>b.dataset.st);
+    if(on.length===sts.length) delete xlStatuses[key]; else xlStatuses[key] = new Set(on);
+  }
+  xlClose(); renderComplianceTable();
+}
+function xlSetSort(key, dir){
+  xlSort = xlSort && xlSort.key===key && xlSort.dir===dir ? null : {key, dir};
+  xlClose(); renderComplianceTable();
+}
+function xlClearCol(key){ delete xlValues[key]; delete xlStatuses[key]; xlClose(); renderComplianceTable(); }
+function xlClearAll(){ Object.keys(xlValues).forEach(k=>delete xlValues[k]); Object.keys(xlStatuses).forEach(k=>delete xlStatuses[k]); xlSort = null; renderComplianceTable(); }
+document.addEventListener("click", xlClose);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") xlClose(); });
+window.addEventListener("resize", xlClose);
+
+function renderComplianceTable(){
+  let rows = xlSortRows(complianceData.filter(d=>xlPasses(d, null)));
 
   const headRow = document.getElementById("complianceHeadRow");
-  headRow.innerHTML = `<th>Company</th><th>Category</th><th>Plate</th><th>Location</th><th>Road Tax</th><th>Inspection</th><th>Insurance</th><th>JKKP</th><th>APAD</th>` + (currentRole==="admin" ? `<th></th>` : ``);
+  headRow.innerHTML = xlHeaderHtml() + (currentRole==="admin" ? `<th></th>` : ``);
 
   const dateInput = (d,field,statusField) => `<input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${complianceBorder(d[statusField])};border-radius:4px;width:132px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value,this)">`;
 
@@ -1748,6 +1868,8 @@ function renderComplianceTable(){
     <td class="mono-cell">${statusBadge(d.apadStatus,d.apad)}</td></tr>`;
   }).join("");
   document.getElementById("complianceCount").textContent = `Showing ${rows.length} of ${complianceData.length} vehicles`;
+  const anyFilter = XL_COLS.some(c=>xlIsActive(c.key)) || !!xlSort;
+  document.getElementById("crClearAllBtn").style.display = anyFilter ? "inline-block" : "none";
 }
 
 /* ---- Login / role gate (admin verified by server; branch = workflow selector) ----

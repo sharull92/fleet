@@ -22,6 +22,14 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 | Tema | Cerah sahaja | Butang **🌙 / ☀️** — mod gelap & cerah, ikut tetapan peranti pada kali pertama |
 | Akses halaman | Semua halaman terbuka; admin login dalam Compliance Register | Butang **🔒 Log Masuk Admin** di bawah menu kiri. Tanpa login hanya **00 Dashboard** & **01 Pemandu & Pemohon** dipaparkan; 02–08 untuk admin sahaja (02 Daftar Pematuhan kini halaman sendiri). Pilihan "Branch anda / Read only" dibuang |
 
+## Daftar Pematuhan — penapis gaya Excel
+
+Setiap tajuk lajur ada butang **▾**: susun (A→Z / Z→A, atau Lama→Baru untuk tarikh), kotak **Cari**,
+senarai tanda nilai dengan **(Pilih Semua)** dan **(Kosong)**. Lajur tarikh disenaraikan ikut **tahun**
+dan boleh ditapis ikut **status** (Tamat Tempoh / Hampir Tamat / OK / Tiada tarikh). Nilai dalam setiap
+senarai ikut tapisan lajur lain. Butang ▾ bertukar kuning bila lajur ditapis; **✕ Kosongkan semua tapisan**
+di bawah jadual.
+
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 
 Di **Pemandu & Pemohon → Log Permintaan Kerja**, tekan
