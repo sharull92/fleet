@@ -34,6 +34,19 @@
     async logout(){ await call("POST", "/api/logout"); },
   };
 
+  /* Show a banner when the server is missing configuration (e.g. Supabase or
+     admin env vars not yet set on Vercel), so nobody thinks data is being saved. */
+  window.addEventListener("DOMContentLoaded", async ()=>{
+    try{
+      const r = await call("GET", "/api/health");
+      if(!r.ok || !r.data || r.data.ok) return;
+      const bar = document.createElement("div");
+      bar.style.cssText = "background:#C1443C;color:#fff;font:600 12.5px Inter,sans-serif;padding:8px 16px;";
+      bar.textContent = "⚠ Server belum lengkap dikonfigurasi: " + r.data.warnings.join(" · ");
+      document.body.prepend(bar);
+    }catch{}
+  });
+
   if("serviceWorker" in navigator){
     window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));
   }
