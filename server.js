@@ -1,7 +1,7 @@
 /* Fleet Swis Group — Fleet Ops local server (Docker / VPS / development).
    Zero-dependency Node (>=22.9): serves the dashboard from ./public and the API
    from lib/api.js. Storage is SQLite on disk, or Supabase when its env vars are
-   set. On Vercel, api/index.js is used instead of this file. */
+   set. On Vercel, the functions in api/ are used instead of this file. */
 "use strict";
 const http = require("node:http");
 const fs = require("node:fs");

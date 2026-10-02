@@ -21,7 +21,7 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 
 ## Deploy — Vercel + Supabase
 
-App ini di-host di **Vercel** (halaman + API serverless dalam `api/index.js`) dan data
+App ini di-host di **Vercel** (halaman dari `public/` + API serverless dalam `api/`) dan data
 disimpan dalam **Supabase Postgres** (Vercel tak ada disk kekal, jadi SQLite tak boleh digunakan di sana).
 
 1. **Supabase → SQL Editor → New query** → paste isi `supabase/schema.sql` → **Run**.
