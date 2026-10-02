@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#17181A"/>
+  <rect x="64" y="404" width="384" height="20" fill="#FDB913"/>
+  <path d="M96 196h196v150H96z" fill="#FDB913"/>
+  <path d="M292 236h70l54 60v50H292z" fill="#FDB913"/>
+  <path d="M318 252h40l34 38h-74z" fill="#17181A"/>
+  <circle cx="160" cy="352" r="34" fill="#17181A"/><circle cx="160" cy="352" r="18" fill="#FDB913"/>
+  <circle cx="360" cy="352" r="34" fill="#17181A"/><circle cx="360" cy="352" r="18" fill="#FDB913"/>
+  <text x="194" y="290" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="64" fill="#17181A">FLEET</text>
+</svg>

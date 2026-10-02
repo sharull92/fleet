@@ -1,0 +1,14 @@
+{
+  "name": "fleet-ops",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fleet Swis Group — fleet dashboard, workshop tickets, hiring, costing & utilization",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.9.0"
+  }
+}
