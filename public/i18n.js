@@ -104,6 +104,8 @@
     ["Load","Muatan"],
     ["Log Request","Hantar Permintaan"],
     ["📋 Paste from WhatsApp","📋 Tampal dari WhatsApp"],
+    ["📍 View Location","📍 Lihat Lokasi"],
+    ["🔎 Search Map","🔎 Cari di Peta"],
     ["Paste the WhatsApp message here — the form fills in automatically","Tampal mesej WhatsApp di sini — borang akan diisi secara automatik"],
     ["⚡ Auto-fill Form","⚡ Isi Borang Automatik"],
     ["Paste a WhatsApp message first.","Tampal mesej WhatsApp dahulu."],

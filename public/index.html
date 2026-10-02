@@ -273,6 +273,13 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
   .grid-2,.grid-3,.two-col-charts{grid-template-columns:1fr;}
 }
 
+/* ---- Map links in Location cells ---- */
+.loc-cell{word-break:break-word;}
+.loc-cell span{display:block;margin-bottom:4px;}
+.map-link{display:inline-block;margin:2px 6px 2px 0;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:600;
+  text-decoration:none;white-space:nowrap;background:var(--info-bg);color:var(--info);border:1px solid transparent;}
+.map-link:hover{border-color:var(--info);}
+
 /* ---- WhatsApp auto-fill ---- */
 .autofilled{outline:2px solid var(--yellow);outline-offset:1px;transition:outline-color 1.5s;}
 
@@ -834,7 +841,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             </div>
             <div class="form-row">
               <div><label>Project</label><input id="as_project" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
-              <div><label>Tempat</label><input id="as_tempat" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
+              <div><label>Tempat</label><input id="as_tempat" readonly style="background:var(--field-ro);color:var(--ink-soft);"><div id="as_tempat_link" class="loc-cell" style="margin-top:6px;"></div></div>
             </div>
             <div class="form-row">
               <div style="grid-column:1/-1;"><label>Load</label><input id="as_load" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
@@ -2779,6 +2786,27 @@ function renderHiring(){
   document.getElementById("hireSourceSplit").textContent = `${sendiriCount} / ${sewaCount}`;
   renderHireTable();
 }
+/* Location text → safe HTML with clickable map links. A pasted Google Maps / Waze
+   link becomes a "📍 View Location" button; a plain address gets a map search link. */
+function escHtml(v){ return String(v==null?"":v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function mapUrlForPlace(text){ return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(text); }
+function locationHtml(tempat){
+  const raw = (tempat||"").trim();
+  if(!raw || raw==="—") return "—";
+  const urls = raw.match(/https?:\/\/[^\s<>"']+/g) || [];
+  const text = raw.replace(/https?:\/\/[^\s<>"']+/g, "").replace(/\s*·\s*/g, " ").replace(/\s{2,}/g, " ").trim();
+  const btn = (href, label) => `<a class="map-link" href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+  let html = text ? `<span>${escHtml(text)}</span>` : "";
+  if(urls.length) html += urls.map(u=>btn(u, "📍 View Location")).join("");
+  else if(text) html += btn(mapUrlForPlace(text), "🔎 Search Map");
+  return html;
+}
+function updateAssignMapLink(tempat){
+  const el = document.getElementById("as_tempat_link");
+  if(!el) return;
+  el.innerHTML = tempat && tempat!=="—" ? locationHtml(tempat).replace(/^<span>.*?<\/span>/, "") : "";
+}
+
 function renderHireTable(){
   document.getElementById("hireBody").innerHTML = hiringRecords.map((h,i)=>{
     const cls = h.status==="Assigned"?"good":"warn";
@@ -2790,7 +2818,7 @@ function renderHireTable(){
     }
     const actionCell = h.status==="New" ? `<button class="btn yellow" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Balas / Assign")}</button>` : `<button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Edit")}</button>`;
     return `<tr><td style="font-weight:600;">${h.unit}</td><td>${h.company}<br><span style="font-size:11px;color:var(--ink-soft);">${h.project}</span></td>
-    <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td>${h.tempat}</td><td>${svLine}</td>
+    <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td class="loc-cell">${locationHtml(h.tempat)}</td><td>${svLine}</td>
     <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td>${actionCell}</td></tr>`;
   }).join("");
 }
@@ -3008,6 +3036,7 @@ function openAssignPanel(index){
   setRequestField("as_masa", h.masa, "tiada dalam request");
   setRequestField("as_project", h.project, "tiada dalam request");
   setRequestField("as_tempat", h.tempat, "tiada dalam request");
+  updateAssignMapLink(h.tempat);
   document.getElementById("as_load").value = h.load;
   document.getElementById("as_sv").value = h.sv;
   document.getElementById("as_sv_phone").value = h.phone;
