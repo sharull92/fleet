@@ -24,7 +24,7 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 
-Di **Pemandu & Pemohon → Log Permintaan Kerja** (atau Pengurusan Sewaan → Langkah 1), tekan
+Di **Pemandu & Pemohon → Log Permintaan Kerja**, tekan
 **📋 Tampal dari WhatsApp**, copy mesej dari group WhatsApp dan paste — borang diisi serta-merta.
 Pilih **Branch Anda**, semak, tekan **Hantar Permintaan**.
 

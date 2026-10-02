@@ -839,14 +839,6 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="kpi"><div class="label">— Sewa vs Sendiri</div><div class="value mono" id="hireSourceSplit" style="font-size:19px;">—</div><div class="foot">Nisbah bulan ini</div></div>
         </div>
 
-        <div class="panel" style="background:var(--panel-2);box-shadow:none;">
-          <div class="panel-head" style="margin-bottom:0;">
-            <h3 style="font-size:12.5px;">Step 1 — Log Job Request</h3>
-            <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Submitted by the requester from the Driver &amp; Requester page</span>
-            <button type="button" class="btn yellow" onclick="openWaPasteFromHiring()">📋 Paste from WhatsApp</button>
-          </div>
-        </div>
-
         <div class="panel" id="assignPanel" style="display:none;">
           <div class="panel-head">
             <h3>Step 2 — Balas &amp; Assign Kenderaan</h3>
@@ -2872,11 +2864,6 @@ function toggleWaPaste(show){
   const open = show===undefined ? box.style.display==="none" : show;
   box.style.display = open ? "block" : "none";
   if(open){ document.getElementById("waPasteStatus").textContent = ""; document.getElementById("waPasteText").focus(); }
-}
-function openWaPasteFromHiring(){
-  document.querySelector('.nav-btn[data-view="external"]').click();
-  toggleWaPaste(true);
-  document.getElementById("hireRequestPanel").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function applyWaPaste(){
   const text = document.getElementById("waPasteText").value;
