@@ -1712,7 +1712,7 @@ function renderComplianceTable(){
   const headRow = document.getElementById("complianceHeadRow");
   headRow.innerHTML = `<th>Company</th><th>Category</th><th>Plate</th><th>Location</th><th>Road Tax</th><th>Inspection</th><th>Insurance</th><th>JKKP</th><th>APAD</th>` + (currentRole==="admin" ? `<th></th>` : ``);
 
-  const dateInput = (d,field,statusField) => `<input type="date" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;width:132px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value)">`;
+  const dateInput = (d,field,statusField) => `<input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${complianceBorder(d[statusField])};border-radius:4px;width:132px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value,this)">`;
 
   document.getElementById("complianceBody").innerHTML = rows.map(d=>{
     const isAdmin = currentRole==="admin";
@@ -1829,15 +1829,27 @@ async function updateComplianceField(id, field, value){
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   await persistComplianceRegister();
 }
-async function updateComplianceDate(id, field, statusField, isoValue){
+/* Border colour of a compliance date box: red = overdue, amber = due ≤ 30 days. */
+function complianceBorder(status){
+  return status==="overdue" ? "var(--danger)" : status==="soon" ? "var(--warn)" : "var(--line)";
+}
+async function updateComplianceDate(id, field, statusField, isoValue, inputEl){
   const rec = complianceData.find(d=>d.id===id);
   if(!rec) return;
   const allowed = currentRole==="admin" || (currentRole==="branch" && locationBranch(rec.location)===currentBranch);
   if(!allowed) return; // date fields: admin, or the owning branch only
-  const dmy = isoToDmySlash(isoValue);
+  /* The date box fires "change" on every digit typed in the year (0002 → 0020 → 0202 → 2026).
+     Only save once the year is complete, and don't re-render the table, so the box keeps
+     focus while typing. An empty value (date cleared) is saved as blank. */
+  if(isoValue){
+    const y = +isoValue.slice(0,4);
+    if(!(y>=1990 && y<=2100)) return;
+  }
+  const dmy = isoValue ? isoToDmySlash(isoValue) : null;
   rec[field] = dmy;
-  rec[statusField] = calcComplianceStatus(dmy);
-  renderComplianceTable();
+  rec[statusField] = dmy ? calcComplianceStatus(dmy) : null;
+  if(inputEl) inputEl.style.borderColor = complianceBorder(rec[statusField]);
+  else renderComplianceTable();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
