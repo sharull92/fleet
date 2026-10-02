@@ -1,0 +1,581 @@
+/* Fleet Ops — bilingual UI (Bahasa Malaysia / English) and light / dark theme.
+
+   How the language switch works: the dashboard renders its text (in English, via
+   T() + EN_DICT, or as the original Malay where no translation existed). This file
+   watches the page and swaps every visible text node, placeholder and tooltip to the
+   chosen language using the [English, Malay] pairs below plus EN_DICT itself, and
+   remembers each node's original text so switching back is exact. Text the app
+   re-renders later is translated as it appears (MutationObserver), so no render
+   function needs to know about the language.
+
+   Entry formats:
+     PAIRS     [english, malay, ...aliases]  aliases = other source texts (e.g. the
+                                             old mixed BM/EN label) that map to the pair
+     TEMPLATES [english, malay]              with {a}, {b}… placeholders for values */
+(function(){
+  "use strict";
+  const LANG_KEY = "fleetLang", THEME_KEY = "fleetTheme";
+
+  const PAIRS = [
+    // ---- Shell / navigation ----
+    ["Dashboard","Papan Pemuka"],
+    ["Driver & Requester","Pemandu & Pemohon"],
+    ["Repair & Maintenance","Pembaikan & Penyelenggaraan"],
+    ["Costing","Kos"],
+    ["Hiring Management","Pengurusan Sewaan"],
+    ["Utilization","Penggunaan"],
+    ["New / Dispose","Baharu / Pelupusan"],
+    ["Settings — WhatsApp","Tetapan — WhatsApp"],
+    ["Data shared across all staff","Data dikongsi semua staf"],
+    ["Fleet Dashboard","Papan Pemuka Fleet"],
+    ["Company-owned fleet — overview across all modules","Fleet milik syarikat — ringkasan semua modul"],
+    ["Submit a workshop repair ticket or log a new job request","Hantar tiket repair bengkel atau log permintaan kerja baharu"],
+    ["Service reminders, workshop tickets & repair spend","Peringatan servis, tiket bengkel & kos repair"],
+    ["Fleet operating cost by category, vehicle & trend","Kos operasi fleet ikut kategori, kenderaan & trend"],
+    ["External hire-ins & internal hiring requests","Sewaan luar & permintaan sewaan dalaman"],
+    ["Own-asset usage rate & forecast","Kadar penggunaan aset sendiri & ramalan"],
+    ["Acquisition and disposal pipeline for company vehicles","Pipeline perolehan dan pelupusan kenderaan syarikat"],
+    ["Settings — WhatsApp Contacts","Tetapan — Kenalan WhatsApp"],
+    ["Admin & branch PIC numbers for request notifications","No. admin & PIC setiap branch untuk notifikasi permintaan","No admin & PIC setiap branch untuk notify request"],
+    ["🌐 Dashboard view:","🌐 Paparan dashboard:"],
+    ["All companies","Semua syarikat"],
+    ["All branches","Semua branch"],
+    ["Clear dashboard view filter","Kosongkan tapisan paparan dashboard"],
+
+    // ---- Dashboard ----
+    ["Total Fleet","Jumlah Fleet"],
+    ["across all companies & branches","semua syarikat & branch"],
+    ["In Repair","Dalam Pembaikan"],
+    ["active workshop tickets","tiket bengkel aktif"],
+    ["Idle Vehicles","Kenderaan Terbiar"],
+    ["0% utilization (GPS Oncore)","0% penggunaan (GPS Oncore)"],
+    ["Avg Utilization","Purata Penggunaan"],
+    ["included vehicles, YTD","kenderaan yang dikira, YTD"],
+    ["Overdue Service","Servis Tertunggak"],
+    ["needs scheduling","perlu dijadualkan"],
+    ["Open Repair Tickets","Tiket Repair Terbuka"],
+    ["status ≠ Completed","status ≠ Selesai"],
+    ["Compliance Status","Status Pematuhan"],
+    ["Utilization — Company Average","Penggunaan — Purata Syarikat"],
+    ["Included vehicles, YTD Jan–Jul 2026","Kenderaan yang dikira, YTD Jan–Jul 2026"],
+    ["Attention Needed This Week","Perlu Perhatian Minggu Ini"],
+    ["Auto-flagged from Repair, Hiring & Dispose modules","Ditanda automatik dari modul Repair, Sewaan & Pelupusan"],
+    ["Vehicle","Kenderaan"],
+    ["Module","Modul"],
+    ["Due / Status","Tarikh Akhir / Status"],
+    ["Priority","Keutamaan"],
+    ["Repair & Maint.","Repair & Selenggara"],
+    ["Hiring","Sewaan"],
+    ["New","Baharu"],
+    ["Overdue","Tamat Tempoh"],
+    ["Due Soon","Hampir Tamat"],
+    ["Due soon","Hampir tamat"],
+    ["Pending","Menunggu"],
+    ["In Progress","Dalam Proses"],
+    ["Completed","Selesai"],
+    ["High","Tinggi"],
+    ["Medium","Sederhana"],
+    ["Low","Rendah"],
+    ["Dispose","Pelupusan"],
+    ["Disposal requested","Permohonan pelupusan"],
+    ["Review","Semak"],
+
+    // ---- Driver & Requester ----
+    ["Submit a workshop repair ticket or log a new job request — for drivers & requesters","Hantar tiket repair bengkel atau log permintaan kerja baharu — untuk pemandu & pemohon"],
+    ["Workshop Repair Ticket","Tiket Repair Bengkel"],
+    ["Driver submits a repair request → Admin replies with location/vendor & status in Repair & Maintenance","Pemandu hantar permintaan repair → Admin balas lokasi/vendor & status di Pembaikan & Penyelenggaraan"],
+    ["Your Branch","Branch Anda"],
+    ["— Select branch —","— Pilih branch —"],
+    ["Issue (you can add more than one)","Isu (boleh tambah lebih dari satu)","Issue (boleh tambah lebih dari satu)"],
+    ["+ Add Issue","+ Tambah Isu"],
+    ["e.g. Brake pad replacement","cth. Tukar brake pad"],
+    ["e.g. Azlan","cth. Azlan"],
+    ["Clear","Kosongkan"],
+    ["Log Ticket","Hantar Tiket"],
+    ["📲 Notify via WhatsApp","📲 Maklumkan via WhatsApp"],
+    ["✓ Ticket Logged — Notify PIC / Admin","✓ Tiket Dihantar — Maklumkan PIC / Admin","✓ Ticket Dilog — Notify PIC / Admin"],
+    ["✓ Request Logged — Notify PIC / Admin","✓ Permintaan Dihantar — Maklumkan PIC / Admin","✓ Request Dilog — Notify PIC / Admin"],
+    ["Your Phone Number (for WhatsApp reply)","No. Telefon Anda (untuk balasan WhatsApp)","No. Telefon Anda (untuk reply WhatsApp)"],
+    ["Reply Template (copy & paste to WhatsApp to inform user)","Templat Balasan (salin & tampal ke WhatsApp untuk maklumkan pengguna)","Reply Template (copy & paste ke WhatsApp untuk inform user)"],
+    ["Log Job Request","Log Permintaan Kerja"],
+    ["Company","Syarikat"],
+    ["Project","Projek"],
+    ["Location","Lokasi"],
+    ["Load","Muatan"],
+    ["Log Request","Hantar Permintaan"],
+
+    // ---- Repair & Maintenance ----
+    ["Road tax / inspection / insurance / JKKP / APAD renewal — live fleet register","Pembaharuan cukai jalan / pemeriksaan / insurans / JKKP / APAD — daftar fleet semasa"],
+    ["Total Vehicles","Jumlah Kenderaan"],
+    ["In compliance register","Dalam daftar pematuhan"],
+    ["Overdue Renewals","Pembaharuan Tertunggak"],
+    ["Road tax / inspection / insurance / JKKP / APAD","Cukai jalan / pemeriksaan / insurans / JKKP / APAD"],
+    ["Due Within 30 Days","Tamat Dalam 30 Hari"],
+    ["Needs action this month","Perlu tindakan bulan ini"],
+    ["Open Workshop Tickets","Tiket Bengkel Terbuka"],
+    ["Across all vehicles","Semua kenderaan"],
+    ["MTD Repair Cost","Kos Repair Bulan Ini"],
+    ["This month, all tickets","Bulan ini, semua tiket"],
+    ["Compliance Register — Road Tax, Inspection, Insurance, JKKP & APAD","Daftar Pematuhan — Cukai Jalan, Pemeriksaan, Insurans, JKKP & APAD"],
+    ["No shared data yet — using original data","Tiada data dikongsi lagi — guna data asal","Tiada data shared lagi — guna data asal"],
+    ["Saving…","Menyimpan…"],
+    ["Fetching latest data…","Menarik data terkini…"],
+    ["⚠ Save failed — refresh & try again","⚠ Gagal simpan — cuba refresh & ulang"],
+    ["⚠ Failed to save contacts — try again","⚠ Gagal simpan kenalan — cuba lagi"],
+    ["⚠ Failed to save ticket — try again","⚠ Gagal simpan ticket — cuba lagi"],
+    ["⚠ Failed to save job request — try again","⚠ Gagal simpan job request — cuba lagi"],
+    ["🔄 Refresh","🔄 Muat Semula"],
+    ["Pull the latest data from shared storage","Tarik data terkini dari storan dikongsi","Tarik data terkini dari shared storage"],
+    ["— Read only —","— Baca sahaja —"],
+    ["👁 Read only — select a branch above to update dates","👁 Baca sahaja — pilih branch di atas untuk kemas kini tarikh"],
+    ["🔓 Admin — Full Access","🔓 Admin — Akses Penuh"],
+    ["Admin Logout","Keluar Admin"],
+    ["+ Add Vehicle","+ Tambah Kenderaan"],
+    ["Admin Login — Full Access","Log Masuk Admin — Akses Penuh"],
+    ["Admin Password","Password Admin"],
+    ["Enter admin password","Masukkan password admin"],
+    ["Cancel","Batal"],
+    ["Log In","Log Masuk"],
+    ["Add New Vehicle (New Purchase)","Tambah Kenderaan Baharu (Pembelian Baharu)"],
+    ["Category","Kategori"],
+    ["Plate","No. Plat"],
+    ["Road Tax Expiry","Tamat Cukai Jalan"],
+    ["Inspection Due","Tarikh Pemeriksaan"],
+    ["Insurance Expiry","Tamat Insurans"],
+    ["JKKP Expiry","Tamat JKKP"],
+    ["APAD Expiry","Tamat APAD"],
+    ["Save Vehicle","Simpan Kenderaan"],
+    ["Search plate / company","Cari plat / syarikat"],
+    ["e.g. AKLI, BPB 1195...","cth. AKLI, BPB 1195..."],
+    ["All categories","Semua kategori"],
+    ["All locations","Semua lokasi"],
+    ["All","Semua"],
+    ["Overdue only","Tamat tempoh sahaja"],
+    ["Due ≤ 30 days","Tamat ≤ 30 hari"],
+    ["Road Tax","Cukai Jalan"],
+    ["Inspection","Pemeriksaan"],
+    ["Insurance","Insurans"],
+    ["✕ Remove","✕ Buang"],
+    ["Workshop Repair Tickets","Senarai Tiket Repair Bengkel"],
+    ["Driver / requester submits via the Driver & Requester page → Admin replies with location/vendor & status here","Pemandu / pemohon hantar melalui halaman Pemandu & Pemohon → Admin balas lokasi/vendor & status di sini"],
+    ["Admin Reply —","Balasan Admin —"],
+    ["Vendor Name (Outsource) / Foreman (In-house)","Nama Vendor (Outsource) / Foreman (In-house)"],
+    ["e.g. Hassan Auto (vendor) or Din (foreman)","cth. Hassan Auto (vendor) atau Din (foreman)","e.g. Hassan Auto (vendor) atau Din (foreman)"],
+    ["Repair Type","Jenis Repair"],
+    ["— Select —","— Pilih —"],
+    ["Cost Estimate (RM)","Anggaran Kos (RM)","Cost Estimate / Awalan (RM)"],
+    ["Estimated repair cost","Anggaran kos repair","Anggaran cost repair"],
+    ["Final Cost (RM)","Kos Akhir (RM)","Cost Final (RM)"],
+    ["Fill in when the repair is done / costed","Isi bila repair siap / dikira","Isi bila repair siap / dikira"],
+    ["Completion Date","Tarikh Siap"],
+    ["Note (optional)","Nota (pilihan)"],
+    ["e.g. ETA done 20.08.2026","cth. ETA siap 20.08.2026","e.g. ETA siap 20.08.2026"],
+    ["Send Reply","Hantar Balasan"],
+    ["📲 Save & Reply WhatsApp","📲 Simpan & Balas WhatsApp"],
+    ["Filter by Month","Tapis ikut Bulan"],
+    ["Filter by Year","Tapis ikut Tahun"],
+    ["All Months","Semua Bulan"],
+    ["All Years","Semua Tahun"],
+    ["Ticket","Tiket"],
+    ["Issue","Isu"],
+    ["Date","Tarikh"],
+    ["Estimated Cost (RM)","Kos Anggaran (RM)"],
+    ["Variance (RM)","Beza (RM)"],
+    ["Not assigned yet","Belum di-assign"],
+    ["Reply / Update","Balas / Kemas Kini"],
+    ["✕ Delete","✕ Padam"],
+    ["Vehicle Repair Frequency","Kekerapan Repair Kenderaan"],
+    ["How many times each vehicle has been repaired — click a row for details","Berapa kali setiap kenderaan repair — klik baris untuk lihat butiran"],
+    ["Month","Bulan"],
+    ["Year","Tahun"],
+    ["Number of Repairs","Bilangan Repair"],
+    ["Total Cost (RM)","Jumlah Kos (RM)"],
+    ["Latest Status","Status Terkini"],
+    ["Recurring Issues:","Isu Yang Kerap Berulang:"],
+    ["Cost (RM)","Kos (RM)"],
+    ["Most Frequently Repaired","Paling Kerap Repair"],
+    ["Based on the month/year filter below","Ikut tapisan bulan/tahun di bawah"],
+
+    // ---- Costing ----
+    ["Fleet operating cost — real telematics data, YTD Jan–Jul 2026","Kos operasi fleet — data telematik sebenar, YTD Jan–Jul 2026"],
+    ["Month (Costing Report)","Bulan (Laporan Kos)","Bulan (Costing Report)"],
+    ["Full YTD (Jan–Jul 2026)","YTD Penuh (Jan–Jul 2026)"],
+    ["Choose a month to see that month's estimated cost (fleet-wide is actual; per-vehicle is estimated).","Pilih bulan untuk lihat anggaran kos bulan tersebut (seluruh fleet sebenar; peringkat kenderaan adalah anggaran).","Pilih bulan untuk lihat anggaran cost bulan tersebut (fleet-wide sebenar; peringkat kenderaan adalah anggaran)."],
+    ["Total Fuel","Jumlah Minyak"],
+    ["Total Repair","Jumlah Repair"],
+    ["Insurance + Toll","Insurans + Tol"],
+    ["Total Upkeep","Jumlah Penyelenggaraan"],
+    ["Idling Fuel Wastage","Pembaziran Minyak (Idling)"],
+    ["Original Excel + idling key-in (0.25L × RM3.17/unit)","Excel asal + idling key-in (0.25L × RM3.17/unit)"],
+    ["Highest Cost Vehicle","Kenderaan Kos Tertinggi"],
+    ["Cost by Category","Kos ikut Kategori"],
+    ["All vehicles","Semua kenderaan"],
+    ["Fuel vs Repair — Monthly Trend","Minyak vs Repair — Trend Bulanan"],
+    ["All vehicles · actual fleet-wide monthly data","Semua kenderaan · data bulanan sebenar seluruh fleet"],
+    ["Cost by Vehicle","Kos ikut Kenderaan"],
+    ["+ Key In Cost / Update Driver","+ Key In Kos / Kemas Kini Pemandu"],
+    ["Wastage","Pembaziran"],
+    ["= excess-idling warning only, not counted in Total (the actual fuel cost is already in Fuel at refuel)","= amaran idling berlebihan sahaja, tidak dikira dalam Jumlah (kos minyak sebenar sudah termasuk dalam Minyak semasa isi minyak)","= amaran idling berlebihan sahaja, tidak dikira dalam Total (kos minyak sebenar sudah termasuk dalam Fuel semasa refuel)"],
+    ["📥 Import Cost Data (Excel / PDF)","📥 Import Data Kos (Excel / PDF)"],
+    ["Imported values will be","Nilai yang di-import akan"],
+    ["added","ditambah"],
+    ["to the existing total (same as manual \"Key In Cost\") — not replaced. Excel/CSV is the most accurate (many columns at once). PDF is best-effort only (PDF formats vary) — choose one cost category to extract and double-check after importing.","pada jumlah sedia ada (sama macam \"Key In Kos\" manual) — bukan gantikan terus. Excel/CSV paling tepat (boleh banyak column sekaligus). PDF sifatnya best-effort sahaja (format PDF macam-macam) — pilih satu kategori kos untuk di-extract dan semak semula lepas import.","pada jumlah sedia ada (sama macam \"Key In Cost\" manual) — bukan gantikan terus. Excel/CSV paling tepat (boleh banyak column sekaligus). PDF sifatnya best-effort sahaja (format PDF macam-macam) — pilih satu kategori kos untuk di-extract dan semak semula lepas import."],
+    ["— flexible columns by header name: Plate, Fuel, Repair, Insurance, Toll, Idling (fill in whichever apply, not all are needed).","— column fleksibel ikut nama header: Plate, Fuel, Repair, Insurance, Toll, Idling (isi mana-mana yang berkenaan, tak perlu semua)."],
+    ["Choose Excel / CSV file(s) (you can pick more than one)","Pilih fail Excel / CSV (boleh pilih lebih dari satu)"],
+    ["— extracts ONE cost category per import (e.g. a fuel card statement / repair invoice in PDF).","— extract SATU kategori kos sahaja setiap kali import (cth statement fuel card / invoice repair dalam PDF)."],
+    ["Choose PDF file(s) (you can pick more than one)","Pilih fail PDF (boleh pilih lebih dari satu)"],
+    ["Cost category to extract","Kategori kos untuk di-extract"],
+    ["Fuel","Minyak"],
+    ["Toll","Tol"],
+    ["Search Vehicle (plate / company)","Cari Kenderaan (plat / syarikat)"],
+    ["e.g. BLP 2169, AKLI...","cth: BLP 2169, AKLI..."],
+    ["No matching vehicles","Tiada kenderaan sepadan"],
+    ["Fuel (RM) — added to existing total","Minyak (RM) — ditambah pada jumlah sedia ada"],
+    ["Repair (RM) — added to existing total","Repair (RM) — ditambah pada jumlah sedia ada"],
+    ["Insurance (RM) — added to existing total","Insurans (RM) — ditambah pada jumlah sedia ada"],
+    ["Toll (RM) — added to existing total","Tol (RM) — ditambah pada jumlah sedia ada"],
+    ["Idling Count (10-min unit) — from GPS Oncore, e.g. idle 20min = 2 units","Bilangan Idling (unit 10 min) — dari GPS Oncore, cth: idle 20min = 2 unit"],
+    ["Driver Name — will replace directly","Nama Pemandu — akan gantikan terus"],
+    ["Driver name","Nama pemandu"],
+    ["Save","Simpan"],
+    ["Search plate / driver","Cari plat / pemandu"],
+    ["e.g. BLP 2169, Rosli...","cth: BLP 2169, Rosli..."],
+    ["Vehicle Type","Jenis Kenderaan"],
+    ["All types","Semua jenis"],
+    ["Type","Jenis"],
+    ["Driver","Pemandu"],
+    ["Fuel (RM)","Minyak (RM)"],
+    ["Insurance (RM)","Insurans (RM)"],
+    ["Toll (RM)","Tol (RM)"],
+    ["Wastage (RM)","Pembaziran (RM)"],
+    ["Total (RM)","Jumlah (RM)"],
+    ["Excess idling warning — not included in Total","Amaran idling berlebihan — tidak termasuk dalam Jumlah"],
+
+    // ---- Hiring ----
+    ["Log job request → assign (external hire / own vehicle) → reply confirmation","Log permintaan kerja → assign (sewa / kenderaan sendiri) → balas pengesahan"],
+    ["Jobs This Month","Kerja Bulan Ini"],
+    ["Logged from WhatsApp requests","Dilog dari permintaan WhatsApp"],
+    ["Not Yet Assigned","Belum Di-assign"],
+    ["Awaiting reply","Menunggu balasan"],
+    ["Assigned","Sudah Di-assign"],
+    ["External hire / own vehicle","Sewa / kenderaan sendiri"],
+    ["— Hire vs Own","— Sewa vs Sendiri"],
+    ["This month's ratio","Nisbah bulan ini"],
+    ["Step 1 — Log Job Request","Langkah 1 — Log Permintaan Kerja"],
+    ["Submitted by the requester from the Driver & Requester page","Dihantar oleh pemohon dari halaman Pemandu & Pemohon"],
+    ["Step 2 — Reply & Assign Vehicle","Langkah 2 — Balas & Assign Kenderaan"],
+    ["Choose external hire or own vehicle, generate reply","Pilih sewa atau kenderaan sendiri, jana balasan"],
+    ["Details From Request (direct from user — cannot be edited here)","Butiran Dari Permintaan (terus dari pengguna — tak boleh diubah di sini)"],
+    ["Supervisor (site)","Sv (tapak)"],
+    ["Vehicle Source","Sumber Kenderaan"],
+    ["Own Vehicle (own fleet)","Kenderaan Sendiri (fleet sendiri)"],
+    ["Hire (external)","Sewa (luar)"],
+    ["Select Vehicle (Lorry Tipper & Lorry Crane only — 🟢 available / 🔴 not available)","Pilih Kenderaan (Lorry Tipper & Lorry Crane sahaja — 🟢 ada / 🔴 tiada)"],
+    ["e.g. AKLI, lorry tipper, WA 2281...","cth: AKLI, lorry tipper, WA 2281..."],
+    ["e.g. ABC Transport — Isuzu NPR","cth: ABC Transport — Isuzu NPR"],
+    ["Name of the assigned driver","Nama pemandu yang di-assign"],
+    ["Generate Reply & Update Record","Jana Balasan & Kemas Kini Rekod"],
+    ["📋 Copy Text","📋 Salin Teks"],
+    ["Copied — paste directly into WhatsApp.","Disalin — paste terus dalam WhatsApp."],
+    ["Job Records","Rekod Kerja"],
+    ["Company / Project","Syarikat / Projek"],
+    ["Reply / Assign","Balas / Assign"],
+    ["Own Fleet","Sendiri"],
+    ["Hired","Sewa"],
+
+    // ---- Utilization ----
+    ["Utilization — Own Assets","Penggunaan — Aset Sendiri"],
+    ["Real usage rate vs target — from telematics, keyed in by month","Kadar penggunaan sebenar vs sasaran — dari telematik, key in ikut bulan","Real usage rate vs target — dari telematics, key in ikut bulan"],
+    ["Fleet Avg Utilization","Purata Penggunaan Fleet"],
+    ["Please set Fleet Target (working days) first to calculate %","Sila tetapkan Sasaran Fleet (bilangan hari bekerja) dahulu untuk kira %"],
+    ["Below Target","Bawah Sasaran"],
+    ["Utilization % < fleet target %","Penggunaan % < sasaran fleet %"],
+    ["Idle Units","Unit Terbiar"],
+    ["0% utilization YTD","0% penggunaan YTD"],
+    ["Fleet Target","Sasaran Fleet"],
+    ["Admin hasn't set this yet — using default","Admin belum tetapkan — guna default"],
+    ["Month (this month also becomes the \"Data Month\" for key-in / import below)","Bulan (bulan ini juga jadi \"Bulan Data\" untuk key-in / import di bawah)","Bulan (bulan ni jugak jadi \"Data Month\" untuk key-in / import di bawah)"],
+    ["Working days (after deducting company & public holidays)","Hari bekerja (lepas tolak cuti syarikat & cuti umum)"],
+    ["Set Target","Tetapkan Sasaran"],
+    ["Utilization by Branch","Penggunaan ikut Branch"],
+    ["Average utilization is calculated only from vehicles","Purata penggunaan dikira dari kenderaan yang","Purata utilization dikira dari kenderaan yang"],
+    ["marked (included)","ditandakan (dikira)","ditandakan (included)"],
+    ["for each branch","sahaja bagi setiap branch","sahaja bagi setiap branch"],
+    ["Included Vehicles","Kenderaan Dikira"],
+    ["Utilization by Vehicle","Penggunaan ikut Kenderaan"],
+    ["Filter by","Tapis ikut","Tapis ikut"],
+    [", then tick the vehicles that should count in the utilization average (fleet & branch) — not every vehicle has to count, e.g. shared HQ vehicles / motorcycles / disposed units can be unticked.",", kemudian tanda kenderaan yang patut dikira dalam purata penggunaan (fleet & branch) — bukan semua kenderaan wajib dikira, cth kenderaan HQ shared / motosikal / dah dilupus boleh dinyahtanda.",", kemudian tanda kenderaan yang patut dikira dalam purata utilization (fleet & branch) — bukan semua kenderaan wajib dikira, cth kenderaan HQ shared / motorsikal / dah dispose boleh ditak-tanda."],
+    ["can key in the number of","boleh key in terus bilangan","boleh key in terus bilangan"],
+    ["Days Utilized","Hari Digunakan"],
+    ["from GPS Oncore in the Utilization column (one by one, in days — not %),","dari GPS Oncore pada column Penggunaan (satu-satu, dalam hari — bukan %),","dari GPS Oncore pada column Utilization (satu-satu, dalam hari — bukan %),"],
+    ["or upload the Excel file","atau upload terus fail Excel","atau upload terus fail Excel"],
+    ["downloaded from GPS Oncore to update everything at once. Utilization % is calculated automatically from Days Utilized ÷ the number of working days in","yang di-download dari GPS Oncore untuk kemas kini semua sekali gus. Penggunaan % dikira automatik dari Hari Digunakan ÷ bilangan hari bekerja dalam","yang di-download dari GPS Oncore untuk update semua sekali gus. Utilization % dikira automatik dari Days Utilized ÷ bilangan hari bekerja dalam"],
+    ["(set below) — not from the % in the Oncore file itself.","(tetapkan di bawah) — bukan dari % dalam fail Oncore itu sendiri.","(set di bawah) — bukan dari % dalam fail Oncore itu sendiri."],
+    ["Data Month","Bulan Data"],
+    ["🔗 This month always follows the month in","🔗 Bulan ini sentiasa ikut bulan","🔗 Bulan ni sentiasa ikut bulan"],
+    ["above (the only place to set the month) —","di atas (satu sahaja tempat untuk tetapkan bulan) —","di atas (satu je tempat nak set bulan) —"],
+    ["Change month →","Tukar bulan →","Tukar bulan →"],
+    ["📤 Import Utilization from Excel (GPS Oncore)","📤 Import Penggunaan dari Excel (GPS Oncore)"],
+    [".xlsx / .csv file with columns for","Fail .xlsx / .csv dengan column","Fail .xlsx / .csv dengan column"],
+    ["vehicle plate","plat kenderaan","plat kenderaan"],
+    ["(flexible column names, e.g. \"Plate\"/\"No Plat\" and \"Utilization\"/\"Util %\"). The first row must be the header.","(nama column fleksibel, cth \"Plate\"/\"No Plat\" dan \"Utilization\"/\"Util %\"). Baris pertama mesti header.","(nama column fleksibel, cth \"Plate\"/\"No Plat\" dan \"Utilization\"/\"Util %\"). Baris pertama mesti header."],
+    ["Choose Excel file(s) (you can pick more than one)","Pilih fail Excel (boleh pilih lebih dari satu)","Pilih fail Excel (boleh pilih lebih dari satu)"],
+    ["Below target","Bawah sasaran"],
+    ["Idle (0%)","Terbiar (0%)"],
+    ["✓ Select All (Filtered)","✓ Pilih Semua (Ditapis)"],
+    ["✕ Clear All (Filtered)","✕ Nyahpilih Semua (Ditapis)"],
+    ["Included","Dikira"],
+    ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
+    ["No monthly data yet — set a Data Month above and key in / import utilization to start building the trend.","Belum ada data bulanan — tetapkan Bulan Data di atas dan key in / import penggunaan untuk mula bina trend."],
+    ["Vehicles Counted","Kenderaan Dikira"],
+    ["No data yet","Belum ada data"],
+    ["No vehicles selected","Tiada kenderaan dipilih"],
+    ["No data this month","Tiada data bulan ini"],
+    ["Fleet Avg","Purata Fleet"],
+    ["Set by admin","Ditetapkan oleh admin"],
+    ["Weighted, selected vehicles only","Berwajaran, kenderaan terpilih sahaja"],
+
+    // ---- New / Dispose ----
+    ["Company vehicle acquisition & disposal pipeline","Pipeline perolehan & pelupusan kenderaan syarikat"],
+    ["New — In Pipeline","Baharu — Dalam Pipeline"],
+    ["Requested through delivered","Dari permohonan hingga diterima"],
+    ["Flagged for Disposal","Ditanda untuk Pelupusan"],
+    ["Age / cost threshold exceeded","Melebihi had umur / kos"],
+    ["Net Fleet Change (YTD)","Perubahan Bersih Fleet (YTD)"],
+    ["New minus disposed","Baharu tolak dilupus"],
+    ["Est. Disposal Recovery","Anggaran Pulangan Pelupusan"],
+    ["Book value of flagged units","Nilai buku unit yang ditanda"],
+    ["No items","Tiada item"],
+
+    // ---- Settings ----
+    ["Admin number & PIC per branch — for auto notify when there's a repair/hiring request","No. admin & PIC setiap branch — untuk notifikasi automatik bila ada permintaan repair/sewaan"],
+    ["🔒 Admin Only","🔒 Admin Sahaja"],
+    ["Admin only","Admin sahaja"],
+    ["Log in as Admin (in the Workshop Repair Tickets section) to change the admin WhatsApp number or branch PIC.","Log masuk sebagai Admin (di bahagian Tiket Repair Bengkel) untuk tukar no. WhatsApp admin atau PIC branch."],
+    ["Admin WhatsApp Numbers","No. WhatsApp Admin","No WhatsApp Admin"],
+    ["Fallback when a branch doesn't have a PIC yet. You can add more than one admin.","Digunakan bila branch belum ada PIC. Boleh tambah lebih dari satu admin."],
+    ["+ Add Admin","+ Tambah Admin"],
+    ["Name","Nama"],
+    ["Admin name","Nama admin"],
+    ["WhatsApp No.","No. WhatsApp"],
+    ["PIC per Branch","PIC Setiap Branch"],
+    ["Fill in PIC name & WhatsApp no. — leave blank to use Admin as fallback","Isi nama & no. WhatsApp PIC — kosong = guna Admin sebagai ganti"],
+    ["PIC Name","Nama PIC"],
+    ["PIC name","Nama PIC"],
+    ["PIC WhatsApp No.","No. WhatsApp PIC"],
+    ["⬇ Download Backup","⬇ Muat Turun Backup"],
+    ["Download a copy of all data (JSON)","Muat turun salinan semua data (JSON)","Muat turun salinan semua data (JSON)"],
+    ["Save All Contacts","Simpan Semua Kenalan"],
+    ["✓ Contacts saved — will be used for future WhatsApp notifications.","✓ Kenalan disimpan — akan digunakan untuk notifikasi WhatsApp seterusnya.","✓ Kenalan disimpan — akan digunakan untuk notify WhatsApp seterusnya."],
+
+    // ---- Preferences (this file) ----
+    ["Switch to dark mode","Tukar ke mod gelap"],
+    ["Switch to light mode","Tukar ke mod cerah"],
+    ["Language","Bahasa"],
+  ];
+
+  const TEMPLATES = [
+    ["{a} vehicles · {b} companies","{a} kenderaan · {b} syarikat"],
+    ["Showing {a} of {b} vehicles · {c} included in the calculation","Paparan {a} daripada {b} kenderaan · {c} dikira dalam pengiraan"],
+    ["Showing {a} of {b} vehicles","Paparan {a} daripada {b} kenderaan"],
+    ["{a} vehicles","{a} kenderaan"],
+    ["{a} vehicles · {b} repair tickets in this period · click a row for details","{a} kenderaan · {b} tiket repair dalam tempoh ini · klik baris untuk lihat detail"],
+    ["{a} vehicles · from Fleet Performance 2026.xlsx ·","{a} kenderaan · dari Fleet Performance 2026.xlsx ·"],
+    ["= {a} will be added (0.25L × RM3.17/L per unit)","= {a} akan ditambah (0.25L × RM3.17/L setiap unit)"],
+    ["From {a} selected vehicles — {b}","Dari {a} kenderaan terpilih — {b}"],
+    ["Manual key-in / Excel import below will be saved as data for {a}. Utilization by Branch & the summary above follow this month too.","Key-in manual / import Excel di bawah akan disimpan sebagai data bulan {a}. Utilization by Branch & ringkasan di atas pun ikut bulan ni."],
+    ["Showing {a} month(s) of data entered so far ({b} – {c}) — fleet-wide & by branch, with the Fleet Target line for reference.","Paparan {a} bulan data yang dimasukkan setakat ini ({b} – {c}) — seluruh fleet & ikut branch, dengan garis Sasaran Fleet sebagai rujukan."],
+    ["Fleet Target ({a}%)","Sasaran Fleet ({a}%)"],
+    ["Disposal Requested ({a})","Permohonan Pelupusan ({a})"],
+    ["Disposal Approved ({a})","Pelupusan Diluluskan ({a})"],
+    ["New — In Progress ({a})","Baharu — Dalam Proses ({a})"],
+    ["New — Delivered ({a})","Baharu — Diterima ({a})"],
+    ["Disposed ({a})","Telah Dilupus ({a})"],
+    ["Ticket: {a}","Tiket: {a}"],
+    ["Nothing needs attention in {a}","Tiada yang perlu perhatian di {a}"],
+    ["All companies & branches","Semua syarikat & branch"],
+    ["Filtered — {a} ({b} vehicles)","Ditapis — {a} ({b} kenderaan)"],
+    ["Delete {a} from the compliance register?","Padam {a} dari compliance register?"],
+    ["Delete ticket {a} if it was entered by mistake?","Padam ticket {a} sekiranya ada kesilapan?"],
+    ["Not assigned yet — {a}","Belum di-assign — {a}"],
+    ["Road tax {a}","Cukai jalan {a}"],
+    ["Insurance {a}","Insurans {a}"],
+    ["Inspection {a}","Pemeriksaan {a}"],
+    ["{a} · 🟢 Available","{a} · 🟢 Tersedia"],
+    ["{a} · 🔴 In Workshop","{a} · 🔴 Di Bengkel"],
+    ["{a} · 🟡 Idle","{a} · 🟡 Terbiar"],
+    ["{a} · 🔵 Hired Out","{a} · 🔵 Disewa Keluar"],
+    ["{a} — Available","{a} — Tersedia"],
+    ["{a} — Not available — job {b}","{a} — Tak Available — job {b}"],
+    ["✓ Latest data (synced {a})","✓ Data terkini (synced {a})"],
+    ["✓ Saved {a}","✓ Tersimpan {a}"],
+    ["✓ Ticket saved {a}","✓ Ticket tersimpan {a}"],
+    ["✓ Job request saved {a}","✓ Job request tersimpan {a}"],
+    ["✓ Contacts saved {a}","✓ Kenalan tersimpan {a}"],
+    ["⚠ Server not fully configured: {a}","⚠ Server belum lengkap dikonfigurasi: {a}"],
+  ];
+
+  /* ---------- Dictionary ---------- */
+  const toMs = new Map(), toEn = new Map();
+  const tpl = { ms: [], en: [] };
+  const norm = s => s.replace(/\s+/g, " ").trim();
+  function addPair(en, ms, aliases = []) {
+    en = norm(en); ms = norm(ms);
+    toMs.set(en, ms); toEn.set(ms, en);
+    aliases.forEach(a => { a = norm(a); toMs.set(a, ms); toEn.set(a, en); });
+  }
+  function compile(src, dst) {
+    const names = [];
+    const esc = src.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\{(\w+)\\\}/g, (_, n) => { names.push(n); return "(.+?)"; });
+    return { re: new RegExp("^" + esc + "$"), names, dst };
+  }
+  function addTemplate(en, ms) {
+    tpl.ms.push(compile(norm(en), norm(ms)));
+    tpl.en.push(compile(norm(ms), norm(en)));
+  }
+  let built = false;
+  function build() {
+    if (built) return; built = true;
+    // EN_DICT (in index.html) maps the original Malay/mixed text to English.
+    const dict = (typeof EN_DICT !== "undefined") ? EN_DICT : {};
+    for (const [ms, en] of Object.entries(dict)) {
+      if (/\{\w+\}/.test(ms)) addTemplate(en, ms); else addPair(en, ms);
+    }
+    PAIRS.forEach(([en, ms, ...aliases]) => addPair(en, ms, aliases));
+    TEMPLATES.forEach(([en, ms]) => addTemplate(en, ms));
+  }
+
+  let lang = "en";
+  try { lang = localStorage.getItem(LANG_KEY) === "ms" ? "ms" : "en"; } catch {}
+
+  /* Translate one string into `to` ("en" | "ms"); returns the input when unknown. */
+  function translate(text, to = lang) {
+    if (!text || !/[A-Za-z]/.test(text)) return text;
+    build();
+    const key = norm(text);
+    if (!key) return text;
+    const map = to === "ms" ? toMs : toEn;
+    let out = map.get(key);
+    if (out === undefined) {
+      for (const t of tpl[to]) {
+        const m = key.match(t.re);
+        if (m) { out = t.dst.replace(/\{(\w+)\}/g, (_, n) => { const v = m[t.names.indexOf(n) + 1]; return v === undefined ? "" : translate(v, to); }); break; }
+      }
+    }
+    if (out === undefined || out === key) return text;
+    // keep the node's surrounding whitespace
+    const lead = text.match(/^\s*/)[0], trail = text.match(/\s*$/)[0];
+    return lead + out + trail;
+  }
+
+  /* ---------- DOM pass ---------- */
+  const SKIP = new Set(["SCRIPT", "STYLE", "TEXTAREA", "NOSCRIPT"]);
+  const textOrig = new WeakMap();           // text node -> { src, set }
+  const attrOrig = new WeakMap();           // element -> { [attr]: { src, set } }
+  const ATTRS = ["placeholder", "title", "aria-label"];
+
+  function doText(node) {
+    const p = node.parentElement;
+    if (!p || SKIP.has(p.tagName) || p.closest("[data-no-i18n]")) return;
+    const rec = textOrig.get(node);
+    const cur = node.nodeValue;
+    const src = rec && rec.set === cur ? rec.src : cur;   // the app may have replaced our text
+    const out = translate(src);
+    if (out !== src) { textOrig.set(node, { src, set: out }); if (cur !== out) node.nodeValue = out; }
+    else { textOrig.delete(node); if (cur !== src) node.nodeValue = src; }
+  }
+  function doAttrs(el) {
+    if (el.closest && el.closest("[data-no-i18n]")) return;
+    for (const a of ATTRS) {
+      if (!el.hasAttribute || !el.hasAttribute(a)) continue;
+      const recs = attrOrig.get(el) || {};
+      const cur = el.getAttribute(a);
+      const rec = recs[a];
+      const src = rec && rec.set === cur ? rec.src : cur;
+      const out = translate(src);
+      if (out !== src) { recs[a] = { src, set: out }; attrOrig.set(el, recs); if (cur !== out) el.setAttribute(a, out); }
+      else { delete recs[a]; if (cur !== src) el.setAttribute(a, src); }
+    }
+  }
+  function walk(root) {
+    if (root.nodeType === 3) { doText(root); return; }
+    if (root.nodeType !== 1 || SKIP.has(root.tagName)) return;
+    doAttrs(root);
+    root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(doAttrs);
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n; while ((n = w.nextNode())) doText(n);
+  }
+
+  let observer = null;
+  function observe() {
+    observer = new MutationObserver(muts => {
+      for (const m of muts) {
+        if (m.type === "characterData") doText(m.target);
+        else if (m.type === "attributes") doAttrs(m.target);
+        else m.addedNodes.forEach(walk);
+      }
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  }
+
+  /* ---------- Language ---------- */
+  function applyLang() {
+    document.documentElement.lang = lang === "ms" ? "ms" : "en";
+    walk(document.body);
+    document.querySelectorAll("[data-lang-btn]").forEach(b => {
+      const on = b.dataset.langBtn === lang;
+      b.classList.toggle("active", on); b.setAttribute("aria-pressed", on);
+    });
+    updateThemeBtn();
+  }
+  function setLang(l) {
+    lang = l === "ms" ? "ms" : "en";
+    try { localStorage.setItem(LANG_KEY, lang); } catch {}
+    applyLang();
+    window.dispatchEvent(new CustomEvent("fleet:lang", { detail: lang }));
+  }
+
+  /* ---------- Theme ---------- */
+  function currentTheme() { return document.documentElement.dataset.theme === "dark" ? "dark" : "light"; }
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t === "dark" ? "dark" : "light";
+    try { localStorage.setItem(THEME_KEY, document.documentElement.dataset.theme); } catch {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", t === "dark" ? "#0D0E0F" : "#17181A");
+    updateThemeBtn();
+    window.dispatchEvent(new CustomEvent("fleet:theme", { detail: currentTheme() }));
+  }
+  function updateThemeBtn() {
+    const btn = document.getElementById("themeToggle");
+    if (!btn) return;
+    const dark = currentTheme() === "dark";
+    btn.textContent = dark ? "☀️" : "🌙";
+    const label = translate(dark ? "Switch to light mode" : "Switch to dark mode");
+    btn.title = label; btn.setAttribute("aria-label", label);
+  }
+
+  /* Pop-up messages follow the chosen language too. */
+  const nativeAlert = window.alert.bind(window), nativeConfirm = window.confirm.bind(window);
+  window.alert = m => nativeAlert(translate(String(m)));
+  window.confirm = m => nativeConfirm(translate(String(m)));
+
+  /* CSS custom property lookup for chart / SVG colours. */
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  window.fleetI18n = {
+    get lang() { return lang; },
+    tr: s => translate(s),
+    setLang, setTheme,
+    toggleTheme: () => setTheme(currentTheme() === "dark" ? "light" : "dark"),
+    get theme() { return currentTheme(); },
+    cssVar,
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-lang-btn]").forEach(b => b.addEventListener("click", () => setLang(b.dataset.langBtn)));
+    const tb = document.getElementById("themeToggle");
+    if (tb) tb.addEventListener("click", () => window.fleetI18n.toggleTheme());
+    applyLang();
+    observe();
+  });
+})();

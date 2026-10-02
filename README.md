@@ -18,6 +18,8 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 | Library (Chart.js, XLSX, PDF.js) | CDN | Dibundle dalam `public/vendor` — tak bergantung pada CDN |
 | Telefon | Layout desktop sahaja | Layout mobile (menu ☰), boleh **install sebagai app** (PWA) di Android / iPhone |
 | Backup | — | Butang **⬇ Download Backup** di Settings (admin) → fail JSON semua data |
+| Bahasa | English sahaja (campur BM) | Butang **BM / EN** di atas — semua teks, popup & carta tukar terus; pilihan diingat (`public/i18n.js`) |
+| Tema | Cerah sahaja | Butang **🌙 / ☀️** — mod gelap & cerah, ikut tetapan peranti pada kali pertama |
 
 ## Deploy — Vercel + Supabase
 

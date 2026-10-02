@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <title>Fleet Swis Group — Fleet Ops</title>
@@ -11,7 +11,12 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<script>
+/* Apply the saved (or system) theme before first paint to avoid a light flash. */
+(function(){ try{ var t=localStorage.getItem("fleetTheme"); if(t!=="light"&&t!=="dark") t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"; document.documentElement.dataset.theme=t; }catch(e){ document.documentElement.dataset.theme="light"; } })();
+</script>
 <script src="/app-storage.js"></script>
+<script src="/i18n.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="/vendor/chart.umd.js"></script>
@@ -37,6 +42,49 @@
   --info:#3B6E91;
   --info-bg:#E7F0F6;
   --radius:3px;
+  --panel-2:#FAFAF7;      /* sub-panels, table hover */
+  --field-ro:#F0F0EC;     /* read-only inputs */
+  --muted-bg:#EDEDE7;     /* tracks, neutral badges */
+  --note-bg:#FFF9E9;      /* yellow form panels */
+  --ok-note-bg:#EAFBF1;   /* green confirmation panels */
+  --row-hl:#FFFDF3;       /* highlighted table row */
+  --faint:#B7B9B4;        /* empty-cell dashes */
+  --grid:#EDEDE7;         /* chart grid lines */
+  --needle:#17181A;       /* gauge needle / fleet line */
+  --needle-fill:rgba(23,24,26,.08);
+  --btn-bg:#17181A;
+  --btn-hover:#2C2E30;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#121314;
+  --panel:#1B1D1F;
+  --ink:#ECECE8;
+  --ink-soft:#A2A6AA;
+  --steel:#8A96A2;
+  --line:#33373A;
+  --oil:#0D0E0F;
+  --danger:#E8766D;
+  --danger-bg:#3B201D;
+  --good:#63B98B;
+  --good-bg:#18301F;
+  --warn:#E2A64A;
+  --warn-bg:#382B14;
+  --info:#74A8CD;
+  --info-bg:#172A37;
+  --panel-2:#222527;
+  --field-ro:#2A2D30;
+  --muted-bg:#2D3033;
+  --note-bg:#2C2613;
+  --ok-note-bg:#142B1C;
+  --row-hl:#2A2616;
+  --faint:#62666A;
+  --grid:#2E3134;
+  --needle:#ECECE8;
+  --needle-fill:rgba(236,236,232,.08);
+  --btn-bg:#383C40;
+  --btn-hover:#45494E;
+  color-scheme:dark;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -148,7 +196,7 @@ nav{padding:14px 10px;flex:1;}
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   padding:20px;margin-bottom:20px;
 }
-.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;}
 .panel-head h3{font-family:'Oswald',sans-serif;font-size:14px;font-weight:600;margin:0;letter-spacing:.03em;text-transform:uppercase;}
 .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
@@ -162,7 +210,7 @@ th{
 }
 td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--ink);}
 tr:last-child td{border-bottom:none;}
-tr:hover td{background:#FAFAF7;}
+tr:hover td{background:var(--panel-2);}
 .mono-cell{font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
 
 /* ---- Badges ---- */
@@ -174,20 +222,20 @@ tr:hover td{background:#FAFAF7;}
 .badge.warn{background:var(--warn-bg);color:var(--warn);}
 .badge.danger{background:var(--danger-bg);color:var(--danger);}
 .badge.info{background:var(--info-bg);color:var(--info);}
-.badge.neutral{background:#EDEDE7;color:var(--ink-soft);}
+.badge.neutral{background:var(--muted-bg);color:var(--ink-soft);}
 
 /* ---- Buttons / forms ---- */
 .btn{
   font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;border:none;
-  padding:9px 16px;border-radius:var(--radius);cursor:pointer;background:var(--oil);color:#fff;
+  padding:9px 16px;border-radius:var(--radius);cursor:pointer;background:var(--btn-bg);color:#fff;
 }
-.btn:hover{background:#2C2E30;}
+.btn:hover{background:var(--btn-hover);}
 .btn.yellow{background:var(--yellow);color:var(--oil);}
 .btn.yellow:hover{background:var(--yellow-deep);}
 .btn.ghost{background:none;border:1px solid var(--line);color:var(--ink);}
 input,select,textarea{
   font-family:'Inter',sans-serif;font-size:13px;padding:8px 10px;border:1px solid var(--line);
-  border-radius:var(--radius);background:#fff;color:var(--ink);width:100%;
+  border-radius:var(--radius);background:var(--panel);color:var(--ink);width:100%;
 }
 label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
@@ -203,16 +251,16 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .view.active{display:block;}
 
 /* ---- Progress bar (utilization) ---- */
-.ubar-track{width:100%;height:7px;background:#EDEDE7;border-radius:20px;overflow:hidden;}
+.ubar-track{width:100%;height:7px;background:var(--muted-bg);border-radius:20px;overflow:hidden;}
 .ubar-fill{height:100%;border-radius:20px;background:var(--yellow);}
 .ubar-fill.low{background:var(--danger);}
 .ubar-fill.mid{background:var(--warn);}
 .ubar-fill.high{background:var(--good);}
 
 .pipeline{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px;}
-.pipe-col{flex:1;min-width:220px;background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:12px;}
+.pipe-col{flex:1;min-width:220px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px;}
 .pipe-col h4{font-family:'Oswald',sans-serif;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;color:var(--ink-soft);}
-.pipe-card{background:#fff;border:1px solid var(--line);border-left:3px solid var(--yellow);border-radius:2px;padding:10px;margin-bottom:8px;font-size:12.5px;}
+.pipe-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);border-radius:2px;padding:10px;margin-bottom:8px;font-size:12.5px;}
 .pipe-card.dispose{border-left-color:var(--danger);}
 .pipe-card .veh{font-weight:600;}
 .pipe-card .meta{color:var(--ink-soft);font-size:11px;margin-top:3px;}
@@ -223,6 +271,19 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
   .kpi-row{grid-template-columns:repeat(3,1fr);}
   .grid-2,.grid-3,.two-col-charts{grid-template-columns:1fr;}
 }
+
+/* ---- Language & theme toggles ---- */
+.prefs{display:flex;align-items:center;gap:6px;}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel-2);}
+.seg button{background:none;border:none;color:var(--ink-soft);font:600 11.5px 'Inter',sans-serif;padding:6px 10px;cursor:pointer;letter-spacing:.03em;}
+.seg button + button{border-left:1px solid var(--line);}
+.seg button.active{background:var(--yellow);color:#17181A;}
+.icon-btn{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:5px 9px;font-size:14px;line-height:1;cursor:pointer;color:var(--ink);}
+.icon-btn:hover,.seg button:hover:not(.active){color:var(--ink);background:var(--muted-bg);}
+:root[data-theme="dark"] .date-plate{background:#000;}
+:root[data-theme="dark"] .kpi .value, :root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3{color:var(--ink);}
+:root[data-theme="dark"] th{border-bottom-color:var(--ink-soft);}
+:root[data-theme="dark"] input[type="date"], :root[data-theme="dark"] input[type="month"], :root[data-theme="dark"] input[type="time"]{color-scheme:dark;}
 
 /* ---- Mobile (drivers / requesters on phones) ---- */
 .menu-btn{display:none;background:none;border:1px solid var(--line);border-radius:var(--radius);font-size:18px;line-height:1;padding:6px 10px;cursor:pointer;color:var(--ink);}
@@ -288,16 +349,23 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="gf-bar" style="display:flex;align-items:center;gap:6px;background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:6px 10px;">
+        <div class="gf-bar" style="display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 10px;">
           <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);white-space:nowrap;">🌐 Dashboard view:</span>
           <select id="gf_company" onchange="applyGlobalFilter()" style="width:auto;font-size:12px;padding:5px 8px;min-width:130px;"><option value="">All companies</option></select>
           <select id="gf_branch" onchange="applyGlobalFilter()" style="width:auto;font-size:12px;padding:5px 8px;min-width:110px;"><option value="">All branches</option></select>
           <button class="btn ghost" id="gf_clearBtn" style="padding:5px 9px;font-size:11px;display:none;" onclick="clearGlobalFilter()" title="Clear dashboard view filter">✕</button>
         </div>
+        <div class="prefs">
+          <div class="seg" role="group" aria-label="Language / Bahasa">
+            <button type="button" data-lang-btn="ms" title="Bahasa Malaysia">BM</button>
+            <button type="button" data-lang-btn="en" title="English">EN</button>
+          </div>
+          <button type="button" class="icon-btn" id="themeToggle" aria-label="Switch to dark mode">🌙</button>
+        </div>
         <div class="date-plate" id="clockPlate">—</div>
       </div>
     </div>
-    <div id="gf_statusBar" style="display:none;background:#FFF9E9;border-bottom:1px solid var(--yellow-deep);padding:6px 30px;font-size:11.5px;color:var(--ink-soft);"></div>
+    <div id="gf_statusBar" style="display:none;background:var(--note-bg);border-bottom:1px solid var(--yellow-deep);padding:6px 30px;font-size:11.5px;color:var(--ink-soft);"></div>
 
     <div class="content">
 
@@ -370,7 +438,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           </div>
         </div>
 
-        <div class="panel" id="ticketNotifyPanel" style="display:none;background:#EAFBF1;box-shadow:none;border:1px solid var(--good);">
+        <div class="panel" id="ticketNotifyPanel" style="display:none;background:var(--ok-note-bg);box-shadow:none;border:1px solid var(--good);">
           <div class="panel-head" style="margin-bottom:8px;"><h3 style="font-size:12.5px;">✓ Ticket Dilog — Notify PIC / Admin</h3></div>
           <p id="ticketNotifyTarget" style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;"></p>
           <div class="form-actions" style="justify-content:flex-start;">
@@ -420,7 +488,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           </div>
         </div>
 
-        <div class="panel" id="hireNotifyPanel" style="display:none;background:#EAFBF1;box-shadow:none;border:1px solid var(--good);">
+        <div class="panel" id="hireNotifyPanel" style="display:none;background:var(--ok-note-bg);box-shadow:none;border:1px solid var(--good);">
           <div class="panel-head" style="margin-bottom:8px;"><h3 style="font-size:12.5px;">✓ Request Dilog — Notify PIC / Admin</h3></div>
           <p id="hireNotifyTarget" style="font-size:12px;color:var(--ink-soft);margin:0 0 10px;"></p>
           <div class="form-actions" style="justify-content:flex-start;">
@@ -447,7 +515,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           <div class="panel-head">
             <h3>Compliance Register — Road Tax, Inspection, Insurance, JKKP &amp; APAD</h3>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);" id="cr_countSub">128 vehicles · 11 companies</span>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
               <span id="cr_syncStatus" style="font-size:10.5px;color:var(--ink-soft);"></span>
               <button class="btn ghost" id="cr_refreshBtn" onclick="manualRefreshCompliance()" title="Tarik data terkini dari shared storage">🔄 Refresh</button>
               <label style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0;">Branch anda (OKLG/OSJ/dll):</label>
@@ -461,7 +529,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             </div>
           </div>
 
-          <div class="panel" id="loginPanel" style="display:none;background:#FFF9E9;box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
+          <div class="panel" id="loginPanel" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
             <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">Admin Login — Full Access</h3></div>
             <div class="form-row" style="grid-template-columns:1fr;">
               <div><label>Password Admin</label><input id="login_password" type="password" placeholder="Masukkan password admin" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAdminLogin();}"></div>
@@ -472,7 +540,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             </div>
           </div>
 
-          <div class="panel" id="addVehicleForm" style="display:none;background:#FFF9E9;box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
+          <div class="panel" id="addVehicleForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
             <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">Tambah Kenderaan Baharu (Pembelian Baharu)</h3></div>
             <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
               <div><label>Company</label><input id="av_company" placeholder="e.g. AKLI"></div>
@@ -507,7 +575,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 
           <div style="max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
-            <thead style="position:sticky;top:0;background:#fff;z-index:1;">
+            <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
               <tr id="complianceHeadRow"><th>Company</th><th>Category</th><th>Plate</th><th>Location</th><th>Road Tax</th><th>Inspection</th><th>Insurance</th><th>JKKP</th><th>APAD</th></tr>
             </thead>
             <tbody id="complianceBody"></tbody>
@@ -522,7 +590,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             <span class="sub" style="font-size:11px;color:var(--ink-soft);">Driver / requester submits via the Driver &amp; Requester page → Admin replies with location/vendor &amp; status here</span>
           </div>
 
-          <div class="panel" id="adminReplyForm" style="display:none;background:#FFF9E9;box-shadow:none;border:1px solid var(--yellow-deep);">
+          <div class="panel" id="adminReplyForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);">
             <div class="panel-head" style="margin-bottom:10px;">
               <h3 style="font-size:12.5px;">Admin Reply — <span id="ar_summary" class="mono"></span></h3>
             </div>
@@ -636,7 +704,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           </div>
           <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-8px;margin-bottom:14px;">143 kenderaan · dari Fleet Performance 2026.xlsx · <span style="color:var(--warn);">Wastage</span> = amaran idling berlebihan sahaja, tidak dikira dalam Total (kos minyak sebenar sudah termasuk dalam Fuel semasa refuel)</span>
 
-          <div class="panel" id="costImportPanel" style="display:none;background:#FAFAF7;box-shadow:none;">
+          <div class="panel" id="costImportPanel" style="display:none;background:var(--panel-2);box-shadow:none;">
             <div class="panel-head" style="margin-bottom:8px;"><h3 style="font-size:12.5px;">📥 Import Cost Data (Excel / PDF)</h3></div>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-bottom:12px;">Nilai yang di-import akan <strong>ditambah</strong> pada jumlah sedia ada (sama macam "Key In Cost" manual) — bukan gantikan terus. Excel/CSV paling tepat (boleh banyak column sekaligus). PDF sifatnya best-effort sahaja (format PDF macam-macam) — pilih satu kategori kos untuk di-extract dan semak semula lepas import.</span>
 
@@ -665,7 +733,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             </div>
           </div>
 
-          <div class="panel" id="costEntryForm" style="display:none;background:#FAFAF7;box-shadow:none;">
+          <div class="panel" id="costEntryForm" style="display:none;background:var(--panel-2);box-shadow:none;">
             <div class="form-row">
               <div style="grid-column:1/-1;">
                 <label>Cari Kenderaan (plate / company)</label>
@@ -704,7 +772,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 
           <div style="max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
-            <thead style="position:sticky;top:0;background:#fff;z-index:1;">
+            <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
               <tr><th>Plate</th><th>Company</th><th>Type</th><th>Driver</th><th>Fuel (RM)</th><th>Repair (RM)</th><th>Insurance (RM)</th><th>Toll (RM)</th><th>Wastage (RM)</th><th>Total (RM)</th><th></th></tr>
             </thead>
             <tbody id="costBody"></tbody>
@@ -725,7 +793,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           <div class="kpi"><div class="label">— Sewa vs Sendiri</div><div class="value mono" id="hireSourceSplit" style="font-size:19px;">—</div><div class="foot">Nisbah bulan ini</div></div>
         </div>
 
-        <div class="panel" style="background:#FAFAF7;box-shadow:none;">
+        <div class="panel" style="background:var(--panel-2);box-shadow:none;">
           <div class="panel-head" style="margin-bottom:0;">
             <h3 style="font-size:12.5px;">Step 1 — Log Job Request</h3>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);">Submitted by the requester from the Driver &amp; Requester page</span>
@@ -738,26 +806,26 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             <span class="sub" style="font-size:11px;color:var(--ink-soft);">Pilih sewa atau kenderaan sendiri, generate reply</span>
           </div>
 
-          <div style="background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+          <div style="background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
             <label style="margin-bottom:8px;">Details Dari Request (terus dari user — tak boleh diubah di sini)</label>
             <div class="form-row">
-              <div><label>Unit</label><input id="as_unit" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
-              <div><label>Company</label><input id="as_company" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
+              <div><label>Unit</label><input id="as_unit" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
+              <div><label>Company</label><input id="as_company" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
             </div>
             <div class="form-row">
-              <div><label>Tarikh</label><input id="as_tarikh" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
-              <div><label>Masa</label><input id="as_masa" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
+              <div><label>Tarikh</label><input id="as_tarikh" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
+              <div><label>Masa</label><input id="as_masa" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
             </div>
             <div class="form-row">
-              <div><label>Project</label><input id="as_project" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
-              <div><label>Tempat</label><input id="as_tempat" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
+              <div><label>Project</label><input id="as_project" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
+              <div><label>Tempat</label><input id="as_tempat" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
             </div>
             <div class="form-row">
-              <div style="grid-column:1/-1;"><label>Load</label><input id="as_load" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
+              <div style="grid-column:1/-1;"><label>Load</label><input id="as_load" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
             </div>
             <div class="form-row" style="margin-bottom:0;">
-              <div><label>Sv (tapak)</label><input id="as_sv" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
-              <div><label>No. Telefon Sv</label><input id="as_sv_phone" readonly style="background:#F0F0EC;color:var(--ink-soft);"></div>
+              <div><label>Sv (tapak)</label><input id="as_sv" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
+              <div><label>No. Telefon Sv</label><input id="as_sv_phone" readonly style="background:var(--field-ro);color:var(--ink-soft);"></div>
             </div>
           </div>
 
@@ -788,7 +856,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             <button class="btn yellow" onclick="generateAssignReply()">Generate Reply &amp; Update Record</button>
           </div>
 
-          <div id="hireReplyWrap" style="display:none;margin-top:16px;background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:14px;">
+          <div id="hireReplyWrap" style="display:none;margin-top:16px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;">
             <label style="margin-bottom:8px;">Reply Template (copy &amp; paste ke WhatsApp untuk inform user)</label>
             <textarea id="hireReplyText" readonly style="width:100%;min-height:170px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.6;resize:vertical;"></textarea>
             <div class="form-actions" style="margin-top:8px;">
@@ -851,15 +919,15 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           </div>
           <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-8px;margin-bottom:14px;">Tapis ikut <strong>Type</strong> &amp; <strong>Branch</strong>, kemudian tanda kenderaan yang patut dikira dalam purata utilization (fleet &amp; branch) — bukan semua kenderaan wajib dikira, cth kenderaan HQ shared / motorsikal / dah dispose boleh ditak-tanda. <strong>Admin</strong> boleh key in terus bilangan <strong>Days Utilized</strong> dari GPS Oncore pada column Utilization (satu-satu, dalam hari — bukan %), <strong>atau upload terus fail Excel</strong> yang di-download dari GPS Oncore untuk update semua sekali gus. Utilization % dikira automatik dari Days Utilized ÷ bilangan hari bekerja dalam <strong>Fleet Target</strong> (set di bawah) — bukan dari % dalam fail Oncore itu sendiri.</span>
 
-          <div id="utilDataMonthPanel" style="background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
+          <div id="utilDataMonthPanel" style="background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
             <div class="form-row" style="grid-template-columns:220px 1fr;align-items:end;margin-bottom:0;">
-              <div><label>Data Month</label><input type="month" id="utilDataMonth" disabled style="background:#EFEFE9;color:var(--ink-soft);cursor:not-allowed;"></div>
+              <div><label>Data Month</label><input type="month" id="utilDataMonth" disabled style="background:var(--field-ro);color:var(--ink-soft);cursor:not-allowed;"></div>
               <div style="font-size:11px;color:var(--ink-soft);" id="utilDataMonthNote"></div>
             </div>
             <div style="font-size:10.5px;color:var(--ink-soft);margin-top:8px;">🔗 Bulan ni sentiasa ikut bulan <strong>Fleet Target</strong> di atas (satu je tempat nak set bulan) — <button class="btn ghost" style="padding:1px 8px;font-size:10.5px;" onclick="jumpToFleetTargetEdit()">Tukar bulan →</button></div>
           </div>
 
-          <div id="utilExcelImportPanel" style="display:none;background:#FAFAF7;border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
+          <div id="utilExcelImportPanel" style="display:none;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
             <div class="panel-head" style="margin-bottom:8px;"><h3 style="font-size:12.5px;">📤 Import Utilization dari Excel (GPS Oncore)</h3></div>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-bottom:10px;">Fail .xlsx / .csv dengan column <strong>plat kenderaan</strong> &amp; <strong>utilization %</strong> (nama column fleksibel, cth "Plate"/"No Plat" dan "Utilization"/"Util %"). Baris pertama mesti header.</span>
             <div class="form-row" style="grid-template-columns:1fr auto;align-items:end;margin-bottom:0;">
@@ -887,7 +955,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 
           <div style="max-height:480px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
-            <thead style="position:sticky;top:0;background:#fff;z-index:1;">
+            <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
               <tr><th>Included</th><th>Plate</th><th>Company</th><th>Type</th><th>Branch</th><th>Driver</th><th>Utilization</th><th>Status</th></tr>
             </thead>
             <tbody id="utilBody"></tbody>
@@ -970,7 +1038,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 </div>
 
 <script>
-/* ===================== I18N (English only) & LIVE CLOCK =====================
+/* ===================== I18N & LIVE CLOCK =====================
+   NOTE: the BM / EN switch now lives in i18n.js — it translates whatever this file
+   renders. The notes below describe the original English-only setup.
    System dashboard ni sekarang fully English sahaja — tiada toggle bahasa. EN_DICT
    digunakan untuk terjemah terus teks asal (BM / campuran BM-EN) yang ada dalam kod
    ni ke English, applyLanguage() sapu semua elemen teks statik + render*() dipanggil
@@ -1531,7 +1601,7 @@ function syncFleetStatusFromTickets(){
 
 /* ---- Compliance status helpers ---- */
 function statusBadge(status, dateStr){
-  if(!dateStr) return `<span style="color:#B7B9B4;">—</span>`;
+  if(!dateStr) return `<span style="color:var(--faint);">—</span>`;
   if(status==="overdue") return `${dateStr} ${badge("Overdue","danger")}`;
   if(status==="soon") return `${dateStr} ${badge("Due soon","warn")}`;
   return `${dateStr} ${badge("OK","good")}`;
@@ -1623,7 +1693,7 @@ function renderComplianceTable(){
       <td><button class="btn ghost" style="padding:4px 9px;font-size:10.5px;color:#C1443C;" onclick="deleteComplianceVehicle(${d.id})">✕ Remove</button></td></tr>`;
     }
     if(isOwnBranch){
-      return `<tr style="background:#FFFDF3;">
+      return `<tr style="background:var(--row-hl);">
       <td style="font-weight:600;">${d.company}</td><td>${d.category}</td><td class="mono-cell">${d.plate}</td><td>${d.location}</td>
       <td class="mono-cell">${dateInput(d,"roadTax","roadTaxStatus")}</td>
       <td class="mono-cell">${dateInput(d,"inspection","inspectionStatus")}</td>
@@ -1784,6 +1854,23 @@ async function addComplianceVehicle(){
   await persistComplianceRegister();
 }
 
+/* ---- Language / theme switch: charts are canvas, so rebuild them in the new
+   language & colours. DOM text is translated by i18n.js automatically. ---- */
+let fleetStatusChart = null;
+function rebuildChartsForPrefs(){
+  Chart.defaults.color = fleetI18n.cssVar("--ink-soft");
+  Chart.defaults.borderColor = fleetI18n.cssVar("--line");
+  try{ renderOverview(); }catch(e){ console.warn(e); }
+  try{ renderCostingTable(); }catch(e){ console.warn(e); }
+  try{ renderUtilization(); }catch(e){ console.warn(e); }
+}
+window.addEventListener("fleet:lang", rebuildChartsForPrefs);
+window.addEventListener("fleet:theme", rebuildChartsForPrefs);
+if(window.Chart){
+  Chart.defaults.color = fleetI18n.cssVar("--ink-soft");
+  Chart.defaults.borderColor = fleetI18n.cssVar("--line");
+}
+
 /* ===================== NAV ===================== */
 const titles = {
   overview:["Fleet Dashboard","Company-owned fleet — overview across all modules"],
@@ -1880,12 +1967,13 @@ function renderOverview(){
     </div>`).join("");
 
   // compliance status chart — OK / Due soon / Overdue, live from the register (scoped)
-  new Chart(document.getElementById("chartFleetStatus"),{
+  if(fleetStatusChart) fleetStatusChart.destroy();
+  fleetStatusChart = new Chart(document.getElementById("chartFleetStatus"),{
     type:"bar",
-    data:{labels:["OK","Due Soon","Overdue"],
+    data:{labels:["OK","Due Soon","Overdue"].map(fleetI18n.tr),
       datasets:[{data:[okCompliance,dueSoon,overdueService],
         backgroundColor:["#3F7D5C","#B9791A","#C1443C"],borderRadius:3,maxBarThickness:46}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:"#EDEDE7"}},x:{grid:{display:false}}}}
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}}
   });
 
   drawGauge("mainGauge",avgUtil);
@@ -1901,14 +1989,14 @@ function renderOverview(){
     if(d.insuranceStatus==="overdue") items.push("Insurance "+d.insurance);
     if(d.jkkpStatus==="overdue") items.push("JKKP "+d.jkkp);
     if(d.apadStatus==="overdue") items.push("APAD "+d.apad);
-    rows.push([d.company+" — "+d.plate,"Repair & Maint.",items.join(", "),d.location,badge("Overdue","danger")]);
+    rows.push([d.company+" — "+d.plate,"Repair & Maint.",items.map(i=>`<span>${i}</span>`).join(", "),d.location,badge("Overdue","danger")]);
   });
   tickets.filter(t=>t.priority==="High" && t.status!=="Completed" && ticketInGlobalScope(t)).forEach(t=>rows.push([t.vehicle,"Repair & Maint.","Ticket: "+t.issue,t.status,badge("High","danger")]));
   hiringRecords.filter(h=>h.status==="New" && inGlobalScopeHiring(h)).forEach(h=>rows.push([h.unit,"Hiring",T("Belum di-assign")+" — "+h.company,h.tarikh,badge("New","warn")]));
   if(!scoped) disposePipeline.requested.forEach(d=>rows.push([d.veh,"Dispose","Disposal requested",d.meta,badge("Review","warn")]));
   document.getElementById("attentionBody").innerHTML = rows.length
     ? rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("")
-    : `<tr><td colspan="5" style="color:#B7B9B4;text-align:center;">Nothing needs attention in ${scopeLabel}</td></tr>`;
+    : `<tr><td colspan="5" style="color:var(--faint);text-align:center;">Nothing needs attention in ${scopeLabel}</td></tr>`;
 }
 
 function drawGauge(svgId, pct){
@@ -1933,10 +2021,10 @@ function drawGauge(svgId, pct){
   });
   // needle
   const [nx,ny] = polar(cx,cy,r-24,valueAngle);
-  html += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="#17181A" stroke-width="3" stroke-linecap="round"/>`;
-  html += `<circle cx="${cx}" cy="${cy}" r="6" fill="#17181A"/>`;
-  html += `<text x="20" y="128" font-family="IBM Plex Mono" font-size="10" fill="#54595E">0%</text>`;
-  html += `<text x="188" y="128" font-family="IBM Plex Mono" font-size="10" fill="#54595E">100%</text>`;
+  html += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" style="stroke:var(--needle)" stroke-width="3" stroke-linecap="round"/>`;
+  html += `<circle cx="${cx}" cy="${cy}" r="6" style="fill:var(--needle)"/>`;
+  html += `<text x="20" y="128" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink-soft)">0%</text>`;
+  html += `<text x="188" y="128" font-family="IBM Plex Mono" font-size="10" style="fill:var(--ink-soft)">100%</text>`;
   svg.innerHTML = html;
 }
 
@@ -1976,17 +2064,17 @@ function renderTickets(){
     const cls = t.status==="Completed"?"good":t.status==="In Progress"?"warn":"danger";
     const pcls = t.priority==="High"?"danger":t.priority==="Medium"?"warn":"neutral";
     const diff = t.costFinal!=null ? (t.costFinal - t.costAwal) : null;
-    const diffCell = diff===null ? `<span style="color:#B7B9B4;">—</span>`
+    const diffCell = diff===null ? `<span style="color:var(--faint);">—</span>`
       : diff===0 ? `<span class="mono-cell">RM 0</span>`
       : `<span class="mono-cell" style="color:${diff>0?'var(--danger)':'var(--good)'};font-weight:600;">${diff>0?"+":""}${diff.toLocaleString()}</span>`;
     return `<tr><td class="mono-cell">${t.id}</td><td>${t.vehicle}</td><td>${t.issue}</td><td class="mono-cell">${t.opened}</td>
     <td>${badge(t.priority,pcls)}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
-    <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:#B7B9B4;">—</span>`}</td>
+    <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
-    <td class="mono-cell">${t.completedDate || `<span style="color:#B7B9B4;">—</span>`}</td>
-    <td>${t.location || `<span style="color:#B7B9B4;">${T("Belum di-assign")}</span>`}</td>
-    <td>${t.repairBy || `<span style="color:#B7B9B4;">—</span>`}</td>
+    <td class="mono-cell">${t.completedDate || `<span style="color:var(--faint);">—</span>`}</td>
+    <td>${t.location || `<span style="color:var(--faint);">${T("Belum di-assign")}</span>`}</td>
+    <td>${t.repairBy || `<span style="color:var(--faint);">—</span>`}</td>
     <td>${badge(t.status,cls)}</td>
     <td><button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAdminReply('${t.id}')">${T("Balas / Update")}</button></td>
     ${currentRole==="admin" ? `<td><button class="btn ghost" style="padding:5px 9px;font-size:10.5px;color:#C1443C;" onclick="deleteTicket('${t.id}')">✕ ${T("Padam")}</button></td>` : `<td></td>`}</tr>`;
@@ -2006,7 +2094,7 @@ async function deleteTicket(id){
 let tk_issueList = [];
 function renderIssueChips(){
   document.getElementById("tk_issueChips").innerHTML = tk_issueList.map((iss,idx)=>`
-    <span style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;">
+    <span style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;">
       ${iss}
       <span style="cursor:pointer;color:var(--danger);font-weight:700;" onclick="removeIssueChip(${idx})">✕</span>
     </span>`).join("");
@@ -2218,16 +2306,16 @@ function renderRepairFrequency(){
       const tCls = t.status==="Completed"?"good":t.status==="In Progress"?"warn":"danger";
       const pcls = t.priority==="High"?"danger":t.priority==="Medium"?"warn":"neutral";
       const diff = t.costFinal!=null ? (t.costFinal - t.costAwal) : null;
-      const diffCell = diff===null ? `<span style="color:#B7B9B4;">—</span>`
+      const diffCell = diff===null ? `<span style="color:var(--faint);">—</span>`
         : diff===0 ? `RM 0`
         : `<span style="color:${diff>0?'var(--danger)':'var(--good)'};font-weight:600;">${diff>0?"+":""}${diff.toLocaleString()}</span>`;
       return `<tr><td class="mono-cell">${t.id}</td><td class="mono-cell">${t.opened}</td><td>${t.issue}</td>
       <td>${badge(t.priority,pcls)}</td>
       <td class="mono-cell">${t.costAwal.toLocaleString()}${t.costFinal!=null?` → ${t.costFinal.toLocaleString()}`:""}</td>
       <td class="mono-cell">${diffCell}</td>
-      <td class="mono-cell">${t.completedDate || `<span style="color:#B7B9B4;">—</span>`}</td>
-      <td>${t.location || `<span style="color:#B7B9B4;">—</span>`}</td>
-      <td>${t.repairBy || `<span style="color:#B7B9B4;">—</span>`}</td>
+      <td class="mono-cell">${t.completedDate || `<span style="color:var(--faint);">—</span>`}</td>
+      <td>${t.location || `<span style="color:var(--faint);">—</span>`}</td>
+      <td>${t.repairBy || `<span style="color:var(--faint);">—</span>`}</td>
       <td>${badge(t.status,tCls)}</td></tr>`;
     }).join("");
 
@@ -2238,7 +2326,7 @@ function renderRepairFrequency(){
       <td class="mono-cell">${info.count}</td>
       <td class="mono-cell">${rm(info.cost)}</td><td>${badge(latest.status,statusCls)}</td><td>${kerap}</td></tr>
     <tr id="freqDetail-${idx}" style="display:none;">
-      <td colspan="5" style="background:#FAFAF7;padding:14px 16px;">
+      <td colspan="5" style="background:var(--panel-2);padding:14px 16px;">
         <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">
           <strong>Isu Yang Kerap Berulang:</strong> ${issuesSummary}
         </div>
@@ -2248,7 +2336,7 @@ function renderRepairFrequency(){
         </table>
       </td>
     </tr>`;
-  }).join("") || `<tr><td colspan="5" style="color:#B7B9B4;">Tiada tiket repair untuk tempoh ini</td></tr>`;
+  }).join("") || `<tr><td colspan="5" style="color:var(--faint);">Tiada tiket repair untuk tempoh ini</td></tr>`;
 
   document.getElementById("repairFreqCount").textContent = `${rows.length} kenderaan · ${filtered.length} tiket repair dalam tempoh ini · klik baris untuk lihat detail`;
 
@@ -2382,7 +2470,7 @@ function renderCostingTable(){
   if(costCategoryChart) costCategoryChart.destroy();
   costCategoryChart = new Chart(document.getElementById("chartCostCategory"),{
     type:"doughnut",
-    data:{labels:["Fuel","Repair","Insurance","Toll"],datasets:[{data:[totalFuel,totalRepair,totalInsurance,totalToll],backgroundColor:["#FDB913","#C1443C","#3B6E91","#B9791A"]}]},
+    data:{labels:["Fuel","Repair","Insurance","Toll"].map(fleetI18n.tr),datasets:[{data:[totalFuel,totalRepair,totalInsurance,totalToll],backgroundColor:["#FDB913","#C1443C","#3B6E91","#B9791A"]}]},
     options:{plugins:{legend:{position:"bottom",labels:{font:{family:"Inter",size:11}}}}}
   });
 
@@ -2409,10 +2497,10 @@ function renderCostingTable(){
   costTrendChart = new Chart(document.getElementById("chartCostTrend"),{
     type:"line",
     data:{labels:monthlyTrend.map(t=>t.month),datasets:[
-      {label:"Fuel"+(isFiltered?" (est.)":""),data:monthlyTrend.map(t=>Math.round(t.fuel*fuelShare)),borderColor:"#FDB913",backgroundColor:"#FDB913",tension:.3,pointRadius:ptRadius,pointBackgroundColor:ptFuelColor},
-      {label:"Repair"+(isFiltered?" (est.)":""),data:monthlyTrend.map(t=>Math.round(t.repair*repairShare)),borderColor:"#C1443C",backgroundColor:"#C1443C",tension:.3,pointRadius:ptRadius,pointBackgroundColor:ptRepairColor},
+      {label:fleetI18n.tr("Fuel")+(isFiltered?" (est.)":""),data:monthlyTrend.map(t=>Math.round(t.fuel*fuelShare)),borderColor:"#FDB913",backgroundColor:"#FDB913",tension:.3,pointRadius:ptRadius,pointBackgroundColor:ptFuelColor},
+      {label:fleetI18n.tr("Repair")+(isFiltered?" (est.)":""),data:monthlyTrend.map(t=>Math.round(t.repair*repairShare)),borderColor:"#C1443C",backgroundColor:"#C1443C",tension:.3,pointRadius:ptRadius,pointBackgroundColor:ptRepairColor},
     ]},
-    options:{plugins:{legend:{position:"bottom",labels:{font:{family:"Inter",size:11}}}},scales:{y:{grid:{color:"#EDEDE7"}},x:{grid:{display:false}}}}
+    options:{plugins:{legend:{position:"bottom",labels:{font:{family:"Inter",size:11}}}},scales:{y:{grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}}
   });
 }
 function costEntryVehicleOptions(searchTerm){
@@ -3189,7 +3277,7 @@ function setUtilDataMonth(val){
 }
 function updateUtilDataMonthNote(){
   const note = document.getElementById("utilDataMonthNote");
-  if(note) note.textContent = `Key-in manual / import Excel di bawah akan disimpan sebagai data bulan ${monthShortLabel(utilDataMonth)}. Utilization by Branch &amp; ringkasan di atas pun ikut bulan ni.`;
+  if(note) note.textContent = `Key-in manual / import Excel di bawah akan disimpan sebagai data bulan ${monthShortLabel(utilDataMonth)}. Utilization by Branch & ringkasan di atas pun ikut bulan ni.`;
   const monthInput = document.getElementById("utilDataMonth");
   if(monthInput && monthInput.value !== utilDataMonth) monthInput.value = utilDataMonth;
 }
@@ -3521,20 +3609,20 @@ function renderUtilization(){
     spanGaps: true
   }));
   const fleetDataset = {
-    label: "Fleet Avg",
+    label: fleetI18n.tr("Fleet Avg"),
     data: monthlyData.fleet,
-    borderColor: "#17181A",
-    backgroundColor: "rgba(23,24,26,.08)",
+    borderColor: fleetI18n.cssVar("--needle"),
+    backgroundColor: fleetI18n.cssVar("--needle-fill"),
     fill: true,
     tension: .3,
     borderWidth: 3,
     pointRadius: 3.5,
-    pointBackgroundColor: monthlyData.fleet.map(v => v==null ? "#17181A" : (v>=FLEET_TARGET_PCT ? "#27AE60" : "#EB5757")),
+    pointBackgroundColor: monthlyData.fleet.map(v => v==null ? fleetI18n.cssVar("--needle") : (v>=FLEET_TARGET_PCT ? "#27AE60" : "#EB5757")),
     spanGaps: true,
     order: 1
   };
   const targetDataset = {
-    label: `Fleet Target (${FLEET_TARGET_PCT}%)`,
+    label: fleetI18n.tr(`Fleet Target (${FLEET_TARGET_PCT}%)`),
     data: monthlyData.months.map(()=>FLEET_TARGET_PCT),
     borderColor: "#EB5757",
     borderDash: [6,4],
@@ -3554,7 +3642,7 @@ function renderUtilization(){
         legend:{display:true, position:"bottom", labels:{boxWidth:11, padding:10, font:{size:10.5}}},
         tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y!=null?ctx.parsed.y+"%":"—"}`}}
       },
-      scales:{y:{min:yMin,max:yMax,grid:{color:"#EDEDE7"}},x:{grid:{display:false}}}
+      scales:{y:{min:yMin,max:yMax,grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}
     }
   });
 }
@@ -3577,7 +3665,7 @@ function renderDispose(){
   ];
   document.getElementById("pipelineWrap").innerHTML = cols.map(([title,items,cls])=>`
     <div class="pipe-col"><h4>${title} (${items.length})</h4>
-      ${items.map(i=>`<div class="pipe-card ${cls}"><div class="veh">${i.veh}</div><div class="meta">${i.meta}</div></div>`).join("") || `<div class="meta" style="color:#B7B9B4;">No items</div>`}
+      ${items.map(i=>`<div class="pipe-card ${cls}"><div class="veh">${i.veh}</div><div class="meta">${i.meta}</div></div>`).join("") || `<div class="meta" style="color:var(--faint);">No items</div>`}
     </div>`).join("");
 }
 
