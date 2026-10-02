@@ -365,12 +365,13 @@ body:not(.is-admin) .admin-only{display:none !important;}
     <nav>
       <button class="nav-btn active" data-view="overview"><span class="num">00</span>Dashboard</button>
       <button class="nav-btn" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
-      <button class="nav-btn admin-only" data-view="repair"><span class="num">02</span>Repair &amp; Maintenance</button>
-      <button class="nav-btn admin-only" data-view="costing"><span class="num">03</span>Costing</button>
-      <button class="nav-btn admin-only" data-view="hiring"><span class="num">04</span>Hiring Management</button>
-      <button class="nav-btn admin-only" data-view="utilization"><span class="num">05</span>Utilization</button>
-      <button class="nav-btn admin-only" data-view="dispose"><span class="num">06</span>New / Dispose</button>
-      <button class="nav-btn admin-only" data-view="settings"><span class="num">07</span>Settings — WhatsApp</button>
+      <button class="nav-btn admin-only" data-view="compliance"><span class="num">02</span>Compliance Register</button>
+      <button class="nav-btn admin-only" data-view="repair"><span class="num">03</span>Repair &amp; Maintenance</button>
+      <button class="nav-btn admin-only" data-view="costing"><span class="num">04</span>Costing</button>
+      <button class="nav-btn admin-only" data-view="hiring"><span class="num">05</span>Hiring Management</button>
+      <button class="nav-btn admin-only" data-view="utilization"><span class="num">06</span>Utilization</button>
+      <button class="nav-btn admin-only" data-view="dispose"><span class="num">07</span>New / Dispose</button>
+      <button class="nav-btn admin-only" data-view="settings"><span class="num">08</span>Settings — WhatsApp</button>
     </nav>
     <div class="sidebar-admin">
       <button type="button" class="admin-login-btn" id="cr_loginBtn" onclick="openAdminLogin()">🔒 Admin Login</button>
@@ -552,17 +553,14 @@ body:not(.is-admin) .admin-only{display:none !important;}
         </div>
       </section>
 
-      <!-- ============ 1. REPAIR & MAINTENANCE ============ -->
-      <section class="view" id="view-repair">
-        <div class="section-plate"><span class="rivet"></span><h2>Repair &amp; Maintenance</h2><span class="sub">Road tax / inspection / insurance / JKKP / APAD renewal — live fleet register</span></div>
+      <!-- ============ COMPLIANCE REGISTER ============ -->
+      <section class="view" id="view-compliance">
+        <div class="section-plate"><span class="rivet"></span><h2>Compliance Register</h2><span class="sub">Road tax / inspection / insurance / JKKP / APAD renewal — live fleet register</span></div>
 
-        <div class="kpi-row" style="grid-template-columns:repeat(6,1fr);">
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
           <div class="kpi"><div class="label">Total Vehicles</div><div class="value" id="rmTotalCount">—</div><div class="foot">In compliance register</div></div>
           <div class="kpi alert"><div class="label">Overdue Renewals</div><div class="value" id="rmOverdueCount">—</div><div class="foot bad">Road tax / inspection / insurance / JKKP / APAD</div></div>
           <div class="kpi"><div class="label">Due Within 30 Days</div><div class="value" id="rmSoonCount">—</div><div class="foot">Needs action this month</div></div>
-          <div class="kpi"><div class="label">Open Workshop Tickets</div><div class="value" id="rmOpenCount">—</div><div class="foot">Across all vehicles</div></div>
-          <div class="kpi"><div class="label">MTD Repair Cost</div><div class="value mono" id="rmMtdCost">—</div><div class="foot">This month, all tickets</div></div>
-          <div class="kpi alert"><div class="label">Paling Kerap Repair</div><div class="value" style="font-size:17px;" id="rmTopRepairVeh">—</div><div class="foot bad">Ikut tapisan bulan/tahun di bawah</div></div>
         </div>
 
         <div class="panel">
@@ -618,6 +616,18 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </table>
           </div>
           <div id="complianceCount" style="font-size:11px;color:var(--ink-soft);margin-top:8px;"></div>
+        </div>
+
+      </section>
+
+      <!-- ============ REPAIR & MAINTENANCE (workshop tickets) ============ -->
+      <section class="view" id="view-repair">
+        <div class="section-plate"><span class="rivet"></span><h2>Repair &amp; Maintenance</h2><span class="sub">Workshop repair tickets, admin replies &amp; repair frequency</span></div>
+
+        <div class="kpi-row" style="grid-template-columns:repeat(3,1fr);">
+          <div class="kpi"><div class="label">Open Workshop Tickets</div><div class="value" id="rmOpenCount">—</div><div class="foot">Across all vehicles</div></div>
+          <div class="kpi"><div class="label">MTD Repair Cost</div><div class="value mono" id="rmMtdCost">—</div><div class="foot">This month, all tickets</div></div>
+          <div class="kpi alert"><div class="label">Paling Kerap Repair</div><div class="value" style="font-size:17px;" id="rmTopRepairVeh">—</div><div class="foot bad">Ikut tapisan bulan/tahun di bawah</div></div>
         </div>
 
         <div class="panel">
@@ -1913,7 +1923,8 @@ if(window.Chart){
 const titles = {
   overview:["Fleet Dashboard","Company-owned fleet — overview across all modules"],
   external:["Driver & Requester","Submit a workshop repair ticket or log a new job request"],
-  repair:["Repair & Maintenance","Service reminders, workshop tickets & repair spend"],
+  compliance:["Compliance Register","Road tax, inspection, insurance, JKKP & APAD expiry for every vehicle"],
+  repair:["Repair & Maintenance","Workshop tickets & repair spend"],
   costing:["Costing","Fleet operating cost by category, vehicle & trend"],
   hiring:["Hiring Management","External hire-ins & internal hiring requests"],
   utilization:["Utilization","Own-asset usage rate & forecast"],
