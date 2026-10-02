@@ -20,7 +20,7 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 | Backup | — | Butang **⬇ Download Backup** di Settings (admin) → fail JSON semua data |
 | Bahasa | English sahaja (campur BM) | Butang **BM / EN** di atas — semua teks, popup & carta tukar terus; pilihan diingat (`public/i18n.js`) |
 | Tema | Cerah sahaja | Butang **🌙 / ☀️** — mod gelap & cerah, ikut tetapan peranti pada kali pertama |
-| Akses halaman | Semua halaman terbuka; admin login dalam Compliance Register | Butang **🔒 Log Masuk Admin** di bawah menu kiri. Tanpa login hanya **00 Dashboard** & **01 Pemandu & Pemohon** dipaparkan; 02–08 untuk admin sahaja (02 Daftar Pematuhan kini halaman sendiri). Pilihan "Branch anda / Read only" dibuang |
+| Akses halaman | Semua halaman terbuka; admin login dalam Compliance Register | Butang **🔒 Log Masuk Admin** di bawah menu kiri. Tanpa login hanya **00 Dashboard** & **01 Pemandu & Pemohon** dipaparkan; 02–09 untuk admin sahaja (02 Daftar Pematuhan, 03 Insurans). Pilihan "Branch anda / Read only" dibuang |
 
 ## Daftar Pematuhan — penapis gaya Excel
 
@@ -29,6 +29,13 @@ senarai tanda nilai dengan **(Pilih Semua)** dan **(Kosong)**. Lajur tarikh dise
 dan boleh ditapis ikut **status** (Tamat Tempoh / Hampir Tamat / OK / Tiada tarikh). Nilai dalam setiap
 senarai ikut tapisan lajur lain. Butang ▾ bertukar kuning bila lajur ditapis; **✕ Kosongkan semua tapisan**
 di bawah jadual.
+
+## 03 Insurans
+
+Daftar insurans setiap kenderaan: Syarikat Insurans, No. Polisi, Perlindungan (Komprehensif / Pihak Ketiga,
+Kebakaran & Kecurian / Pihak Ketiga), Nilai Dilindungi, Premium, Tarikh Mula, Tarikh Tamat & Status, dengan
+penapis gaya Excel yang sama. Kotak ringkasan: kenderaan berinsurans, tamat, tamat ≤ 30 hari, jumlah premium.
+**Tarikh Tamat ialah ruangan Insurans yang sama dalam Daftar Pematuhan** — tukar di mana-mana satu, kedua-duanya ikut.
 
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 

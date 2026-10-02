@@ -394,12 +394,13 @@ body:not(.is-admin) .admin-only{display:none !important;}
       <button class="nav-btn active" data-view="overview"><span class="num">00</span>Dashboard</button>
       <button class="nav-btn" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
       <button class="nav-btn admin-only" data-view="compliance"><span class="num">02</span>Compliance Register</button>
-      <button class="nav-btn admin-only" data-view="repair"><span class="num">03</span>Repair &amp; Maintenance</button>
-      <button class="nav-btn admin-only" data-view="costing"><span class="num">04</span>Costing</button>
-      <button class="nav-btn admin-only" data-view="hiring"><span class="num">05</span>Hiring Management</button>
-      <button class="nav-btn admin-only" data-view="utilization"><span class="num">06</span>Utilization</button>
-      <button class="nav-btn admin-only" data-view="dispose"><span class="num">07</span>New / Dispose</button>
-      <button class="nav-btn admin-only" data-view="settings"><span class="num">08</span>Settings — WhatsApp</button>
+      <button class="nav-btn admin-only" data-view="insurance"><span class="num">03</span>Insurance</button>
+      <button class="nav-btn admin-only" data-view="repair"><span class="num">04</span>Repair &amp; Maintenance</button>
+      <button class="nav-btn admin-only" data-view="costing"><span class="num">05</span>Costing</button>
+      <button class="nav-btn admin-only" data-view="hiring"><span class="num">06</span>Hiring Management</button>
+      <button class="nav-btn admin-only" data-view="utilization"><span class="num">07</span>Utilization</button>
+      <button class="nav-btn admin-only" data-view="dispose"><span class="num">08</span>New / Dispose</button>
+      <button class="nav-btn admin-only" data-view="settings"><span class="num">09</span>Settings — WhatsApp</button>
     </nav>
     <div class="sidebar-admin">
       <button type="button" class="admin-login-btn" id="cr_loginBtn" onclick="openAdminLogin()">🔒 Admin Login</button>
@@ -631,9 +632,35 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <tbody id="complianceBody"></tbody>
           </table>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="complianceCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="crClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll()">✕ Clear all filters</button></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="complianceCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="crClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('compliance')">✕ Clear all filters</button></div>
         </div>
 
+      </section>
+
+      <!-- ============ INSURANCE ============ -->
+      <section class="view" id="view-insurance">
+        <div class="section-plate"><span class="rivet"></span><h2>Insurance</h2><span class="sub">Insurer, policy, cover, premium &amp; expiry for every vehicle</span></div>
+
+        <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
+          <div class="kpi"><div class="label">Insured Vehicles</div><div class="value" id="insTotal">—</div><div class="foot">With an insurance expiry date</div></div>
+          <div class="kpi alert"><div class="label">Expired</div><div class="value" id="insOverdue">—</div><div class="foot bad">Renew immediately</div></div>
+          <div class="kpi"><div class="label">Expiring Within 30 Days</div><div class="value" id="insSoon">—</div><div class="foot">Renew this month</div></div>
+          <div class="kpi"><div class="label">Total Annual Premium</div><div class="value mono" id="insPremiumTotal">—</div><div class="foot" id="insPremiumFoot">From premiums keyed in</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Insurance Register</h3>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Expiry date is shared with the Compliance Register — change it in either place</span>
+          </div>
+          <div style="max-height:600px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
+          <table>
+            <thead style="position:sticky;top:0;background:var(--panel);z-index:1;"><tr id="insHeadRow"></tr></thead>
+            <tbody id="insBody"></tbody>
+          </table>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="insCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="insClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('insurance')">✕ Clear all filters</button></div>
+        </div>
       </section>
 
       <!-- ============ REPAIR & MAINTENANCE (workshop tickets) ============ -->
@@ -1551,6 +1578,7 @@ async function manualRefreshCompliance(){
   await loadComplianceRegister();
   populateComplianceFilters();
   renderComplianceTable();
+  renderInsurance();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
@@ -1710,104 +1738,105 @@ function populateComplianceFilters(){
   const companies = new Set(complianceData.map(d=>d.company));
   document.getElementById("cr_countSub").textContent = `${complianceData.length} vehicles · ${companies.size} companies`;
 }
-/* ===== Excel-style column filters for the Compliance Register =====
+/* ===== Excel-style column filters (shared by the Compliance & Insurance tables) =====
    Every header has a ▾ button: sort, search, tick values ((Blanks) included); date
-   columns list values by year and can also be filtered by status (Overdue / Due soon /
-   OK). Values offered in a column respect the filters set on the other columns. */
-const XL_COLS = [
-  {key:"company",  label:"Company"},
-  {key:"category", label:"Category"},
-  {key:"plate",    label:"Plate"},
-  {key:"location", label:"Location"},
-  {key:"roadTax",    label:"Road Tax",   date:true, status:"roadTaxStatus"},
-  {key:"inspection", label:"Inspection", date:true, status:"inspectionStatus"},
-  {key:"insurance",  label:"Insurance",  date:true, status:"insuranceStatus"},
-  {key:"jkkp",       label:"JKKP",       date:true, status:"jkkpStatus"},
-  {key:"apad",       label:"APAD",       date:true, status:"apadStatus"},
-];
+   columns list values by year → month and can also be filtered by status (Overdue /
+   Due soon / OK / No date). Values offered in a column respect the filters set on the
+   other columns. Each table registers its columns with xlRegister(). */
 const XL_BLANK = "(Blanks)";
-const xlValues = {};     // col key -> Set of allowed value keys (absent = no filter)
-const xlStatuses = {};   // date col key -> Set of allowed statuses
-let xlSort = null;       // {key, dir: 1 | -1}
-let xlOpenKey = null;
+const XL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const XL_TABLES = {};
+let xlOpenRef = null;   // "tableId:colKey" of the open dropdown
 
+function xlRegister(id, cfg){ XL_TABLES[id] = Object.assign({values:{}, statuses:{}, sort:null}, cfg); }
+function xlCol(t, key){ return t.cols.find(c=>c.key===key); }
+function xlRaw(col, d){ return col.get ? col.get(d) : d[col.key]; }
 function xlValueKey(col, d){
-  const v = d[col.key];
+  const v = xlRaw(col, d);
   if(v==null || String(v).trim()==="") return XL_BLANK;
   if(col.date){ const [, m, y] = String(v).split("/"); return y && m ? `${y}-${m.padStart(2,"0")}` : XL_BLANK; }
   return String(v).trim();
 }
-function xlPasses(d, exceptKey){
-  for(const col of XL_COLS){
+function xlPasses(t, d, exceptKey){
+  for(const col of t.cols){
     if(col.key===exceptKey) continue;
-    const allowed = xlValues[col.key];
+    const allowed = t.values[col.key];
     if(allowed && !allowed.has(xlValueKey(col,d))) return false;
-    const st = xlStatuses[col.key];
+    const st = t.statuses[col.key];
     if(st && !st.has(d[col.status] || "blank")) return false;
   }
   return true;
 }
-function xlIsActive(key){ return !!(xlValues[key] || xlStatuses[key]); }
-function xlSortRows(rows){
-  if(!xlSort) return rows;
-  const col = XL_COLS.find(c=>c.key===xlSort.key);
-  const val = d => col.date ? (dmyToIso(d[col.key]) || "") : String(d[col.key]||"").toLowerCase();
+function xlIsActive(t, key){ return !!(t.values[key] || t.statuses[key]); }
+function xlAnyActive(tid){ const t = XL_TABLES[tid]; return t.cols.some(c=>xlIsActive(t,c.key)) || !!t.sort; }
+function xlRows(tid){
+  const t = XL_TABLES[tid];
+  const rows = t.data().filter(d=>xlPasses(t, d, null));
+  if(!t.sort) return rows;
+  const col = xlCol(t, t.sort.key);
+  const val = d => { const v = xlRaw(col, d);
+    if(col.date) return dmyToIso(v) || "";
+    if(col.num) return v==null || v==="" ? "" : Number(v);
+    return String(v==null ? "" : v).toLowerCase(); };
   return rows.slice().sort((a,b)=>{
     const x = val(a), y = val(b);
-    if(!x && y) return 1; if(x && !y) return -1;          // blanks always last
-    return x < y ? -xlSort.dir : x > y ? xlSort.dir : 0;
+    if(x==="" && y!=="") return 1; if(x!=="" && y==="") return -1;     // blanks always last
+    return x < y ? -t.sort.dir : x > y ? t.sort.dir : 0;
   });
 }
-function xlHeaderHtml(){
-  return XL_COLS.map(c=>{
-    const on = xlIsActive(c.key) || (xlSort && xlSort.key===c.key);
-    const icon = xlIsActive(c.key) ? "⛉" : xlSort && xlSort.key===c.key ? (xlSort.dir>0 ? "↑" : "↓") : "▾";
-    return `<th><span class="xl-th"><span>${c.label}</span><button type="button" class="xl-btn${on?" on":""}" onclick="xlOpen('${c.key}', this, event)" aria-label="Filter ${c.label}" title="Filter / sort">${icon}</button></span></th>`;
+function xlHeaderHtml(tid){
+  const t = XL_TABLES[tid];
+  return t.cols.map(c=>{
+    const sorted = t.sort && t.sort.key===c.key;
+    const on = xlIsActive(t, c.key) || sorted;
+    const icon = xlIsActive(t, c.key) ? "⛉" : sorted ? (t.sort.dir>0 ? "↑" : "↓") : "▾";
+    return `<th><span class="xl-th"><span>${c.label}</span><button type="button" class="xl-btn${on?" on":""}" onclick="xlOpen('${tid}','${c.key}', this, event)" aria-label="Filter ${c.label}" title="Filter / sort">${icon}</button></span></th>`;
   }).join("");
 }
-function xlOpen(key, btn, ev){
+function xlOpen(tid, key, btn, ev){
   if(ev) ev.stopPropagation();
-  if(xlOpenKey===key){ xlClose(); return; }
+  if(xlOpenRef===tid+":"+key){ xlClose(); return; }
   xlClose();
-  xlOpenKey = key;
-  const col = XL_COLS.find(c=>c.key===key);
-  const base = complianceData.filter(d=>xlPasses(d, key));
+  xlOpenRef = tid+":"+key;
+  const t = XL_TABLES[tid], col = xlCol(t, key);
+  const base = t.data().filter(d=>xlPasses(t, d, key));
   const counts = new Map();
   base.forEach(d=>{ const k = xlValueKey(col,d); counts.set(k,(counts.get(k)||0)+1); });
-  const vals = [...counts.keys()].filter(k=>k!==XL_BLANK).sort((a,b)=> col.date ? b.localeCompare(a) : a.localeCompare(b));
+  const vals = [...counts.keys()].filter(k=>k!==XL_BLANK).sort((a,b)=>
+    col.date ? b.localeCompare(a) : col.num ? Number(a)-Number(b) : a.localeCompare(b));
   if(counts.has(XL_BLANK)) vals.push(XL_BLANK);
-  const allowed = xlValues[key];
-  const st = xlStatuses[key];
+  const allowed = t.values[key], st = t.statuses[key];
   const box = document.createElement("div");
   box.id = "xlFilterBox"; box.className = "xl-box";
   box.onclick = e=>e.stopPropagation();
-  const sortA = col.date ? "Sort Oldest to Newest" : "Sort A → Z";
-  const sortZ = col.date ? "Sort Newest to Oldest" : "Sort Z → A";
-  const statusBlock = col.date ? `<div class="xl-sec">Filter by Status</div>
+  const sortA = col.date ? "Sort Oldest to Newest" : col.num ? "Sort Smallest to Largest" : "Sort A → Z";
+  const sortZ = col.date ? "Sort Newest to Oldest" : col.num ? "Sort Largest to Smallest" : "Sort Z → A";
+  const isSort = dir => t.sort && t.sort.key===key && t.sort.dir===dir ? "✓ " : "";
+  const statusBlock = col.status ? `<div class="xl-sec">Filter by Status</div>
     ${[["overdue","Overdue"],["soon","Due soon"],["ok","OK"],["blank","No date"]].map(([v,l])=>`<label class="xl-item"><input type="checkbox" data-st="${v}" ${!st||st.has(v)?"checked":""}> <span>${l}</span></label>`).join("")}
     <div class="xl-sep"></div>` : "";
+  const fmt = v => col.num && v!==XL_BLANK ? Number(v).toLocaleString("en-MY") : v;
   box.innerHTML = `
-    <button type="button" class="xl-act" onclick="xlSetSort('${key}',1)">${xlSort&&xlSort.key===key&&xlSort.dir>0?"✓ ":""}↑ <span>${sortA}</span></button>
-    <button type="button" class="xl-act" onclick="xlSetSort('${key}',-1)">${xlSort&&xlSort.key===key&&xlSort.dir<0?"✓ ":""}↓ <span>${sortZ}</span></button>
-    <button type="button" class="xl-act" ${xlIsActive(key)?"":"disabled"} onclick="xlClearCol('${key}')">⛉ <span>Clear Filter From "${col.label}"</span></button>
+    <button type="button" class="xl-act" onclick="xlSetSort('${tid}','${key}',1)">${isSort(1)}↑ <span>${sortA}</span></button>
+    <button type="button" class="xl-act" onclick="xlSetSort('${tid}','${key}',-1)">${isSort(-1)}↓ <span>${sortZ}</span></button>
+    <button type="button" class="xl-act" ${xlIsActive(t,key)?"":"disabled"} onclick="xlClearCol('${tid}','${key}')">⛉ <span>Clear Filter From "${col.label}"</span></button>
     <div class="xl-sep"></div>
     ${statusBlock}
     <input type="search" class="xl-search" placeholder="Search" oninput="xlFilterList(this.value)">
     <div class="xl-list">
       <label class="xl-item xl-all"><input type="checkbox" id="xlAll" ${!allowed?"checked":""} onchange="xlToggleAll(this.checked)"> <span>(Select All)</span></label>
-      ${col.date ? xlDateTreeHtml(vals, counts, allowed) : vals.map(v=>`<label class="xl-item" data-v="${escHtml(v.toLowerCase())}"><input type="checkbox" data-val="${escHtml(v)}" ${!allowed||allowed.has(v)?"checked":""} onchange="xlSyncAll()"> <span>${escHtml(v)}</span><em>${counts.get(v)}</em></label>`).join("")}
+      ${col.date ? xlDateTreeHtml(vals, counts, allowed) : vals.map(v=>`<label class="xl-item" data-v="${escHtml(String(fmt(v)).toLowerCase())}"><input type="checkbox" data-val="${escHtml(v)}" ${!allowed||allowed.has(v)?"checked":""} onchange="xlSyncAll()"> <span>${escHtml(fmt(v))}</span><em>${counts.get(v)}</em></label>`).join("")}
     </div>
-    <div class="xl-foot"><button type="button" class="btn ghost" onclick="xlClose()">Cancel</button><button type="button" class="btn yellow" onclick="xlApply('${key}')">OK</button></div>`;
+    <div class="xl-foot"><button type="button" class="btn ghost" onclick="xlClose()">Cancel</button><button type="button" class="btn yellow" onclick="xlApply('${tid}','${key}')">OK</button></div>`;
   document.body.appendChild(box);
-  const r = btn.getBoundingClientRect();
-  const w = 260;
+  const r = btn.getBoundingClientRect(), w = 260;
+  const top = Math.min(r.bottom + 4, window.innerHeight - 120);
   box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
-  box.style.top = Math.min(r.bottom + 4, window.innerHeight - 120) + "px";
-  box.style.maxHeight = (window.innerHeight - Math.min(r.bottom + 4, window.innerHeight - 120) - 12) + "px";
+  box.style.top = top + "px";
+  box.style.maxHeight = (window.innerHeight - top - 12) + "px";
   xlSyncAll();
   setTimeout(()=>{ const s = box.querySelector(".xl-search"); if(s) s.focus(); }, 0);
 }
-const XL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 /* Date columns: ⊞ year → months, like Excel's date grouping. Month keys are "yyyy-mm". */
 function xlDateTreeHtml(vals, counts, allowed){
   const years = new Map();
@@ -1839,7 +1868,7 @@ function xlYearCheck(y, on){
   document.querySelectorAll(`#xlFilterBox input[data-y="${y}"]`).forEach(b=>{ b.checked = on; });
   xlSyncAll();
 }
-function xlClose(){ const b = document.getElementById("xlFilterBox"); if(b) b.remove(); xlOpenKey = null; }
+function xlClose(){ const b = document.getElementById("xlFilterBox"); if(b) b.remove(); xlOpenRef = null; }
 function xlFilterList(q){
   q = q.trim().toLowerCase();
   document.querySelectorAll("#xlFilterBox .xl-list > .xl-item[data-v], #xlFilterBox .xl-month").forEach(l=>{
@@ -1872,36 +1901,153 @@ function xlSyncAll(){
     yb.checked = n===ms.length; yb.indeterminate = n>0 && n<ms.length;
   });
   const all = document.getElementById("xlAll");
+  if(!all) return;
   const n = boxes.filter(b=>b.checked).length;
   all.checked = n===boxes.length; all.indeterminate = n>0 && n<boxes.length;
 }
-function xlApply(key){
-  const col = XL_COLS.find(c=>c.key===key);
+function xlApply(tid, key){
+  const t = XL_TABLES[tid], col = xlCol(t, key);
   const boxes = [...document.querySelectorAll("#xlFilterBox input[data-val]")];
   const picked = boxes.filter(b=>b.checked).map(b=>b.dataset.val);
-  if(picked.length===boxes.length) delete xlValues[key]; else xlValues[key] = new Set(picked);
-  if(col.date){
+  if(picked.length===boxes.length) delete t.values[key]; else t.values[key] = new Set(picked);
+  if(col.status){
     const sts = [...document.querySelectorAll("#xlFilterBox input[data-st]")];
     const on = sts.filter(b=>b.checked).map(b=>b.dataset.st);
-    if(on.length===sts.length) delete xlStatuses[key]; else xlStatuses[key] = new Set(on);
+    if(on.length===sts.length) delete t.statuses[key]; else t.statuses[key] = new Set(on);
   }
-  xlClose(); renderComplianceTable();
+  xlClose(); t.render();
 }
-function xlSetSort(key, dir){
-  xlSort = xlSort && xlSort.key===key && xlSort.dir===dir ? null : {key, dir};
-  xlClose(); renderComplianceTable();
+function xlSetSort(tid, key, dir){
+  const t = XL_TABLES[tid];
+  t.sort = t.sort && t.sort.key===key && t.sort.dir===dir ? null : {key, dir};
+  xlClose(); t.render();
 }
-function xlClearCol(key){ delete xlValues[key]; delete xlStatuses[key]; xlClose(); renderComplianceTable(); }
-function xlClearAll(){ Object.keys(xlValues).forEach(k=>delete xlValues[k]); Object.keys(xlStatuses).forEach(k=>delete xlStatuses[k]); xlSort = null; renderComplianceTable(); }
+function xlClearCol(tid, key){ const t = XL_TABLES[tid]; delete t.values[key]; delete t.statuses[key]; xlClose(); t.render(); }
+function xlClearAll(tid){ const t = XL_TABLES[tid]; t.values = {}; t.statuses = {}; t.sort = null; t.render(); }
 document.addEventListener("click", xlClose);
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") xlClose(); });
 window.addEventListener("resize", xlClose);
 
+xlRegister("compliance", {
+  data: ()=>complianceData,
+  render: ()=>renderComplianceTable(),
+  cols: [
+    {key:"company",  label:"Company"},
+    {key:"category", label:"Category"},
+    {key:"plate",    label:"Plate"},
+    {key:"location", label:"Location"},
+    {key:"roadTax",    label:"Road Tax",   date:true, status:"roadTaxStatus"},
+    {key:"inspection", label:"Inspection", date:true, status:"inspectionStatus"},
+    {key:"insurance",  label:"Insurance",  date:true, status:"insuranceStatus"},
+    {key:"jkkp",       label:"JKKP",       date:true, status:"jkkpStatus"},
+    {key:"apad",       label:"APAD",       date:true, status:"apadStatus"},
+  ],
+});
+
+/* ===================== INSURANCE =====================
+   One row per vehicle in the compliance register. Insurance details are stored on the
+   same records (saved with the register); the expiry date IS the register's
+   "insurance" field, so both pages always agree. */
+const INS_COVERS = ["Comprehensive","Third Party, Fire & Theft","Third Party"];
+const INS_STATUS_LABEL = {overdue:"Expired", soon:"Expiring soon", ok:"Active"};
+function insStatusLabel(d){ return d.insurance ? INS_STATUS_LABEL[d.insuranceStatus] || "Active" : ""; }
+xlRegister("insurance", {
+  data: ()=>complianceData,
+  render: ()=>renderInsurance(),
+  cols: [
+    {key:"company",  label:"Company"},
+    {key:"plate",    label:"Plate"},
+    {key:"category", label:"Category"},
+    {key:"location", label:"Location"},
+    {key:"insurer",  label:"Insurer"},
+    {key:"insurancePolicy", label:"Policy No."},
+    {key:"insCover", label:"Cover"},
+    {key:"insSumInsured", label:"Sum Insured (RM)", num:true},
+    {key:"insPremium",    label:"Premium (RM)", num:true},
+    {key:"insStart",  label:"Start Date", date:true},
+    {key:"insurance", label:"Expiry Date", date:true, status:"insuranceStatus"},
+    {key:"insStatus", label:"Status", get: d=>insStatusLabel(d)},
+  ],
+});
+function renderInsurance(){
+  if(!document.getElementById("insBody")) return;
+  const withDate = complianceData.filter(d=>d.insurance);
+  const premiums = complianceData.map(d=>Number(d.insPremium)).filter(n=>n>0);
+  document.getElementById("insTotal").textContent = withDate.length;
+  document.getElementById("insOverdue").textContent = complianceData.filter(d=>d.insuranceStatus==="overdue").length;
+  document.getElementById("insSoon").textContent = complianceData.filter(d=>d.insuranceStatus==="soon").length;
+  document.getElementById("insPremiumTotal").textContent = rm(premiums.reduce((a,b)=>a+b,0));
+  document.getElementById("insPremiumFoot").textContent = `${premiums.length} of ${complianceData.length} vehicles keyed in`;
+
+  const rows = xlRows("insurance");
+  document.getElementById("insHeadRow").innerHTML = xlHeaderHtml("insurance");
+  const isAdmin = currentRole==="admin";
+  const inp = (d, field, w, extra="") => `<input value="${escHtml(d[field]||"")}" ${extra} style="width:${w}px;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;" onchange="updateInsuranceField(${d.id},'${field}',this.value,this)">`;
+  const num = (d, field) => `<input type="text" inputmode="decimal" value="${d[field]!=null && d[field]!=="" ? Number(d[field]).toLocaleString("en-MY") : ""}" placeholder="0" style="width:96px;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;text-align:right;font-family:'IBM Plex Mono',monospace;" onchange="updateInsuranceField(${d.id},'${field}',this.value,this)">`;
+  const date = (d, field) => `<input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])||""}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${field==="insurance"?complianceBorder(d.insuranceStatus):"var(--line)"};border-radius:4px;width:132px;" onchange="updateInsuranceDate(${d.id},'${field}',this.value,this)">`;
+  const cover = d => `<select style="width:auto;font-size:12px;padding:4px 6px;" onchange="updateInsuranceField(${d.id},'insCover',this.value,this)"><option value="">—</option>${INS_COVERS.map(c=>`<option value="${c}" ${d.insCover===c?"selected":""}>${c}</option>`).join("")}</select>`;
+  const statusCell = d => { const l = insStatusLabel(d); return l ? badge(l, d.insuranceStatus==="overdue"?"danger":d.insuranceStatus==="soon"?"warn":"good") : `<span style="color:var(--faint);">—</span>`; };
+  const money = v => v!=null && v!=="" ? Number(v).toLocaleString("en-MY") : `<span style="color:var(--faint);">—</span>`;
+
+  document.getElementById("insBody").innerHTML = rows.map(d=> isAdmin ? `<tr>
+      <td style="font-weight:600;">${escHtml(d.company)}</td><td class="mono-cell">${escHtml(d.plate)}</td><td>${escHtml(d.category)}</td><td>${escHtml(d.location)}</td>
+      <td>${inp(d,"insurer",130,'placeholder="e.g. Etiqa"')}</td>
+      <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}</td>
+      <td>${cover(d)}</td>
+      <td>${num(d,"insSumInsured")}</td>
+      <td>${num(d,"insPremium")}</td>
+      <td>${date(d,"insStart")}</td>
+      <td>${date(d,"insurance")}</td>
+      <td id="insSt-${d.id}">${statusCell(d)}</td></tr>` : `<tr>
+      <td style="font-weight:600;">${escHtml(d.company)}</td><td class="mono-cell">${escHtml(d.plate)}</td><td>${escHtml(d.category)}</td><td>${escHtml(d.location)}</td>
+      <td>${escHtml(d.insurer||"—")}</td><td class="mono-cell">${escHtml(d.insurancePolicy||"—")}</td><td>${escHtml(d.insCover||"—")}</td>
+      <td class="mono-cell">${money(d.insSumInsured)}</td><td class="mono-cell">${money(d.insPremium)}</td>
+      <td class="mono-cell">${d.insStart||"—"}</td><td class="mono-cell">${d.insurance||"—"}</td><td>${statusCell(d)}</td></tr>`).join("");
+  document.getElementById("insCount").textContent = `Showing ${rows.length} of ${complianceData.length} vehicles`;
+  document.getElementById("insClearAllBtn").style.display = xlAnyActive("insurance") ? "inline-block" : "none";
+}
+async function updateInsuranceField(id, field, value, el){
+  if(currentRole!=="admin") return;
+  const rec = complianceData.find(d=>d.id===id);
+  if(!rec) return;
+  if(field==="insSumInsured" || field==="insPremium"){
+    const clean = String(value).replace(/[^0-9.]/g, "");
+    rec[field] = clean==="" ? null : Math.round(parseFloat(clean)*100)/100;
+    if(el) el.value = rec[field]==null ? "" : rec[field].toLocaleString("en-MY");
+    const premiums = complianceData.map(d=>Number(d.insPremium)).filter(n=>n>0);
+    document.getElementById("insPremiumTotal").textContent = rm(premiums.reduce((a,b)=>a+b,0));
+    document.getElementById("insPremiumFoot").textContent = `${premiums.length} of ${complianceData.length} vehicles keyed in`;
+  } else {
+    rec[field] = String(value).trim() || null;
+  }
+  await persistComplianceRegister();
+}
+async function updateInsuranceDate(id, field, isoValue, el){
+  if(currentRole!=="admin") return;
+  const rec = complianceData.find(d=>d.id===id);
+  if(!rec) return;
+  if(isoValue){ const y = +isoValue.slice(0,4); if(!(y>=1990 && y<=2100)) return; }   // wait for a complete year
+  rec[field] = isoValue ? isoToDmySlash(isoValue) : null;
+  if(field==="insurance"){
+    rec.insuranceStatus = rec.insurance ? calcComplianceStatus(rec.insurance) : null;
+    if(el) el.style.borderColor = complianceBorder(rec.insuranceStatus);
+    const cell = document.getElementById("insSt-"+id);
+    if(cell){ const l = insStatusLabel(rec); cell.innerHTML = l ? badge(l, rec.insuranceStatus==="overdue"?"danger":rec.insuranceStatus==="soon"?"warn":"good") : `<span style="color:var(--faint);">—</span>`; }
+    document.getElementById("insTotal").textContent = complianceData.filter(d=>d.insurance).length;
+    document.getElementById("insOverdue").textContent = complianceData.filter(d=>d.insuranceStatus==="overdue").length;
+    document.getElementById("insSoon").textContent = complianceData.filter(d=>d.insuranceStatus==="soon").length;
+    renderComplianceTable();                                    // keep the register in step
+    document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
+    document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
+  }
+  await persistComplianceRegister();
+}
+
 function renderComplianceTable(){
-  let rows = xlSortRows(complianceData.filter(d=>xlPasses(d, null)));
+  let rows = xlRows("compliance");
 
   const headRow = document.getElementById("complianceHeadRow");
-  headRow.innerHTML = xlHeaderHtml() + (currentRole==="admin" ? `<th></th>` : ``);
+  headRow.innerHTML = xlHeaderHtml("compliance") + (currentRole==="admin" ? `<th></th>` : ``);
 
   const dateInput = (d,field,statusField) => `<input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${complianceBorder(d[statusField])};border-radius:4px;width:132px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value,this)">`;
 
@@ -1939,8 +2085,7 @@ function renderComplianceTable(){
     <td class="mono-cell">${statusBadge(d.apadStatus,d.apad)}</td></tr>`;
   }).join("");
   document.getElementById("complianceCount").textContent = `Showing ${rows.length} of ${complianceData.length} vehicles`;
-  const anyFilter = XL_COLS.some(c=>xlIsActive(c.key)) || !!xlSort;
-  document.getElementById("crClearAllBtn").style.display = anyFilter ? "inline-block" : "none";
+  document.getElementById("crClearAllBtn").style.display = xlAnyActive("compliance") ? "inline-block" : "none";
 }
 
 /* ---- Login / role gate (admin verified by server; branch = workflow selector) ----
@@ -2004,6 +2149,7 @@ function updateComplianceRoleUI(){
   document.getElementById("adminStatusBox").style.display = isAdmin ? "block" : "none";
   document.getElementById("cr_addVehicleBtn").style.display = isAdmin ? "inline-block" : "none";
   if(typeof renderHireTable==="function") renderHireTable();   // show / hide job Delete buttons
+  if(typeof renderInsurance==="function" && complianceData.length) renderInsurance();   // editable for admin
   // logged out while on an admin page → back to the Dashboard
   const active = document.querySelector(".nav-btn.active");
   if(!isAdmin && active && active.classList.contains("admin-only")){
@@ -2019,6 +2165,7 @@ async function updateComplianceField(id, field, value){
   rec[field] = value.trim();
   populateComplianceFilters();
   renderComplianceTable();
+  renderInsurance();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   await persistComplianceRegister();
 }
@@ -2043,6 +2190,7 @@ async function updateComplianceDate(id, field, statusField, isoValue, inputEl){
   rec[statusField] = dmy ? calcComplianceStatus(dmy) : null;
   if(inputEl) inputEl.style.borderColor = complianceBorder(rec[statusField]);
   else renderComplianceTable();
+  if(field==="insurance") renderInsurance();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
@@ -2057,6 +2205,7 @@ async function deleteComplianceVehicle(id){
   complianceData.splice(idx,1);
   populateComplianceFilters();
   renderComplianceTable();
+  renderInsurance();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
@@ -2093,6 +2242,7 @@ async function addComplianceVehicle(){
   ["av_company","av_category","av_plate","av_location","av_roadTax","av_inspection","av_insurance","av_jkkp","av_apad"].forEach(id=>document.getElementById(id).value="");
   toggleForm("addVehicleForm");
   renderComplianceTable();
+  renderInsurance();
   populateComplianceFilters();
   document.getElementById("rmTotalCount").textContent = complianceData.length;
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
@@ -2122,6 +2272,7 @@ const titles = {
   overview:["Fleet Dashboard","Company-owned fleet — overview across all modules"],
   external:["Driver & Requester","Submit a workshop repair ticket or log a new job request"],
   compliance:["Compliance Register","Road tax, inspection, insurance, JKKP & APAD expiry for every vehicle"],
+  insurance:["Insurance","Insurer, policy, cover, premium & expiry for every vehicle"],
   repair:["Repair & Maintenance","Workshop tickets & repair spend"],
   costing:["Costing","Fleet operating cost by category, vehicle & trend"],
   hiring:["Hiring Management","External hire-ins & internal hiring requests"],
@@ -2139,6 +2290,7 @@ document.querySelectorAll(".nav-btn").forEach(btn=>{
     document.getElementById("pageTitle").textContent = T(titles[v][0]);
     document.getElementById("pageMeta").textContent = T(titles[v][1]);
     if(v==="settings") renderSettings();
+    if(v==="insurance") renderInsurance();
     document.body.classList.remove("nav-open");
   });
 });
@@ -4022,6 +4174,7 @@ function renderDispose(){
   updateComplianceRoleUI();
   renderOverview();
   renderRepair();
+  renderInsurance();
   renderCosting();
   renderHiring();
   renderUtilization();
