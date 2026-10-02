@@ -307,6 +307,10 @@ body:not(.is-admin) .admin-only{display:none !important;}
 .xl-item input{width:auto;margin:0;}
 .xl-item em{margin-left:auto;font-style:normal;font-size:11px;color:var(--faint);}
 .xl-all{font-weight:600;}
+.xl-yrow{display:flex;align-items:center;}
+.xl-yrow .xl-item{flex:1;padding-left:2px;}
+.xl-tog{background:none;border:none;color:var(--ink-soft);font-size:13px;line-height:1;width:20px;padding:0 0 0 6px;cursor:pointer;}
+.xl-month{padding-left:42px;}
 .xl-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;}
 .xl-foot .btn{padding:6px 14px;}
 
@@ -1730,7 +1734,8 @@ let xlOpenKey = null;
 function xlValueKey(col, d){
   const v = d[col.key];
   if(v==null || String(v).trim()==="") return XL_BLANK;
-  return col.date ? String(v).split("/")[2] || XL_BLANK : String(v).trim();
+  if(col.date){ const [, m, y] = String(v).split("/"); return y && m ? `${y}-${m.padStart(2,"0")}` : XL_BLANK; }
+  return String(v).trim();
 }
 function xlPasses(d, exceptKey){
   for(const col of XL_COLS){
@@ -1790,7 +1795,7 @@ function xlOpen(key, btn, ev){
     <input type="search" class="xl-search" placeholder="Search" oninput="xlFilterList(this.value)">
     <div class="xl-list">
       <label class="xl-item xl-all"><input type="checkbox" id="xlAll" ${!allowed?"checked":""} onchange="xlToggleAll(this.checked)"> <span>(Select All)</span></label>
-      ${vals.map(v=>`<label class="xl-item" data-v="${escHtml(v.toLowerCase())}"><input type="checkbox" data-val="${escHtml(v)}" ${!allowed||allowed.has(v)?"checked":""} onchange="xlSyncAll()"> <span>${escHtml(v)}</span><em>${counts.get(v)}</em></label>`).join("")}
+      ${col.date ? xlDateTreeHtml(vals, counts, allowed) : vals.map(v=>`<label class="xl-item" data-v="${escHtml(v.toLowerCase())}"><input type="checkbox" data-val="${escHtml(v)}" ${!allowed||allowed.has(v)?"checked":""} onchange="xlSyncAll()"> <span>${escHtml(v)}</span><em>${counts.get(v)}</em></label>`).join("")}
     </div>
     <div class="xl-foot"><button type="button" class="btn ghost" onclick="xlClose()">Cancel</button><button type="button" class="btn yellow" onclick="xlApply('${key}')">OK</button></div>`;
   document.body.appendChild(box);
@@ -1799,19 +1804,76 @@ function xlOpen(key, btn, ev){
   box.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
   box.style.top = Math.min(r.bottom + 4, window.innerHeight - 120) + "px";
   box.style.maxHeight = (window.innerHeight - Math.min(r.bottom + 4, window.innerHeight - 120) - 12) + "px";
+  xlSyncAll();
   setTimeout(()=>{ const s = box.querySelector(".xl-search"); if(s) s.focus(); }, 0);
+}
+const XL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+/* Date columns: ⊞ year → months, like Excel's date grouping. Month keys are "yyyy-mm". */
+function xlDateTreeHtml(vals, counts, allowed){
+  const years = new Map();
+  vals.filter(v=>v!==XL_BLANK).forEach(v=>{ const y = v.slice(0,4); if(!years.has(y)) years.set(y, []); years.get(y).push(v); });
+  let html = [...years.entries()].map(([y, months])=>{
+    months.sort();                                   // January → December inside a year
+    const total = months.reduce((n,m)=>n+counts.get(m),0);
+    const mHtml = months.map(m=>{
+      const name = XL_MONTHS[+m.slice(5,7)-1] || m;
+      return `<label class="xl-item xl-month" data-v="${y} ${name.toLowerCase()}"><input type="checkbox" data-val="${m}" data-y="${y}" ${!allowed||allowed.has(m)?"checked":""} onchange="xlSyncAll()"> <span>${name}</span><em>${counts.get(m)}</em></label>`;
+    }).join("");
+    return `<div class="xl-year" data-y="${y}">
+      <div class="xl-yrow"><button type="button" class="xl-tog" onclick="xlToggleYear('${y}')" aria-label="Show months">⊞</button>
+      <label class="xl-item" data-v="${y}"><input type="checkbox" data-year="${y}" onchange="xlYearCheck('${y}', this.checked)"> <span>${y}</span><em>${total}</em></label></div>
+      <div class="xl-months" style="display:none;">${mHtml}</div></div>`;
+  }).join("");
+  if(counts.has(XL_BLANK)) html += `<label class="xl-item" data-v="(blanks)"><input type="checkbox" data-val="${XL_BLANK}" ${!allowed||allowed.has(XL_BLANK)?"checked":""} onchange="xlSyncAll()"> <span>${XL_BLANK}</span><em>${counts.get(XL_BLANK)}</em></label>`;
+  return html;
+}
+function xlToggleYear(y, open){
+  const g = document.querySelector(`#xlFilterBox .xl-year[data-y="${y}"]`);
+  if(!g) return;
+  const m = g.querySelector(".xl-months");
+  const show = open===undefined ? m.style.display==="none" : open;
+  m.style.display = show ? "" : "none";
+  g.querySelector(".xl-tog").textContent = show ? "⊟" : "⊞";
+}
+function xlYearCheck(y, on){
+  document.querySelectorAll(`#xlFilterBox input[data-y="${y}"]`).forEach(b=>{ b.checked = on; });
+  xlSyncAll();
 }
 function xlClose(){ const b = document.getElementById("xlFilterBox"); if(b) b.remove(); xlOpenKey = null; }
 function xlFilterList(q){
   q = q.trim().toLowerCase();
-  document.querySelectorAll("#xlFilterBox .xl-item[data-v]").forEach(l=>{ l.style.display = !q || l.dataset.v.includes(q) ? "" : "none"; });
+  document.querySelectorAll("#xlFilterBox .xl-list > .xl-item[data-v], #xlFilterBox .xl-month").forEach(l=>{
+    const text = l.dataset.v + " " + l.innerText.toLowerCase();
+    l.style.display = !q || text.includes(q) ? "" : "none";
+  });
+  document.querySelectorAll("#xlFilterBox .xl-year").forEach(g=>{
+    const y = g.dataset.y;
+    const anyMonth = [...g.querySelectorAll(".xl-month")].some(m=>m.style.display!=="none");
+    const yearHit = !q || y.includes(q);
+    if(yearHit) g.querySelectorAll(".xl-month").forEach(m=>{ m.style.display=""; });
+    g.style.display = yearHit || anyMonth ? "" : "none";
+    if(q) xlToggleYear(y, true);
+  });
 }
 function xlToggleAll(on){
-  document.querySelectorAll("#xlFilterBox .xl-item[data-v]").forEach(l=>{ if(l.style.display!=="none") l.querySelector("input").checked = on; });
+  document.querySelectorAll("#xlFilterBox input[data-val]").forEach(b=>{
+    const item = b.closest(".xl-item"), grp = b.closest(".xl-year");
+    const hidden = item.style.display==="none" || (grp && grp.style.display==="none");
+    if(!hidden) b.checked = on;
+  });
+  xlSyncAll();
 }
 function xlSyncAll(){
   const boxes = [...document.querySelectorAll("#xlFilterBox input[data-val]")];
-  document.getElementById("xlAll").checked = boxes.every(b=>b.checked);
+  // year boxes: checked when all months are, half-ticked when only some are
+  document.querySelectorAll("#xlFilterBox input[data-year]").forEach(yb=>{
+    const ms = boxes.filter(b=>b.dataset.y===yb.dataset.year);
+    const n = ms.filter(b=>b.checked).length;
+    yb.checked = n===ms.length; yb.indeterminate = n>0 && n<ms.length;
+  });
+  const all = document.getElementById("xlAll");
+  const n = boxes.filter(b=>b.checked).length;
+  all.checked = n===boxes.length; all.indeterminate = n>0 && n<boxes.length;
 }
 function xlApply(key){
   const col = XL_COLS.find(c=>c.key===key);

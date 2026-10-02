@@ -25,7 +25,7 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 ## Daftar Pematuhan — penapis gaya Excel
 
 Setiap tajuk lajur ada butang **▾**: susun (A→Z / Z→A, atau Lama→Baru untuk tarikh), kotak **Cari**,
-senarai tanda nilai dengan **(Pilih Semua)** dan **(Kosong)**. Lajur tarikh disenaraikan ikut **tahun**
+senarai tanda nilai dengan **(Pilih Semua)** dan **(Kosong)**. Lajur tarikh disenaraikan ikut **tahun → bulan** (⊞ 2026 → Oktober, November…)
 dan boleh ditapis ikut **status** (Tamat Tempoh / Hampir Tamat / OK / Tiada tarikh). Nilai dalam setiap
 senarai ikut tapisan lajur lain. Butang ▾ bertukar kuning bila lajur ditapis; **✕ Kosongkan semua tapisan**
 di bawah jadual.
