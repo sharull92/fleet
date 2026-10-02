@@ -295,6 +295,7 @@
     ["Job Records","Rekod Kerja"],
     ["Company / Project","Syarikat / Projek"],
     ["Reply / Assign","Balas / Assign"],
+    ["Delete this job (e.g. the job was cancelled)","Padam job ini (cth. job dibatalkan)"],
     ["Own Fleet","Sendiri"],
     ["Hired","Sewa"],
 
@@ -416,6 +417,7 @@
     ["Filtered — {a} ({b} vehicles)","Ditapis — {a} ({b} kenderaan)"],
     ["Delete {a} from the compliance register?","Padam {a} dari compliance register?"],
     ["Delete ticket {a} if it was entered by mistake?","Padam ticket {a} sekiranya ada kesilapan?"],
+    ["Delete job {a} from the records? A deleted job can't be restored.","Padam job {a} dari rekod? Job yang dipadam tak boleh dikembalikan."],
     ["Not assigned yet — {a}","Belum di-assign — {a}"],
     ["Road tax {a}","Cukai jalan {a}"],
     ["Insurance {a}","Insurans {a}"],

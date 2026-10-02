@@ -1818,6 +1818,7 @@ function updateComplianceRoleUI(){
   document.getElementById("cr_loginBtn").style.display = isAdmin ? "none" : "block";
   document.getElementById("adminStatusBox").style.display = isAdmin ? "block" : "none";
   document.getElementById("cr_addVehicleBtn").style.display = isAdmin ? "inline-block" : "none";
+  if(typeof renderHireTable==="function") renderHireTable();   // show / hide job Delete buttons
   // logged out while on an admin page → back to the Dashboard
   const active = document.querySelector(".nav-btn.active");
   if(!isAdmin && active && active.classList.contains("admin-only")){
@@ -2803,6 +2804,22 @@ function renderCosting(){
 /* ===================== 3. HIRING ===================== */
 let currentAssignIndex = null;
 
+/* Remove a job record (e.g. the job was cancelled). Admin only; asks first. */
+async function deleteHireRecord(index){
+  if(currentRole!=="admin") return;
+  const h = hiringRecords[index];
+  if(!h) return;
+  if(!confirm(`Padam job ${h.unit} (${h.company} · ${h.tarikh}) dari rekod? Job yang dipadam tak boleh dikembalikan.`)) return;
+  hiringRecords.splice(index,1);
+  // keep the open Reply & Assign panel / notify panel pointing at the right record
+  if(currentAssignIndex===index) closeAssignPanel();
+  else if(currentAssignIndex!==null && currentAssignIndex>index) currentAssignIndex--;
+  if(lastLoggedHireIndex===index){ lastLoggedHireIndex = null; document.getElementById("hireNotifyPanel").style.display = "none"; }
+  else if(lastLoggedHireIndex!==null && lastLoggedHireIndex>index) lastLoggedHireIndex--;
+  renderHiring();
+  renderOverview();
+  await persistHiringRecords();
+}
 function renderHiring(){
   document.getElementById("hireActiveCount").textContent = hiringRecords.length;
   document.getElementById("hirePendingCount").textContent = hiringRecords.filter(h=>h.status==="New").length;
@@ -2843,9 +2860,10 @@ function renderHireTable(){
       vehCell = `${h.assignedVehicle}<br><span style="font-size:11px;color:var(--ink-soft);">${h.driverName||""} ${h.driverPhone?"("+h.driverPhone+")":""}</span><br>${srcBadge}`;
     }
     const actionCell = h.status==="New" ? `<button class="btn yellow" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Balas / Assign")}</button>` : `<button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Edit")}</button>`;
+    const deleteBtn = currentRole==="admin" ? `<button class="btn ghost" style="padding:5px 9px;font-size:10.5px;color:var(--danger);margin-left:6px;" onclick="deleteHireRecord(${i})" title="${T("Padam job ini (cth. job dibatalkan)")}">✕ ${T("Padam")}</button>` : "";
     return `<tr><td style="font-weight:600;">${h.unit}</td><td>${h.company}<br><span style="font-size:11px;color:var(--ink-soft);">${h.project}</span></td>
     <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td class="loc-cell">${locationHtml(h.tempat)}</td><td>${svLine}</td>
-    <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td>${actionCell}</td></tr>`;
+    <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td style="white-space:nowrap;">${actionCell}${deleteBtn}</td></tr>`;
   }).join("");
 }
 /* ---- Paste from WhatsApp → auto-fill Log Job Request (parser: wa-parse.js) ---- */
