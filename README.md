@@ -21,6 +21,26 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 | Bahasa | English sahaja (campur BM) | Butang **BM / EN** di atas — semua teks, popup & carta tukar terus; pilihan diingat (`public/i18n.js`) |
 | Tema | Cerah sahaja | Butang **🌙 / ☀️** — mod gelap & cerah, ikut tetapan peranti pada kali pertama |
 
+## Tampal dari WhatsApp (Log Permintaan Kerja)
+
+Di **Pemandu & Pemohon → Log Permintaan Kerja** (atau Pengurusan Sewaan → Langkah 1), tekan
+**📋 Tampal dari WhatsApp**, copy mesej dari group WhatsApp dan paste — borang diisi serta-merta.
+Pilih **Branch Anda**, semak, tekan **Hantar Permintaan**.
+
+```
+LORI TIPPER                      → Unit (baris pertama tanpa label)
+TARIKH:2/10/26                   → Tarikh   (2/10/26, 2.10.2026, 2 Okt, esok, hari ini)
+MASA:10.00                       → Masa     (10.00, 2.30 ptg, 8am, 1400)
+COMPANY:Akli                     → Syarikat
+SV:Yus'ran 01128278075           → Sv + No. Telefon Sv
+LOKASI:jln pjs 2d/1              → Lokasi   (link Google Maps / koordinat juga ditambah)
+LOAD: 3 pasir 3 Crusher run      → Muatan
+TNB:Navin                        → label lain dimasukkan ke Projek supaya tiada maklumat hilang
+```
+
+Label boleh huruf besar/kecil, guna `:` atau `=`, dan format *tebal* WhatsApp tidak mengganggu.
+Parser: `public/wa-parse.js`.
+
 ## Deploy — Vercel + Supabase
 
 App ini di-host di **Vercel** (halaman dari `public/` + API serverless dalam `api/`) dan data

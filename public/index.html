@@ -17,6 +17,7 @@
 </script>
 <script src="/app-storage.js"></script>
 <script src="/i18n.js"></script>
+<script src="/wa-parse.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="/vendor/chart.umd.js"></script>
@@ -272,6 +273,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
   .grid-2,.grid-3,.two-col-charts{grid-template-columns:1fr;}
 }
 
+/* ---- WhatsApp auto-fill ---- */
+.autofilled{outline:2px solid var(--yellow);outline-offset:1px;transition:outline-color 1.5s;}
+
 /* ---- Language & theme toggles ---- */
 .prefs{display:flex;align-items:center;gap:6px;}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel-2);}
@@ -447,10 +451,21 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel" id="hireRequestPanel">
           <div class="panel-head">
             <h3>Log Job Request</h3>
-            <span class="sub" style="font-size:11px;color:var(--ink-soft);">Isi macam template WhatsApp masuk</span>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Isi macam template WhatsApp masuk</span>
+            <button type="button" class="btn yellow" onclick="toggleWaPaste()">📋 Paste from WhatsApp</button>
+          </div>
+
+          <div id="waPasteBox" style="display:none;background:var(--note-bg);border:1px solid var(--yellow-deep);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+            <label for="waPasteText">Paste the WhatsApp message here — the form fills in automatically</label>
+            <textarea id="waPasteText" rows="8" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.5;resize:vertical;" placeholder="LORI TIPPER&#10;TARIKH: 2/10/26&#10;MASA: 10.00&#10;COMPANY: Akli&#10;SV: Yus'ran 01128278075&#10;LOKASI: jln pjs 2d/1&#10;LOAD: 3 pasir 3 crusher run"></textarea>
+            <div id="waPasteStatus" style="font-size:11.5px;margin-top:8px;min-height:15px;"></div>
+            <div class="form-actions">
+              <button type="button" class="btn ghost" onclick="toggleWaPaste(false)">Close</button>
+              <button type="button" class="btn yellow" onclick="applyWaPaste()">⚡ Auto-fill Form</button>
+            </div>
           </div>
 
           <div class="form-row">
@@ -796,7 +811,8 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
         <div class="panel" style="background:var(--panel-2);box-shadow:none;">
           <div class="panel-head" style="margin-bottom:0;">
             <h3 style="font-size:12.5px;">Step 1 — Log Job Request</h3>
-            <span class="sub" style="font-size:11px;color:var(--ink-soft);">Submitted by the requester from the Driver &amp; Requester page</span>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Submitted by the requester from the Driver &amp; Requester page</span>
+            <button type="button" class="btn yellow" onclick="openWaPasteFromHiring()">📋 Paste from WhatsApp</button>
           </div>
         </div>
 
@@ -2778,9 +2794,58 @@ function renderHireTable(){
     <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td>${actionCell}</td></tr>`;
   }).join("");
 }
+/* ---- Paste from WhatsApp → auto-fill Log Job Request (parser: wa-parse.js) ---- */
+function toggleWaPaste(show){
+  const box = document.getElementById("waPasteBox");
+  const open = show===undefined ? box.style.display==="none" : show;
+  box.style.display = open ? "block" : "none";
+  if(open){ document.getElementById("waPasteStatus").textContent = ""; document.getElementById("waPasteText").focus(); }
+}
+function openWaPasteFromHiring(){
+  document.querySelector('.nav-btn[data-view="external"]').click();
+  toggleWaPaste(true);
+  document.getElementById("hireRequestPanel").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function applyWaPaste(){
+  const text = document.getElementById("waPasteText").value;
+  const status = document.getElementById("waPasteStatus");
+  if(!text.trim()){ status.style.color = "var(--danger)"; status.textContent = fleetI18n.tr("Paste a WhatsApp message first."); return; }
+  const { fields, extras } = fleetWaParse.parseWhatsAppJob(text, { branches: BRANCH_CODES });
+  const map = { unit:"hr_unit", company:"hr_company", tarikh:"hr_tarikh", masa:"hr_masa", project:"hr_project",
+                tempat:"hr_tempat", load:"hr_load", sv:"hr_sv", phone:"hr_phone", branch:"hr_branch" };
+  let n = 0;
+  for(const [f,id] of Object.entries(map)){
+    if(fields[f]==null || fields[f]==="") continue;
+    const el = document.getElementById(id);
+    el.value = fields[f];
+    if(el.value !== fields[f] && el.tagName !== "SELECT") continue;
+    n++;
+    el.classList.add("autofilled");
+    setTimeout(()=>el.classList.remove("autofilled"), 2500);
+  }
+  if(!n){
+    status.style.color = "var(--danger)";
+    status.textContent = fleetI18n.tr("No fields found — make sure each detail is on its own line as LABEL: value (e.g. TARIKH: 2/10/26).");
+    return;
+  }
+  status.style.color = "var(--good)";
+  let msg = fleetI18n.tr(`✓ ${n} fields filled in.`);
+  if(extras.length) msg += " " + fleetI18n.tr(`Other details (${extras.map(e=>e.split(":")[0]).join(", ")}) were added to Project.`);
+  if(!fields.branch) msg += " " + fleetI18n.tr("Choose Your Branch, check the details, then press Log Request.");
+  else msg += " " + fleetI18n.tr("Check the details, then press Log Request.");
+  status.textContent = msg;
+  if(!fields.branch) document.getElementById("hr_branch").focus();
+}
+document.addEventListener("DOMContentLoaded", ()=>{
+  const ta = document.getElementById("waPasteText");
+  if(ta) ta.addEventListener("paste", ()=>setTimeout(applyWaPaste, 0));   // fill immediately on paste
+});
+
 function clearHireForm(){
   ["hr_unit","hr_branch","hr_company","hr_tarikh","hr_masa","hr_project","hr_tempat","hr_load","hr_sv","hr_phone"].forEach(id=>document.getElementById(id).value="");
   const st = document.getElementById("hr_locStatus"); if(st) st.textContent = "";
+  const wt = document.getElementById("waPasteText"); if(wt) wt.value = "";
+  const ws = document.getElementById("waPasteStatus"); if(ws) ws.textContent = "";
 }
 /* ---- Share location (macam feature "Share Location" WhatsApp) — guna GPS peranti utk auto-isi Tempat ---- */
 function shareHireLocation(){
