@@ -273,6 +273,19 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
   .grid-2,.grid-3,.two-col-charts{grid-template-columns:1fr;}
 }
 
+/* ---- Admin login (sidebar) & admin-only pages ---- */
+body:not(.is-admin) .admin-only{display:none !important;}
+.sidebar-admin{padding:12px 14px;border-top:1px solid #2B2D2F;}
+.admin-login-btn{width:100%;background:var(--yellow);color:#17181A;border:none;border-radius:var(--radius);
+  font:600 13px 'Inter',sans-serif;padding:10px 12px;cursor:pointer;text-align:center;}
+.admin-login-btn:hover{background:var(--yellow-deep);}
+.admin-login-btn.ghost{background:none;color:#C8C9C7;border:1px solid #3A3D40;margin-top:8px;}
+.admin-login-btn.ghost:hover{background:#232527;color:#fff;}
+.admin-on{font-size:12px;font-weight:600;color:var(--yellow);text-align:center;}
+.modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);padding:16px;}
+.modal-card{max-width:400px;margin:14vh auto 0;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--yellow);
+  border-radius:var(--radius);padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
+
 /* ---- Map links in Location cells ---- */
 .loc-cell{word-break:break-word;}
 .loc-cell span{display:block;margin-bottom:4px;}
@@ -331,6 +344,18 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 </head>
 <body>
 
+<div class="modal-backdrop" id="loginPanel" style="display:none;" onclick="if(event.target===this)closeAdminLogin()">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="panel-head" style="margin-bottom:10px;"><h3 id="loginTitle" style="font-size:13px;">Admin Login — Full Access</h3></div>
+    <div class="form-row" style="grid-template-columns:1fr;">
+      <div><label for="login_password">Password Admin</label><input id="login_password" type="password" autocomplete="current-password" placeholder="Masukkan password admin" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAdminLogin();} if(event.key==='Escape'){closeAdminLogin();}"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn ghost" onclick="closeAdminLogin()">Batal</button>
+      <button class="btn yellow" onclick="submitAdminLogin()">Log Masuk</button>
+    </div>
+  </div>
+</div>
 <div class="shell">
   <div class="nav-backdrop" onclick="document.body.classList.remove('nav-open')"></div>
   <aside class="sidebar">
@@ -340,13 +365,20 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
     <nav>
       <button class="nav-btn active" data-view="overview"><span class="num">00</span>Dashboard</button>
       <button class="nav-btn" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
-      <button class="nav-btn" data-view="repair"><span class="num">02</span>Repair &amp; Maintenance</button>
-      <button class="nav-btn" data-view="costing"><span class="num">03</span>Costing</button>
-      <button class="nav-btn" data-view="hiring"><span class="num">04</span>Hiring Management</button>
-      <button class="nav-btn" data-view="utilization"><span class="num">05</span>Utilization</button>
-      <button class="nav-btn" data-view="dispose"><span class="num">06</span>New / Dispose</button>
-      <button class="nav-btn" data-view="settings"><span class="num">07</span>Settings — WhatsApp</button>
+      <button class="nav-btn admin-only" data-view="repair"><span class="num">02</span>Repair &amp; Maintenance</button>
+      <button class="nav-btn admin-only" data-view="costing"><span class="num">03</span>Costing</button>
+      <button class="nav-btn admin-only" data-view="hiring"><span class="num">04</span>Hiring Management</button>
+      <button class="nav-btn admin-only" data-view="utilization"><span class="num">05</span>Utilization</button>
+      <button class="nav-btn admin-only" data-view="dispose"><span class="num">06</span>New / Dispose</button>
+      <button class="nav-btn admin-only" data-view="settings"><span class="num">07</span>Settings — WhatsApp</button>
     </nav>
+    <div class="sidebar-admin">
+      <button type="button" class="admin-login-btn" id="cr_loginBtn" onclick="openAdminLogin()">🔒 Admin Login</button>
+      <div id="adminStatusBox" style="display:none;">
+        <div class="admin-on" id="cr_roleStatus">🔓 Admin — Full Access</div>
+        <button type="button" class="admin-login-btn ghost" id="cr_logoutBtn" onclick="logoutComplianceRole()">Admin Logout</button>
+      </div>
+    </div>
     <div class="sidebar-foot">Fleet Ops · v1.0<br>Data shared across all staff</div>
   </aside>
 
@@ -540,25 +572,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
               <span id="cr_syncStatus" style="font-size:10.5px;color:var(--ink-soft);"></span>
               <button class="btn ghost" id="cr_refreshBtn" onclick="manualRefreshCompliance()" title="Tarik data terkini dari shared storage">🔄 Refresh</button>
-              <label style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0;">Branch anda (OKLG/OSJ/dll):</label>
-              <select id="cr_branchSelect" style="font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:4px;" onchange="selectBranchRole(this.value)">
-                <option value="">— Read only —</option>
-              </select>
-              <span id="cr_roleStatus" style="font-size:11px;color:var(--ink-soft);font-weight:600;"></span>
-              <button class="btn ghost" id="cr_loginBtn" onclick="toggleForm('loginPanel')" title="Admin sahaja">🔒 Admin</button>
-              <button class="btn ghost" id="cr_logoutBtn" style="display:none;" onclick="logoutComplianceRole()">Keluar Admin</button>
               <button class="btn yellow" id="cr_addVehicleBtn" style="display:none;" onclick="toggleForm('addVehicleForm')">+ Add Vehicle</button>
-            </div>
-          </div>
-
-          <div class="panel" id="loginPanel" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
-            <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">Admin Login — Full Access</h3></div>
-            <div class="form-row" style="grid-template-columns:1fr;">
-              <div><label>Password Admin</label><input id="login_password" type="password" placeholder="Masukkan password admin" onkeydown="if(event.key==='Enter'){event.preventDefault();submitAdminLogin();}"></div>
-            </div>
-            <div class="form-actions">
-              <button class="btn ghost" onclick="toggleForm('loginPanel')">Batal</button>
-              <button class="btn yellow" onclick="submitAdminLogin()">Log Masuk</button>
             </div>
           </div>
 
@@ -1021,7 +1035,7 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 
         <div id="settingsLockedMsg" class="panel" style="display:none;">
           <div class="panel-head"><h3>🔒 Admin sahaja</h3></div>
-          <p style="font-size:12.5px;color:var(--ink-soft);margin:0;">Log masuk sebagai Admin (di bahagian Workshop Repair Tickets) untuk tukar no WhatsApp admin atau PIC branch.</p>
+          <p style="font-size:12.5px;color:var(--ink-soft);margin:0;">Log masuk sebagai Admin (butang di bawah menu sebelah kiri) untuk tukar no WhatsApp admin atau PIC branch.</p>
         </div>
 
         <div id="settingsAdminWrap">
@@ -1754,6 +1768,15 @@ function selectBranchRole(value){
   updateComplianceRoleUI();
   renderComplianceTable();
 }
+function openAdminLogin(){
+  document.getElementById("loginPanel").style.display = "block";
+  document.body.classList.remove("nav-open");
+  setTimeout(()=>document.getElementById("login_password").focus(), 0);
+}
+function closeAdminLogin(){
+  document.getElementById("loginPanel").style.display = "none";
+  document.getElementById("login_password").value = "";
+}
 async function submitAdminLogin(){
   const pw = document.getElementById("login_password").value;
   const r = await window.fleetAuth.login(pw);
@@ -1763,8 +1786,7 @@ async function submitAdminLogin(){
   }
   currentRole = "admin";
   currentBranch = null;
-  document.getElementById("login_password").value = "";
-  toggleForm("loginPanel");
+  closeAdminLogin();
   updateComplianceRoleUI();
   renderComplianceTable();
   renderTickets();
@@ -1774,29 +1796,22 @@ async function logoutComplianceRole(){
   currentRole = null;
   currentBranch = null;
   document.getElementById("addVehicleForm").style.display = "none";
-  document.getElementById("cr_branchSelect").value = "";
   updateComplianceRoleUI();
   renderComplianceTable();
   renderTickets();
 }
+/* Admin login lives at the bottom of the sidebar. Pages 02–07 (.admin-only) are shown
+   only to a logged-in admin; everyone else sees Dashboard and Driver & Requester. */
 function updateComplianceRoleUI(){
-  const statusEl = document.getElementById("cr_roleStatus");
-  const loginBtn = document.getElementById("cr_loginBtn");
-  const logoutBtn = document.getElementById("cr_logoutBtn");
-  const addBtn = document.getElementById("cr_addVehicleBtn");
-  const branchSelect = document.getElementById("cr_branchSelect");
-  if(currentRole==="admin"){
-    statusEl.textContent = T("🔓 Admin — Full Access");
-    loginBtn.style.display = "none"; logoutBtn.style.display = "inline-block"; addBtn.style.display = "inline-block";
-    branchSelect.disabled = true;
-  } else if(currentRole==="branch"){
-    statusEl.textContent = T("🏷️ Update tarikh untuk {branch} sahaja").replace("{branch}",currentBranch);
-    loginBtn.style.display = "inline-block"; logoutBtn.style.display = "none"; addBtn.style.display = "none";
-    branchSelect.disabled = false; branchSelect.value = currentBranch;
-  } else {
-    statusEl.textContent = T("👁 Read only — pilih branch di atas untuk update tarikh");
-    loginBtn.style.display = "inline-block"; logoutBtn.style.display = "none"; addBtn.style.display = "none";
-    branchSelect.disabled = false; branchSelect.value = "";
+  const isAdmin = currentRole==="admin";
+  document.body.classList.toggle("is-admin", isAdmin);
+  document.getElementById("cr_loginBtn").style.display = isAdmin ? "none" : "block";
+  document.getElementById("adminStatusBox").style.display = isAdmin ? "block" : "none";
+  document.getElementById("cr_addVehicleBtn").style.display = isAdmin ? "inline-block" : "none";
+  // logged out while on an admin page → back to the Dashboard
+  const active = document.querySelector(".nav-btn.active");
+  if(!isAdmin && active && active.classList.contains("admin-only")){
+    document.querySelector('.nav-btn[data-view="overview"]').click();
   }
   updateUtilAdminUI();
   if(document.getElementById("settingsAdminWrap")) renderSettings();

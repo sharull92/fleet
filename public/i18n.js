@@ -139,6 +139,8 @@
     ["👁 Read only — select a branch above to update dates","👁 Baca sahaja — pilih branch di atas untuk kemas kini tarikh"],
     ["🔓 Admin — Full Access","🔓 Admin — Akses Penuh"],
     ["Admin Logout","Keluar Admin"],
+    ["🔒 Admin Login","🔒 Log Masuk Admin"],
+    ["Log in as Admin (button at the bottom of the left menu) to change the admin WhatsApp number or branch PIC.","Log masuk sebagai Admin (butang di bawah menu sebelah kiri) untuk tukar no. WhatsApp admin atau PIC branch.","Log masuk sebagai Admin (butang di bawah menu sebelah kiri) untuk tukar no WhatsApp admin atau PIC branch."],
     ["+ Add Vehicle","+ Tambah Kenderaan"],
     ["Admin Login — Full Access","Log Masuk Admin — Akses Penuh"],
     ["Admin Password","Password Admin"],
