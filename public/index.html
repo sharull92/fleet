@@ -2817,8 +2817,13 @@ function applyWaPaste(){
   for(const [f,id] of Object.entries(map)){
     if(fields[f]==null || fields[f]==="") continue;
     const el = document.getElementById(id);
-    el.value = fields[f];
-    if(el.value !== fields[f] && el.tagName !== "SELECT") continue;
+    // A pasted map link / coordinates on its own is added to the existing location, not a replacement.
+    if(f==="tempat" && /^https?:\/\/\S+$/.test(fields.tempat) && el.value.trim()){
+      if(!el.value.includes(fields.tempat)) el.value = `${el.value.trim()} · ${fields.tempat}`;
+    } else {
+      el.value = fields[f];
+    }
+    if(el.tagName === "SELECT" && el.value !== fields[f]) continue;
     n++;
     el.classList.add("autofilled");
     setTimeout(()=>el.classList.remove("autofilled"), 2500);

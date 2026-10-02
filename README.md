@@ -38,6 +38,10 @@ LOAD: 3 pasir 3 Crusher run      → Muatan
 TNB:Navin                        → label lain dimasukkan ke Projek supaya tiada maklumat hilang
 ```
 
+**Lokasi (pin peta WhatsApp):** pin tak ikut bila copy teks. Buka pin → Google Maps → copy link
+(Share → Copy link) atau koordinat (cth. `3.076100, 101.633995`) → paste dalam kotak yang sama.
+Link/koordinat yang ditampal sendiri **ditambah** pada Lokasi sedia ada, bukan menggantikannya.
+
 Label boleh huruf besar/kecil, guna `:` atau `=`, dan format *tebal* WhatsApp tidak mengganggu.
 Parser: `public/wa-parse.js`.
 
