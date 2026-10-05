@@ -1667,7 +1667,9 @@ async function loadHiringRecords(){
     const saved = JSON.parse(result.value);
     if(saved && Array.isArray(saved.data) && saved.data.length){
       hiringRecords.length = 0;
-      saved.data.forEach(h=>{ normalizeHireRecord(h); hiringRecords.push(h); });   // older records had mixed case
+      let upgraded = false;
+      saved.data.forEach(h=>{ normalizeHireRecord(h); if(upgradeHireRecord(h)) upgraded = true; hiringRecords.push(h); });   // older records: mixed case / free text
+      if(upgraded && currentRole==="admin") persistHiringRecords();   // save the tidy-up once
     }
   }catch(e){
     console.info("Hiring records: tiada simpanan shared lagi, guna data asal.", e);
@@ -3227,6 +3229,21 @@ const HIRE_TEXT_FIELDS = ["unit","company","project","tempat","load","sv","drive
 function normalizeHireRecord(h){
   let changed = false;
   HIRE_TEXT_FIELDS.forEach(f=>{ if(typeof h[f]==="string"){ const n = normText(h[f]); if(n!==h[f]){ h[f] = n; changed = true; } } });
+  return changed;
+}
+/* Records logged before the Item / Unit / Company dropdowns existed: work out the
+   item + quantity from the old free-text unit ("TIPPER", "LORRY KREN", "2 LORI TIPPER")
+   and match the company to the list ("K.RENTANG" → K/RENTANG, "AKLI S/B" → AKLI). */
+function upgradeHireRecord(h){
+  let changed = false;
+  if(!h.item && h.unit){
+    const { item, qty } = matchHireItem(h.unit);
+    if(item){ h.item = item; h.qty = qty || 1; h.unit = `${h.qty} ${item}`; changed = true; }
+  }
+  if(h.company && h.company!=="—"){
+    const hit = matchCompanyName(h.company, hireCompanyList());
+    if(hit && hit!==h.company){ h.company = hit; changed = true; }
+  }
   return changed;
 }
 const HIRE_STATUS_LABEL = {New:"New", Assigned:"Assigned"};
