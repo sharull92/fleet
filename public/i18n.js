@@ -408,6 +408,9 @@
     ["Included","Dikira"],
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
+    ["Hiring Requests — New","Permohonan Sewaan — Baharu"],
+    ["Hiring — Assigned","Sewaan — Telah Diagih"],
+    ["Open Hiring Management","Buka Pengurusan Sewaan"],
     ["By government requirement / enforcement agency","Ikut keperluan kerajaan / agensi penguatkuasa"],
     ["Requirement","Keperluan"],
     ["Agency","Agensi"],
@@ -475,6 +478,8 @@
   ];
 
   const TEMPLATES = [
+    ["{a} unit(s) awaiting assignment","{a} unit menunggu diagih"],
+    ["{a} unit(s) · {b} request(s) this month","{a} unit · {b} permohonan bulan ini"],
     ["Included vehicles · average of {a} month(s) with data, {b}","Kenderaan dikira · purata {a} bulan yang ada data, {b}"],
     ["No utilization data for {a} yet","Belum ada data penggunaan untuk {a}"],
     ["Plate {a} already exists in the list.","No. plat {a} sudah ada dalam senarai."],
