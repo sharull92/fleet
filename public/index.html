@@ -453,7 +453,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
       <!-- ============ OVERVIEW ============ -->
       <section class="view active" id="view-overview">
-        <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(5,1fr);"></div>
+        <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(4,1fr);"></div>
 
         <div class="grid-2">
           <div class="panel" style="min-width:0;">
@@ -2364,9 +2364,7 @@ function renderOverview(){
   const openTickets = tickets.filter(t=>t.status!=="Completed" && ticketInGlobalScope(t));
   const hireScope = hiringRecords.filter(inGlobalScopeHiring);
   const hireNew = hireScope.filter(h=>h.status!=="Assigned");
-  const hireAssigned = hireScope.filter(h=>h.status==="Assigned");
   const hireUnits = arr => arr.reduce((n,h)=>n+(parseInt(h.qty,10)||1),0);
-  const hireThisMonth = hireScope.filter(h=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(h.tarikh||"") && dmyToIso(h.tarikh).slice(0,7)===APP_TODAY_ISO.slice(0,7)).length;
   const inRepairPlates = new Set(tickets.filter(t=>t.status==="In Progress" && ticketInGlobalScope(t)).map(t=>t.vehicle));
 
   const kpis = [
@@ -2374,7 +2372,6 @@ function renderOverview(){
     {label:"In Repair",value:inRepairPlates.size,foot:"active workshop tickets",cls:inRepairPlates.size>0?"alert":""},
     {label:"Open Repair Tickets",value:openTickets.length,foot:"status \u2260 Completed",cls:""},
     {label:"Hiring Requests — New",value:hireNew.length,foot:fleetI18n.tr(`${hireUnits(hireNew)} unit(s) awaiting assignment`),cls:hireNew.length>0?"alert":"",view:"hiring"},
-    {label:"Hiring — Assigned",value:hireAssigned.length,foot:fleetI18n.tr(`${hireUnits(hireAssigned)} unit(s) · ${hireThisMonth} request(s) this month`),cls:"",view:"hiring"},
   ];
   document.getElementById("kpiRow").innerHTML = kpis.map(k=>`
     <div class="kpi ${k.cls}"${k.view&&currentRole==="admin"?` style="cursor:pointer;" title="${escHtml(fleetI18n.tr("Open Hiring Management"))}" onclick="document.querySelector('.nav-btn[data-view=${k.view}]').click()"`:""}>
