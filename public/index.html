@@ -241,6 +241,8 @@ input,select,textarea{
 label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
+.as-row{border:1px solid var(--line);border-left:3px solid var(--yellow-deep);border-radius:var(--radius);padding:12px 14px 2px;margin-bottom:12px;background:var(--panel);}
+.as-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;}
 .util-edit{font-size:11.5px;padding:4px 6px;border:1px solid transparent;border-bottom:1px dashed var(--line);border-radius:4px;background:transparent;color:inherit;text-transform:uppercase;}
 .util-edit:hover{border-color:var(--line);}
 .util-edit:focus{border-color:var(--yellow-deep);background:var(--panel);outline:none;}
@@ -943,27 +945,10 @@ body:not(.is-admin) .admin-only{display:none !important;}
             </div>
           </div>
 
-          <div class="form-row">
-            <div>
-              <label>Sumber Kenderaan</label>
-              <select id="as_source" onchange="onSourceChange()">
-                <option value="Sendiri">Kenderaan Sendiri (own fleet)</option>
-                <option value="Sewa">Sewa (hire external)</option>
-              </select>
-            </div>
-            <div id="as_vehicle_own_wrap">
-              <label>Pilih Kenderaan (Lorry Tipper &amp; Lorry Crane sahaja — 🟢 available / 🔴 tak available)</label>
-              <input id="as_vehicle_search" placeholder="cth: AKLI, lorry tipper, WA 2281..." oninput="filterOwnFleetOptions()" style="margin-bottom:8px;">
-              <select id="as_vehicle_own" onchange="prefillDriverFromVehicle()"></select>
-            </div>
-            <div id="as_vendor_wrap" style="display:none;">
-              <label>Vendor / Unit Sewa</label>
-              <input id="as_vendor" placeholder="cth: ABC Transport — Isuzu NPR">
-            </div>
-          </div>
-          <div class="form-row">
-            <div><label>Nama Pemandu</label><input id="as_driver" placeholder="Nama pemandu yang di-assign"></div>
-            <div><label>No. Telefon Pemandu</label><input id="as_driver_phone" placeholder="01X-XXXXXXX"></div>
+          <div id="as_rows"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 12px;">
+            <button type="button" class="btn ghost" onclick="addAssignRow()" style="padding:5px 12px;font-size:11.5px;">+ Add unit</button>
+            <span id="as_rows_note" style="font-size:11px;color:var(--ink-soft);"></span>
           </div>
           <div class="form-actions">
             <button class="btn ghost" onclick="closeAssignPanel()">Batal</button>
@@ -3267,8 +3252,9 @@ function renderHiring(){
   document.getElementById("hireActiveCount").textContent = hiringRecords.length;
   document.getElementById("hirePendingCount").textContent = hiringRecords.filter(h=>h.status==="New").length;
   document.getElementById("hireAssignedCount").textContent = hiringRecords.filter(h=>h.status==="Assigned").length;
-  const sewaCount = hiringRecords.filter(h=>h.source==="Sewa").length;
-  const sendiriCount = hiringRecords.filter(h=>h.source==="Sendiri").length;
+  const allUnits = hiringRecords.flatMap(hireAssignments);   // counted per unit
+  const sewaCount = allUnits.filter(a=>a.source==="Sewa").length;
+  const sendiriCount = allUnits.filter(a=>a.source==="Sendiri").length;
   document.getElementById("hireSourceSplit").textContent = `${sendiriCount} / ${sewaCount}`;
   renderHireTable();
 }
@@ -3334,7 +3320,7 @@ xlRegister("hiring", {
     {key:"tarikh",  label:"Date / Time", date:true},
     {key:"tempat",  label:"Location", get: h=>String(h.tempat||"").replace(/https?:\/\/\S+/g,"").replace(/\s*·\s*/g," ").trim()},
     {key:"sv",      label:"Supervisor (site)"},
-    {key:"assignedVehicle", label:"Assigned Vehicle"},
+    {key:"assignedVehicle", label:"Assigned Vehicle", get: h=>hireAssignments(h).map(a=>a.vehicle).join(", ")},
     {key:"status",  label:"Status"},
   ],
 });
@@ -3348,8 +3334,11 @@ function renderHireTable(){
     const svLine = !h.sv || h.sv==="—" ? "—" : `${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
     let vehCell = "—";
     if(h.status==="Assigned"){
-      const srcBadge = h.source==="Sendiri" ? badge(T("Sendiri"),"info") : badge(T("Sewa"),"neutral");
-      vehCell = `${h.assignedVehicle}<br><span style="font-size:11px;color:var(--ink-soft);">${h.driverName||""} ${h.driverPhone?"("+h.driverPhone+")":""}</span><br>${srcBadge}`;
+      vehCell = hireAssignments(h).map(a=>{
+        const srcBadge = a.source==="Sendiri" ? badge(T("Sendiri"),"info") : badge(T("Sewa"),"neutral");
+        const drv = a.driverName && a.driverName!=="—" ? `${escHtml(a.driverName)} ${a.driverPhone && a.driverPhone!=="—" ? "("+escHtml(a.driverPhone)+")" : ""}` : "";
+        return `<div style="margin-bottom:5px;">${escHtml(a.vehicle)} ${srcBadge}${drv?`<br><span style="font-size:11px;color:var(--ink-soft);">${drv}</span>`:""}</div>`;
+      }).join("");
     }
     const actionCell = h.status==="New" ? `<button class="btn yellow" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Balas / Assign")}</button>` : `<button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Edit")}</button>`;
     const deleteBtn = currentRole==="admin" ? `<button class="btn ghost" style="padding:5px 9px;font-size:10.5px;color:var(--danger);margin-left:6px;" onclick="deleteHireRecord(${i})" title="${T("Padam job ini (cth. job dibatalkan)")}">✕ ${T("Padam")}</button>` : "";
@@ -3574,19 +3563,26 @@ function notifyHireWhatsApp(){
 
 const HIRE_ELIGIBLE_CATEGORIES = ["LORRY TIPPER", "LORRY CRANE/ SELF LOADER"];
 
+/* A job can have several units, each from own fleet or hired: h.assignments =
+   [{source:"Sendiri"|"Sewa", vehicle, driverName, driverPhone}]. Older records only
+   have the single source / assignedVehicle fields. */
+function hireAssignments(h){
+  if(Array.isArray(h.assignments) && h.assignments.length) return h.assignments;
+  if(h.status==="Assigned" && h.assignedVehicle) return [{source:h.source||"Sendiri", vehicle:h.assignedVehicle, driverName:h.driverName||"", driverPhone:h.driverPhone||""}];
+  return [];
+}
 function getVehicleAvailability(plate, tarikh, excludeIndex){
   if(!tarikh || tarikh==="—") return {busy:false, label:"Tarikh tak diketahui"};
   const clash = hiringRecords.find((h,i)=>
     i!==excludeIndex &&
     h.status==="Assigned" &&
-    h.source==="Sendiri" &&
     h.tarikh===tarikh &&
-    h.assignedVehicle && h.assignedVehicle.startsWith(plate+" —")
+    hireAssignments(h).some(a=>a.source==="Sendiri" && a.vehicle && a.vehicle.startsWith(plate+" —"))
   );
   return clash ? {busy:true, label:"Tak Available — job "+clash.unit+" ("+clash.tarikh+")"} : {busy:false, label:"Available"};
 }
 
-function ownFleetOptions(searchTerm, tarikh, excludeIndex){
+function ownFleetOptions(searchTerm, tarikh, excludeIndex, taken = {}, selected = ""){
   const term = (searchTerm||"").trim().toLowerCase();
   const byCategory = {};
   complianceData.forEach(v=>{
@@ -3599,10 +3595,12 @@ function ownFleetOptions(searchTerm, tarikh, excludeIndex){
     byCategory[v.category].push(v);
   });
   const categories = Object.keys(byCategory).sort();
-  if(categories.length===0) return `<option value="" disabled selected>Tiada kenderaan sepadan</option>`;
-  return categories.map(cat=>{
+  const placeholder = `<option value="">${escHtml(fleetI18n.tr("— Select vehicle —"))}</option>`;
+  if(categories.length===0) return placeholder + `<option value="" disabled>Tiada kenderaan sepadan</option>`;
+  return placeholder + categories.map(cat=>{
     const withAvail = byCategory[cat].map(v=>{
-      const avail = getVehicleAvailability(v.plate, tarikh, excludeIndex);
+      const val = `${v.plate} — ${v.company}`;
+      const avail = taken[val] ? {busy:true, label:fleetI18n.tr(`Selected for unit ${taken[val]}`)} : getVehicleAvailability(v.plate, tarikh, excludeIndex);
       return {v, avail};
     });
     withAvail.sort((a,b)=>{
@@ -3613,29 +3611,76 @@ function ownFleetOptions(searchTerm, tarikh, excludeIndex){
       const val = `${v.plate} — ${v.company}`;
       const tag = avail.busy ? "🔴" : "🟢";
       const label = `${tag} ${v.plate} — ${v.company} (${v.location}) — ${avail.label}`;
-      return `<option value="${val}" ${avail.busy?'style="color:var(--danger);"':''}>${label}</option>`;
+      return `<option value="${escHtml(val)}" ${val===selected?"selected":""} ${avail.busy?'style="color:var(--danger);"':''}>${escHtml(label)}</option>`;
     }).join("");
     return `<optgroup label="${cat}">${opts}</optgroup>`;
   }).join("");
 }
-function filterOwnFleetOptions(){
-  const term = document.getElementById("as_vehicle_search").value;
-  const realTarikh = hiringRecords[currentAssignIndex] ? hiringRecords[currentAssignIndex].tarikh : null;
-  document.getElementById("as_vehicle_own").innerHTML = ownFleetOptions(term, realTarikh, currentAssignIndex);
+/* ---- Assign rows: one row per unit requested ---- */
+let assignDraft = [];
+function blankAssignRow(source){ return {source: source||"Sendiri", vehicle:"", search:"", driverName:"", driverPhone:""}; }
+function assignTaken(exceptK){
+  const t = {};
+  assignDraft.forEach((r,k)=>{ if(k!==exceptK && r.source==="Sendiri" && r.vehicle) t[r.vehicle] = k+1; });
+  return t;
 }
-function prefillDriverFromVehicle(){
-  const val = document.getElementById("as_vehicle_own").value; // "PLATE — COMPANY"
-  const plate = val.split(" — ")[0];
-  const match = costingData.find(c=>c.plate===plate);
-  if(match && match.driverName){
-    document.getElementById("as_driver").value = match.driverName;
+function renderAssignRows(){
+  const h = hiringRecords[currentAssignIndex];
+  const tarikh = h ? h.tarikh : null;
+  const wrap = document.getElementById("as_rows");
+  wrap.innerHTML = assignDraft.map((r,k)=>`
+    <div class="as-row" data-k="${k}">
+      <div class="as-row-head"><span>${escHtml(fleetI18n.tr(`Unit ${k+1}`))}</span>${assignDraft.length>1?`<button type="button" class="btn ghost" style="padding:3px 9px;font-size:10.5px;color:var(--danger);" onclick="removeAssignRow(${k})">✕ ${escHtml(fleetI18n.tr("Remove"))}</button>`:""}</div>
+      <div class="form-row">
+        <div>
+          <label>${escHtml(fleetI18n.tr("Vehicle Source"))}</label>
+          <select onchange="setAssignField(${k},'source',this.value,true)">
+            <option value="Sendiri" ${r.source==="Sendiri"?"selected":""}>${escHtml(fleetI18n.tr("Own Vehicle (own fleet)"))}</option>
+            <option value="Sewa" ${r.source==="Sewa"?"selected":""}>${escHtml(fleetI18n.tr("Hire (external)"))}</option>
+          </select>
+        </div>
+        ${r.source==="Sendiri" ? `<div>
+          <label>${escHtml(fleetI18n.tr("Select Vehicle (Lorry Tipper & Lorry Crane only — 🟢 available / 🔴 not available)"))}</label>
+          <input value="${escHtml(r.search)}" placeholder="${escHtml(fleetI18n.tr("e.g. AKLI, lorry tipper, WA 2281..."))}" oninput="setAssignSearch(${k},this.value)" style="margin-bottom:8px;">
+          <select class="as-own" onchange="setAssignVehicle(${k},this.value)">${ownFleetOptions(r.search, tarikh, currentAssignIndex, assignTaken(k), r.vehicle)}</select>
+        </div>` : `<div>
+          <label>${escHtml(fleetI18n.tr("Vendor / Hired Unit"))}</label>
+          <input value="${escHtml(r.vehicle)}" placeholder="${escHtml(fleetI18n.tr("e.g. ABC Transport — Isuzu NPR"))}" onchange="setAssignField(${k},'vehicle',this.value)">
+        </div>`}
+      </div>
+      <div class="form-row">
+        <div><label>${escHtml(fleetI18n.tr("Driver Name"))}</label><input class="as-driver" value="${escHtml(r.driverName)}" placeholder="${escHtml(fleetI18n.tr("Name of the assigned driver"))}" onchange="setAssignField(${k},'driverName',this.value)"></div>
+        <div><label>${escHtml(fleetI18n.tr("Driver's Phone No."))}</label><input value="${escHtml(r.driverPhone)}" placeholder="01X-XXXXXXX" onchange="setAssignField(${k},'driverPhone',this.value)"></div>
+      </div>
+    </div>`).join("");
+  const qty = h ? (parseInt(h.qty,10) || 1) : 1;
+  const note = document.getElementById("as_rows_note");
+  if(note){
+    const own = assignDraft.filter(r=>r.source==="Sendiri").length, hire = assignDraft.length-own;
+    note.textContent = fleetI18n.tr(`Requested: ${qty} unit(s) · assigning ${assignDraft.length} (${own} own, ${hire} hire)`);
+    note.style.color = assignDraft.length===qty ? "var(--ink-soft)" : "var(--warn)";
   }
 }
-function onSourceChange(){
-  const source = document.getElementById("as_source").value;
-  document.getElementById("as_vehicle_own_wrap").style.display = source==="Sendiri" ? "block" : "none";
-  document.getElementById("as_vendor_wrap").style.display = source==="Sewa" ? "block" : "none";
+function setAssignField(k, field, value, rerender){
+  if(!assignDraft[k]) return;
+  assignDraft[k][field] = value;
+  if(field==="source"){ assignDraft[k].vehicle = ""; assignDraft[k].search = ""; }
+  if(rerender) renderAssignRows();
 }
+function setAssignSearch(k, value){
+  assignDraft[k].search = value;
+  const row = document.querySelector(`#as_rows .as-row[data-k="${k}"] select.as-own`);
+  if(row) row.innerHTML = ownFleetOptions(value, (hiringRecords[currentAssignIndex]||{}).tarikh, currentAssignIndex, assignTaken(k), assignDraft[k].vehicle);
+}
+function setAssignVehicle(k, value){
+  assignDraft[k].vehicle = value;
+  const plate = value.split(" — ")[0];
+  const match = costingData.find(c=>c.plate===plate);
+  if(match && match.driverName && !assignDraft[k].driverName) assignDraft[k].driverName = match.driverName;
+  renderAssignRows();      // other rows now show this vehicle as taken
+}
+function addAssignRow(){ assignDraft.push(blankAssignRow(assignDraft.length ? assignDraft[assignDraft.length-1].source : "Sendiri")); renderAssignRows(); }
+function removeAssignRow(k){ if(assignDraft.length>1){ assignDraft.splice(k,1); renderAssignRows(); } }
 function setRequestField(id, val, missingHint){
   const el = document.getElementById(id);
   if(!val || val==="—"){
@@ -3661,14 +3706,10 @@ function openAssignPanel(index){
   document.getElementById("as_load").value = h.load;
   document.getElementById("as_sv").value = h.sv;
   document.getElementById("as_sv_phone").value = h.phone;
-  document.getElementById("as_vehicle_search").value = "";
-  document.getElementById("as_vehicle_own").innerHTML = ownFleetOptions("", h.tarikh, index);
-  document.getElementById("as_source").value = h.source || "Sendiri";
-  if(h.source==="Sewa"){ document.getElementById("as_vendor").value = h.assignedVehicle||""; }
-  else if(h.assignedVehicle){ document.getElementById("as_vehicle_own").value = h.assignedVehicle; }
-  document.getElementById("as_driver").value = h.driverName||"";
-  document.getElementById("as_driver_phone").value = h.driverPhone||"";
-  onSourceChange();
+  const qty = parseInt(h.qty,10) || parseInt((String(h.unit||"").match(/^\s*(\d+)\b/)||[])[1],10) || 1;
+  assignDraft = hireAssignments(h).map(a=>({source:a.source||"Sendiri", vehicle:a.vehicle||"", search:"", driverName:a.driverName&&a.driverName!=="—"?a.driverName:"", driverPhone:a.driverPhone&&a.driverPhone!=="—"?a.driverPhone:""}));
+  while(assignDraft.length < qty) assignDraft.push(blankAssignRow());
+  renderAssignRows();
   document.getElementById("hireReplyWrap").style.display = "none";
   document.getElementById("assignPanel").style.display = "block";
   document.getElementById("assignPanel").scrollIntoView({behavior:"smooth",block:"start"});
@@ -3680,36 +3721,40 @@ function closeAssignPanel(){
 async function generateAssignReply(){
   if(currentAssignIndex===null) return;
   const h = hiringRecords[currentAssignIndex];
-  const source = document.getElementById("as_source").value;
-  const vehicle = source==="Sendiri" ? document.getElementById("as_vehicle_own").value : (document.getElementById("as_vendor").value.trim() || "TBD");
-  const driverName = document.getElementById("as_driver").value.trim() || "—";
-  const driverPhone = document.getElementById("as_driver_phone").value.trim() || "—";
+  const rows = assignDraft.map(r=>({
+    source: r.source,
+    vehicle: r.source==="Sendiri" ? r.vehicle : (normText(r.vehicle.trim()) || "TBD"),
+    driverName: normText(r.driverName.trim()) || "—",
+    driverPhone: r.driverPhone.trim() || "—"
+  }));
+  const missing = rows.findIndex(r=>r.source==="Sendiri" && !r.vehicle);
+  if(missing>-1){ A(fleetI18n.tr(`Please select a vehicle for unit ${missing+1}.`)); return; }
+  const busy = rows.map((r,k)=>({r,k})).filter(({r})=>r.source==="Sendiri" && getVehicleAvailability(r.vehicle.split(" — ")[0], h.tarikh, currentAssignIndex).busy);
+  if(busy.length && !confirm(fleetI18n.tr(`${busy.map(b=>b.r.vehicle).join(", ")} already has a job on ${h.tarikh}. Assign anyway?`))) return;
+  const qty = parseInt(h.qty,10) || 1;
+  if(rows.length!==qty && !confirm(fleetI18n.tr(`The request is for ${qty} unit(s) but ${rows.length} are assigned. Continue?`))) return;
 
-  // tarikh/masa/project/tempat locked — always taken from the original request record, never from admin input
-  const tarikh = h.tarikh || "—";
-  const masa = h.masa || "—";
-  const project = h.project || "—";
-  const tempat = h.tempat || "—";
-
+  const sources = [...new Set(rows.map(r=>r.source))];
   h.status = "Assigned";
-  h.source = source;
-  h.assignedVehicle = vehicle;
-  h.driverName = normText(driverName);
-  h.driverPhone = driverPhone;
-  h.tarikh = tarikh;
-  h.masa = masa;
-  h.project = project;
-  h.tempat = tempat;
+  h.assignments = rows;
+  h.source = sources.length===1 ? sources[0] : "Campur";
+  h.assignedVehicle = rows.map(r=>r.vehicle).join(", ");
+  h.driverName = rows.map(r=>r.driverName).join(", ");
+  h.driverPhone = rows.map(r=>r.driverPhone).join(", ");
 
+  const srcText = r => r.source==="Sendiri" ? "kenderaan sendiri" : "sewa";
+  const drvText = r => `${r.driverName}${r.driverPhone!=="—" ? " ("+r.driverPhone+")" : ""}`;
+  const vehLines = rows.length===1
+    ? `Kenderaan : ${rows[0].vehicle} (${srcText(rows[0])})\nPemandu : ${drvText(rows[0])}`
+    : `Kenderaan :\n` + rows.map((r,k)=>`${k+1}) ${r.vehicle} (${srcText(r)})\n    Pemandu : ${drvText(r)}`).join("\n");
   const text = `*${h.unit}* — CONFIRMED
 
-Tarikh : ${h.tarikh}
-Masa : ${h.masa}
+Tarikh : ${h.tarikh || "—"}
+Masa : ${h.masa || "—"}
 Company : ${h.company}
-Project: ${h.project}
-Tempat : ${h.tempat}
-Kenderaan : ${vehicle} (${source==="Sendiri"?"kenderaan sendiri":"sewa"})
-Pemandu : ${driverName}${driverPhone!=="—" ? " ("+driverPhone+")" : ""}
+Project: ${h.project || "—"}
+Tempat : ${h.tempat || "—"}
+${vehLines}
 Sv tapak : ${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
 
   document.getElementById("hireReplyText").value = text;
