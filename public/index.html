@@ -1101,6 +1101,26 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
           <div class="panel">
             <div class="panel-head">
+              <h3>Driver Contacts — Own &amp; Hire</h3>
+              <span class="sub" style="font-size:11px;color:var(--ink-soft);" id="driverCount"></span>
+              <button class="btn ghost" onclick="addDriverContact()">+ Add Driver</button>
+            </div>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin:-6px 0 10px;">Used in Hiring → Reply &amp; Assign: pick a driver from the list (or pick the vehicle) and the name &amp; phone fill in by themselves. New drivers you type when assigning are added here automatically.</span>
+            <input id="driverSearch" placeholder="Search name, phone, plate or vendor…" oninput="renderDriverContacts()" style="margin-bottom:10px;max-width:360px;">
+            <div style="max-height:420px;overflow:auto;">
+            <table>
+              <thead><tr><th style="width:90px;">Type</th><th>Driver Name</th><th style="width:170px;">Phone No.</th><th>Usual Vehicle / Vendor</th><th style="width:50px;"></th></tr></thead>
+              <tbody id="driverContactsBody"></tbody>
+            </table>
+            </div>
+            <div class="form-actions" style="margin-top:10px;">
+              <button class="btn yellow" onclick="saveDriverContacts()">Save Driver List</button>
+            </div>
+            <div id="driverSaveConfirm" style="font-size:11px;color:var(--good);margin-top:6px;display:none;text-align:right;">✓ Driver list saved</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
               <h3>PIC Setiap Branch</h3>
               <span class="sub" style="font-size:11px;color:var(--ink-soft);">Isi nama &amp; no WhatsApp PIC — kosong = guna Admin sebagai fallback</span>
             </div>
@@ -1448,10 +1468,13 @@ const FLEET_CONTACTS_STORAGE_KEY = "fleetContactsConfig_v1";
 const BRANCH_CODES = ["OKLG","OSJ","OSBN","OPJ","OHDD","HQ Shared","OTN","SUBCON"];
 let adminContacts = [{name:"Admin Fleet", phone:"0172262170"}];
 let branchContacts = Object.fromEntries(BRANCH_CODES.map(b=>[b,{name:"",phone:""}]));
+/* Senarai pemandu (sendiri & sewa) — supaya admin tak perlu key in nama / no telefon
+   setiap kali reply request. Disimpan bersama kenalan WhatsApp (admin sahaja). */
+let driverContacts = [];   // [{name, phone, type:"Sendiri"|"Sewa", plate, vendor}]
 
 async function persistFleetContacts(){
   try{
-    await window.storage.set(FLEET_CONTACTS_STORAGE_KEY, JSON.stringify({admins:adminContacts, branches:branchContacts}), true);
+    await window.storage.set(FLEET_CONTACTS_STORAGE_KEY, JSON.stringify({admins:adminContacts, branches:branchContacts, drivers:driverContacts}), true);
     setSyncStatus("✓ Kenalan tersimpan " + nowTimeStr());
   }catch(e){
     console.warn("Tak dapat simpan kenalan WhatsApp ke shared storage:", e);
@@ -1465,6 +1488,7 @@ async function loadFleetContacts(){
     const saved = JSON.parse(result.value);
     if(saved && Array.isArray(saved.admins) && saved.admins.length) adminContacts = saved.admins;
     if(saved && saved.branches) branchContacts = {...branchContacts, ...saved.branches};
+    if(saved && Array.isArray(saved.drivers)) driverContacts = saved.drivers;
   }catch(e){
     console.info("Kenalan WhatsApp: tiada simpanan shared lagi, guna default.", e);
   }
@@ -1500,6 +1524,7 @@ function renderSettings(){
       <td>${adminContacts.length>1 ? `<button class="btn ghost" onclick="removeAdminContactRow(${i})">✕</button>` : ""}</td>
     </tr>`).join("");
 
+  renderDriverContacts();
   document.getElementById("branchContactsBody").innerHTML = BRANCH_CODES.map(b=>{
     const c = branchContacts[b] || {name:"",phone:""};
     return `<tr>
@@ -1508,6 +1533,89 @@ function renderSettings(){
       <td><input value="${c.phone||''}" oninput="branchContacts['${b}'].phone=this.value" placeholder="0123456789" style="width:100%;"></td>
     </tr>`;
   }).join("");
+}
+function ownFleetPlates(){
+  return complianceData.filter(v=>HIRE_ELIGIBLE_CATEGORIES.includes(v.category)).map(v=>v.plate).sort();
+}
+function renderDriverContacts(){
+  const body = document.getElementById("driverContactsBody");
+  if(!body) return;
+  let dl = document.getElementById("dlOwnPlates");
+  if(!dl){ dl = document.createElement("datalist"); dl.id = "dlOwnPlates"; document.body.appendChild(dl); }
+  dl.innerHTML = ownFleetPlates().map(p=>`<option value="${escHtml(p)}">`).join("");
+  const q = (document.getElementById("driverSearch")||{}).value || "";
+  const term = q.trim().toLowerCase();
+  const rows = driverContacts.map((d,i)=>({d,i})).filter(({d})=>!term || `${d.name} ${d.phone} ${d.plate||""} ${d.vendor||""}`.toLowerCase().includes(term));
+  body.innerHTML = rows.map(({d,i})=>`
+    <tr>
+      <td><select onchange="setDriverField(${i},'type',this.value,true)" style="width:auto;">
+        <option value="Sendiri" ${d.type!=="Sewa"?"selected":""}>${escHtml(fleetI18n.tr("Own"))}</option>
+        <option value="Sewa" ${d.type==="Sewa"?"selected":""}>${escHtml(fleetI18n.tr("Hire"))}</option></select></td>
+      <td><input value="${escHtml(d.name||"")}" onchange="setDriverField(${i},'name',this.value)" placeholder="${escHtml(fleetI18n.tr("Driver name"))}" style="width:100%;text-transform:uppercase;"></td>
+      <td><input value="${escHtml(d.phone||"")}" onchange="setDriverField(${i},'phone',this.value)" placeholder="0123456789" style="width:100%;"></td>
+      <td>${d.type==="Sewa"
+        ? `<input value="${escHtml(d.vendor||"")}" onchange="setDriverField(${i},'vendor',this.value)" placeholder="${escHtml(fleetI18n.tr("Vendor / company"))}" style="width:100%;text-transform:uppercase;">`
+        : `<input value="${escHtml(d.plate||"")}" list="dlOwnPlates" onchange="setDriverField(${i},'plate',this.value)" placeholder="${escHtml(fleetI18n.tr("Usual vehicle plate (optional)"))}" style="width:100%;text-transform:uppercase;">`}</td>
+      <td><button class="btn ghost" onclick="removeDriverContact(${i})" title="${escHtml(fleetI18n.tr("Remove"))}">✕</button></td>
+    </tr>`).join("") || `<tr><td colspan="5" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr(driverContacts.length ? "No drivers match the search" : "No drivers yet — click + Add Driver, or they are added automatically when you assign a job"))}</td></tr>`;
+  const cnt = document.getElementById("driverCount");
+  if(cnt) cnt.textContent = fleetI18n.tr(`${driverContacts.filter(d=>d.type!=="Sewa").length} own · ${driverContacts.filter(d=>d.type==="Sewa").length} hire`);
+}
+function setDriverField(i, field, value, rerender){
+  if(currentRole!=="admin" || !driverContacts[i]) return;
+  const v = String(value||"").trim();
+  driverContacts[i][field] = field==="phone" || field==="type" ? v : v.toUpperCase();
+  if(field==="type"){ driverContacts[i].plate = driverContacts[i].plate || ""; driverContacts[i].vendor = driverContacts[i].vendor || ""; }
+  if(rerender) renderDriverContacts();
+}
+function addDriverContact(){
+  if(currentRole!=="admin") return;
+  driverContacts.unshift({name:"", phone:"", type:"Sendiri", plate:"", vendor:""});
+  const s = document.getElementById("driverSearch"); if(s) s.value = "";
+  renderDriverContacts();
+  const first = document.querySelector("#driverContactsBody tr input");
+  if(first) first.focus();
+}
+function removeDriverContact(i){
+  if(currentRole!=="admin") return;
+  driverContacts.splice(i,1);
+  renderDriverContacts();
+}
+async function saveDriverContacts(){
+  if(currentRole!=="admin"){ A("Hanya admin boleh simpan tetapan ini."); return; }
+  driverContacts = driverContacts.filter(d=>d.name && d.name.trim());
+  await persistFleetContacts();
+  renderDriverContacts();
+  const el = document.getElementById("driverSaveConfirm");
+  if(el){ el.style.display = "block"; setTimeout(()=>{ el.style.display = "none"; }, 3000); }
+}
+const drvKey = s => String(s||"").toUpperCase().replace(/\s+/g," ").trim();
+function findDriver(name, type){
+  const k = drvKey(name);
+  if(!k || k==="—") return null;
+  return driverContacts.find(d=>drvKey(d.name)===k && (!type || (d.type||"Sendiri")===type)) || driverContacts.find(d=>drvKey(d.name)===k) || null;
+}
+/* Called after a reply is generated: remember drivers that are new (or had no phone yet). */
+async function rememberAssignedDrivers(rows){
+  if(currentRole!=="admin") return;
+  let changed = false;
+  rows.forEach(r=>{
+    if(!r.driverName || r.driverName==="—") return;
+    const phone = r.driverPhone && r.driverPhone!=="—" ? r.driverPhone : "";
+    const ex = findDriver(r.driverName, r.source);
+    if(ex){
+      if(phone && ex.phone!==phone){ ex.phone = phone; changed = true; }
+      if(r.source==="Sendiri" && !ex.plate && r.vehicle){ ex.plate = r.vehicle.split(" — ")[0]; changed = true; }
+      if(r.source==="Sewa" && !ex.vendor && r.vehicle && r.vehicle!=="TBD"){ ex.vendor = r.vehicle; changed = true; }
+      return;
+    }
+    const plate = r.source==="Sendiri" ? r.vehicle.split(" — ")[0] : "";
+    const plateTaken = plate && driverContacts.some(d=>utilPlateKey(d.plate)===utilPlateKey(plate));   // keep the vehicle's usual driver
+    driverContacts.push({name:drvKey(r.driverName), phone, type:r.source,
+      plate: plateTaken ? "" : plate, vendor: r.source==="Sewa" && r.vehicle!=="TBD" ? r.vehicle : ""});
+    changed = true;
+  });
+  if(changed) await persistFleetContacts();
 }
 function addAdminContactRow(){
   if(currentRole!=="admin") return;
@@ -3627,6 +3735,10 @@ function assignTaken(exceptK){
 function renderAssignRows(){
   const h = hiringRecords[currentAssignIndex];
   const tarikh = h ? h.tarikh : null;
+  fillDriverDatalist();
+  let vdl = document.getElementById("dlVendors");
+  if(!vdl){ vdl = document.createElement("datalist"); vdl.id = "dlVendors"; document.body.appendChild(vdl); }
+  vdl.innerHTML = [...new Set(driverContacts.filter(d=>d.type==="Sewa" && d.vendor).map(d=>d.vendor))].map(v=>`<option value="${escHtml(v)}">`).join("");
   const wrap = document.getElementById("as_rows");
   wrap.innerHTML = assignDraft.map((r,k)=>`
     <div class="as-row" data-k="${k}">
@@ -3645,11 +3757,15 @@ function renderAssignRows(){
           <select class="as-own" onchange="setAssignVehicle(${k},this.value)">${ownFleetOptions(r.search, tarikh, currentAssignIndex, assignTaken(k), r.vehicle)}</select>
         </div>` : `<div>
           <label>${escHtml(fleetI18n.tr("Vendor / Hired Unit"))}</label>
-          <input value="${escHtml(r.vehicle)}" placeholder="${escHtml(fleetI18n.tr("e.g. ABC Transport — Isuzu NPR"))}" onchange="setAssignField(${k},'vehicle',this.value)">
+          <input value="${escHtml(r.vehicle)}" placeholder="${escHtml(fleetI18n.tr("e.g. ABC Transport — Isuzu NPR"))}" list="dlVendors" onchange="setAssignVendor(${k},this.value)">
         </div>`}
       </div>
+      <div class="form-row" style="grid-template-columns:1fr;margin-bottom:8px;">
+        <div><label>📇 ${escHtml(fleetI18n.tr("Driver list"))}</label>
+          <select onchange="pickAssignDriver(${k},this.value)">${driverPickOptions(r)}</select></div>
+      </div>
       <div class="form-row">
-        <div><label>${escHtml(fleetI18n.tr("Driver Name"))}</label><input class="as-driver" value="${escHtml(r.driverName)}" placeholder="${escHtml(fleetI18n.tr("Name of the assigned driver"))}" onchange="setAssignField(${k},'driverName',this.value)"></div>
+        <div><label>${escHtml(fleetI18n.tr("Driver Name"))}</label><input class="as-driver" list="dlDrivers" value="${escHtml(r.driverName)}" placeholder="${escHtml(fleetI18n.tr("Name of the assigned driver"))}" onchange="setAssignDriverName(${k},this.value)"></div>
         <div><label>${escHtml(fleetI18n.tr("Driver's Phone No."))}</label><input value="${escHtml(r.driverPhone)}" placeholder="01X-XXXXXXX" onchange="setAssignField(${k},'driverPhone',this.value)"></div>
       </div>
     </div>`).join("");
@@ -3661,11 +3777,53 @@ function renderAssignRows(){
     note.style.color = assignDraft.length===qty ? "var(--ink-soft)" : "var(--warn)";
   }
 }
+function driverPickOptions(r){
+  const list = driverContacts.filter(d=>d.name).slice().sort((a,b)=>{
+    const ta = (a.type||"Sendiri")===r.source ? 0 : 1, tb = (b.type||"Sendiri")===r.source ? 0 : 1;
+    return ta-tb || a.name.localeCompare(b.name);
+  });
+  const cur = findDriver(r.driverName, r.source);
+  const opt = d => {
+    const i = driverContacts.indexOf(d);
+    const extra = (d.type==="Sewa" ? d.vendor : d.plate) || "";
+    return `<option value="${i}" ${d===cur?"selected":""}>${escHtml(d.name)}${d.phone?" · "+escHtml(d.phone):""}${extra?" · "+escHtml(extra):""}</option>`;
+  };
+  const own = list.filter(d=>(d.type||"Sendiri")==="Sendiri"), hire = list.filter(d=>d.type==="Sewa");
+  return `<option value="">${escHtml(fleetI18n.tr(list.length ? "— Choose a saved driver —" : "— No saved drivers yet (Settings → Driver Contacts) —"))}</option>`
+    + (own.length ? `<optgroup label="${escHtml(fleetI18n.tr("Own"))}">${own.map(opt).join("")}</optgroup>` : "")
+    + (hire.length ? `<optgroup label="${escHtml(fleetI18n.tr("Hire"))}">${hire.map(opt).join("")}</optgroup>` : "");
+}
+function fillDriverDatalist(){
+  let dl = document.getElementById("dlDrivers");
+  if(!dl){ dl = document.createElement("datalist"); dl.id = "dlDrivers"; document.body.appendChild(dl); }
+  dl.innerHTML = driverContacts.filter(d=>d.name).map(d=>`<option value="${escHtml(d.name)}">`).join("");
+}
+function pickAssignDriver(k, idx){
+  const d = driverContacts[+idx];
+  if(!d || !assignDraft[k]) return;
+  assignDraft[k].driverName = d.name;
+  assignDraft[k].driverPhone = d.phone || "";
+  if(assignDraft[k].source==="Sewa" && !assignDraft[k].vehicle && d.vendor) assignDraft[k].vehicle = d.vendor;
+  renderAssignRows();
+}
+function setAssignDriverName(k, value){
+  if(!assignDraft[k]) return;
+  assignDraft[k].driverName = value;
+  const d = findDriver(value, assignDraft[k].source);
+  if(d){ assignDraft[k].driverName = d.name; if(d.phone) assignDraft[k].driverPhone = d.phone; renderAssignRows(); }
+}
 function setAssignField(k, field, value, rerender){
   if(!assignDraft[k]) return;
   assignDraft[k][field] = value;
   if(field==="source"){ assignDraft[k].vehicle = ""; assignDraft[k].search = ""; }
   if(rerender) renderAssignRows();
+}
+function setAssignVendor(k, value){
+  if(!assignDraft[k]) return;
+  assignDraft[k].vehicle = value;
+  const vk = drvKey(value);
+  const ds = driverContacts.filter(d=>d.type==="Sewa" && vk && drvKey(d.vendor)===vk);
+  if(ds.length===1 && !assignDraft[k].driverName){ assignDraft[k].driverName = ds[0].name; assignDraft[k].driverPhone = ds[0].phone || ""; renderAssignRows(); }
 }
 function setAssignSearch(k, value){
   assignDraft[k].search = value;
@@ -3675,8 +3833,15 @@ function setAssignSearch(k, value){
 function setAssignVehicle(k, value){
   assignDraft[k].vehicle = value;
   const plate = value.split(" — ")[0];
-  const match = costingData.find(c=>c.plate===plate);
-  if(match && match.driverName && !assignDraft[k].driverName) assignDraft[k].driverName = match.driverName;
+  const saved = plate && driverContacts.find(d=>(d.type||"Sendiri")==="Sendiri" && utilPlateKey(d.plate)===utilPlateKey(plate));
+  if(saved){ assignDraft[k].driverName = saved.name; assignDraft[k].driverPhone = saved.phone || ""; }
+  else {
+    const match = costingData.find(c=>c.plate===plate);
+    if(match && match.driverName && !assignDraft[k].driverName){
+      assignDraft[k].driverName = match.driverName;
+      const d = findDriver(match.driverName); if(d && d.phone && !assignDraft[k].driverPhone) assignDraft[k].driverPhone = d.phone;
+    }
+  }
   renderAssignRows();      // other rows now show this vehicle as taken
 }
 function addAssignRow(){ assignDraft.push(blankAssignRow(assignDraft.length ? assignDraft[assignDraft.length-1].source : "Sendiri")); renderAssignRows(); }
@@ -3764,6 +3929,7 @@ Sv tapak : ${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
   renderHireTable();
   renderHiring();
   await persistHiringRecords();
+  await rememberAssignedDrivers(rows);
 }
 function copyHireReply(){
   const el = document.getElementById("hireReplyText");
