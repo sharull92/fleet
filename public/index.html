@@ -1050,11 +1050,11 @@ body:not(.is-admin) .admin-only{display:none !important;}
         </div>
 
         <div class="panel">
-          <div class="panel-head"><h3>Fleet Utilization — Monthly Trend</h3></div>
-          <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-10px;margin-bottom:10px;" id="utilTrendNote">No monthly data yet — set a Data Month above and key in / import utilization to start building the trend.</span>
-          <canvas id="chartUtilForecast" height="280"></canvas>
+          <div class="panel-head"><h3>Fleet Utilization — Selected Month</h3></div>
+          <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-10px;margin-bottom:10px;" id="utilTrendNote">No data for this month yet — key in / import utilization above.</span>
+          <div style="position:relative;height:300px;"><canvas id="chartUtilForecast"></canvas></div>
           <table style="margin-top:14px;">
-            <thead><tr><th>Month</th><th>Vehicles Counted</th><th>Avg Utilization</th></tr></thead>
+            <thead><tr><th>Branch</th><th>Vehicles Counted</th><th>Avg Utilization</th><th>Target</th><th>Status</th></tr></thead>
             <tbody id="utilTrendBody"></tbody>
           </table>
         </div>
@@ -3959,45 +3959,18 @@ function snapshotUtilHistory(match){
     updatedAt: match.utilUpdatedAt
   };   // updatedAt shown per month in the vehicle table
 }
-/* Bina data "Monthly Trend" dari utilHistory setiap kenderaan (included sahaja) — fleet-wide
-   DAN dipecah ikut branch sekali, guna set bulan yang SAMA supaya semua line dalam graf
-   sepadan ikut x-axis yang sama. Bulan yang tiada data langsung untuk satu-satu branch akan
-   jadi gap (null) pada line branch tu sahaja — spanGaps akan sambungkan garis merentasi gap. */
-function buildUtilMonthlyData(){
-  const monthsSet = new Set();
-  const branchesSet = new Set();
-  costingData.forEach(c=>{
-    if(c.includedInUtil && c.utilHistory){
-      Object.keys(c.utilHistory).forEach(m=>monthsSet.add(m));
-      branchesSet.add(c.branch || "—");
-    }
-  });
-  // Trend runs up to the selected month (last 12 months of data), so picking a month
-  // above also moves the chart to it.
-  const months = Array.from(monthsSet).filter(m=>!utilDataMonth || m<=utilDataMonth).sort().slice(-12);
-  const branches = Array.from(branchesSet).sort();
-
-  const fleet = months.map(m=>{
-    const vals = costingData
-      .filter(c=>c.includedInUtil && c.utilHistory && c.utilHistory[m] && c.utilHistory[m].utilizationPct!=null)
-      .map(c=>c.utilHistory[m].utilizationPct);
-    return vals.length ? Math.round((vals.reduce((s,v)=>s+v,0)/vals.length)*10)/10 : null;
-  });
-  const fleetVehicleCount = months.map(m=>
-    costingData.filter(c=>c.includedInUtil && c.utilHistory && c.utilHistory[m] && c.utilHistory[m].utilizationPct!=null).length
-  );
-
-  const branchSeries = branches.map(br=>{
-    const data = months.map(m=>{
-      const vals = costingData
-        .filter(c=>c.includedInUtil && (c.branch||"—")===br && c.utilHistory && c.utilHistory[m] && c.utilHistory[m].utilizationPct!=null)
-        .map(c=>c.utilHistory[m].utilizationPct);
-      return vals.length ? Math.round((vals.reduce((s,v)=>s+v,0)/vals.length)*10)/10 : null;
-    });
-    return {branch:br, data};
-  });
-
-  return {months, labels: months.map(monthShortLabel), fleet, fleetVehicleCount, branchSeries};
+/* Data graf utilization untuk SATU bulan (bulan yang dipilih): purata % kenderaan
+   included bagi setiap branch + Fleet Avg, dengan target branch masing-masing. */
+function buildUtilMonthData(month){
+  const avg = vals => vals.length ? Math.round((vals.reduce((s,v)=>s+v,0)/vals.length)*10)/10 : null;
+  const pctOf = c => { const h = c.utilHistory && c.utilHistory[month]; return h && h.utilizationPct!=null ? h.utilizationPct : null; };
+  const rows = costingData.filter(c=>c.includedInUtil && pctOf(c)!=null);
+  const byBranch = {};
+  rows.forEach(c=>{ const br = utilBranchKey(c.branch); (byBranch[br] = byBranch[br] || []).push(pctOf(c)); });
+  const branches = Object.keys(byBranch).sort().map(br=>({
+    branch: br, count: byBranch[br].length, avg: avg(byBranch[br]), target: targetPctFor(br, month)
+  }));
+  return { month, count: rows.length, fleet: avg(rows.map(pctOf)), fleetTarget: computeFleetTarget(), branches };
 }
 function daysInMonth(yyyymm){
   if(!yyyymm) return 30;
@@ -4237,88 +4210,95 @@ function renderUtilization(){
   renderUtilByBranch();
   updateUtilDataMonthNote();
 
-  const monthlyData = buildUtilMonthlyData();
-  const hasTrendData = monthlyData.months.length>0;
+  /* Graf bar untuk bulan yang dipilih sahaja: satu bar setiap branch + Fleet Avg.
+     Hijau = capai target, merah = bawah target; garis putus-putus = target bar tu. */
+  const md = buildUtilMonthData(utilDataMonth);
+  const hasData = md.count>0;
   const trendNote = document.getElementById("utilTrendNote");
   if(trendNote){
-    trendNote.textContent = hasTrendData
-      ? `Showing ${monthlyData.months.length} month(s) of data entered so far (${monthlyData.labels[0]} – ${monthlyData.labels[monthlyData.labels.length-1]}) — fleet-wide & by branch, with the Fleet Target line for reference.`
-      : "No monthly data yet — set a Data Month above and key in / import utilization to start building the trend.";
+    trendNote.textContent = hasData
+      ? fleetI18n.tr(`${monthShortLabel(md.month)} — average utilization by branch (included vehicles). Green = on target, red = below target; the short line on each bar = its target.`)
+      : T("No data for this month yet — key in / import utilization above.");
   }
+  const okColor = "#27AE60", badColor = "#EB5757";
+  const bars = [
+    {label: fleetI18n.tr("Fleet Avg"), count: md.count, avg: md.fleet, target: md.fleetTarget, fleet: true},
+    ...md.branches.map(b=>({label: b.branch, count: b.count, avg: b.avg, target: b.target}))
+  ];
   const trendBody = document.getElementById("utilTrendBody");
   if(trendBody){
-    trendBody.innerHTML = hasTrendData
-      ? monthlyData.months.map((m,i)=>`<tr><td>${monthlyData.labels[i]}</td><td>${monthlyData.fleetVehicleCount[i]}</td><td class="mono-cell">${monthlyData.fleet[i]!=null?monthlyData.fleet[i]+"%":"—"}</td></tr>`).join("")
-      : `<tr><td colspan="3" style="color:var(--ink-soft);">No data yet</td></tr>`;
+    trendBody.innerHTML = hasData
+      ? bars.map(b=>`<tr${b.fleet?' style="font-weight:700;"':''}><td>${escHtml(b.label)}</td><td>${b.count}</td><td class="mono-cell">${b.avg!=null?b.avg+"%":"—"}</td><td class="mono-cell">${b.target}%</td><td>${b.avg==null?"—":(b.avg>=b.target ? badge("On Target","good") : badge("Below Target","warn"))}</td></tr>`).join("")
+      : `<tr><td colspan="5" style="color:var(--ink-soft);">${T("No data yet")}</td></tr>`;
   }
 
-  /* Y-axis: zoom into the actual range of the % values (fleet, semua branch & garis
-     target sekali) instead of always 0-100, so month-to-month movement is actually
-     visible on the chart. Falls back to 0-100 when there's no data yet. */
-  let yMin = 0, yMax = 100;
-  if(hasTrendData){
-    const allVals = [...monthlyData.fleet, ...monthlyData.branchSeries.flatMap(s=>s.data), FLEET_TARGET_PCT].filter(v=>v!=null);
-    const lo = Math.min(...allVals), hi = Math.max(...allVals);
-    const pad = Math.max(3, (hi-lo)*0.4);
-    yMin = Math.max(0, Math.floor(lo-pad));
-    yMax = Math.min(100, Math.ceil(hi+pad));
-    if(yMax-yMin < 8){ const mid=(yMax+yMin)/2; yMin=Math.max(0,Math.floor(mid-6)); yMax=Math.min(100,Math.ceil(mid+6)); }
-  }
-
-  /* Satu line bagi setiap branch (warna berlainan) + line Fleet Avg (poin hijau/merah
-     ikut atas/bawah target) + garis putus-putus "Target" merentasi graf supaya senang
-     nampak bulan/branch mana yang on target vs below target. */
-  const BRANCH_CHART_COLORS = ["#2F80ED","#27AE60","#9B51E0","#F2994A","#EB5757","#56CCF2","#BB6BD9","#219653","#6FCF97","#F2C94C"];
-  const selIdx = monthlyData.months.indexOf(utilDataMonth);          // selected month → bigger points
-  const ptSize = base => monthlyData.months.map((m,i)=> i===selIdx ? base*2.2 : base);
-  const branchDatasets = monthlyData.branchSeries.map((s,i)=>({
-    label: s.branch,
-    data: s.data,
-    borderColor: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
-    backgroundColor: "transparent",
-    fill: false,
-    tension: 0,
-    borderWidth: 1.5,
-    pointRadius: ptSize(2.5),
-    pointBackgroundColor: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
-    spanGaps: true
-  }));
-  const fleetDataset = {
-    label: fleetI18n.tr("Fleet Avg"),
-    data: monthlyData.fleet,
-    borderColor: fleetI18n.cssVar("--needle"),
-    backgroundColor: fleetI18n.cssVar("--needle-fill"),
-    fill: true,
-    tension: 0,
-    borderWidth: 3,
-    pointRadius: ptSize(3.5),
-    pointBackgroundColor: monthlyData.fleet.map(v => v==null ? fleetI18n.cssVar("--needle") : (v>=FLEET_TARGET_PCT ? "#27AE60" : "#EB5757")),
-    spanGaps: true,
-    order: 1
+  const shown = hasData ? bars : [];
+  const valueLabels = {
+    id: "utilValueLabels",
+    afterDatasetsDraw(chart){
+      const meta = chart.getDatasetMeta(0), ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "700 12px 'JetBrains Mono', monospace";
+      ctx.textAlign = "center";
+      // value inside the top of the bar (clear of the target marker); above it if the bar is too short
+      meta.data.forEach((bar,i)=>{
+        const v = shown[i] && shown[i].avg; if(v==null) return;
+        const inside = bar.base - bar.y > 26;
+        ctx.fillStyle = inside ? "#fff" : (fleetI18n.cssVar("--ink") || "#222");
+        ctx.textBaseline = inside ? "top" : "bottom";
+        ctx.fillText(v+"%", bar.x, inside ? bar.y+6 : bar.y-4);
+      });
+      ctx.restore();
+    }
   };
-  const targetDataset = {
-    label: fleetI18n.tr(`Fleet Target (${FLEET_TARGET_PCT}%)`),
-    data: monthlyData.months.map(()=>FLEET_TARGET_PCT),
-    borderColor: "#EB5757",
-    borderDash: [6,4],
-    borderWidth: 2,
-    pointRadius: 0,
-    pointHitRadius: 0,
-    fill: false,
-    order: 0
-  };
-
   if(utilForecastChart) utilForecastChart.destroy();
   utilForecastChart = new Chart(document.getElementById("chartUtilForecast"),{
-    type:"line",
-    data:{labels: monthlyData.labels, datasets: [fleetDataset, ...branchDatasets, targetDataset]},
+    type:"bar",
+    data:{
+      labels: shown.map(b=>b.label),
+      datasets: [
+        {
+          label: fleetI18n.tr("Avg Utilization"),
+          data: shown.map(b=>b.avg),
+          backgroundColor: shown.map(b=> b.avg>=b.target ? okColor : badColor),
+          borderColor: shown.map(b=> b.fleet ? fleetI18n.cssVar("--ink") : "transparent"),
+          borderWidth: shown.map(b=> b.fleet ? 2 : 0),
+          borderRadius: 4,
+          maxBarThickness: 70,
+          order: 1
+        },
+        {
+          type: "line",
+          label: fleetI18n.tr("Target"),
+          data: shown.map(b=>b.target),
+          showLine: false,
+          pointStyle: "line",
+          pointRadius: 26,
+          pointHoverRadius: 26,
+          pointBorderWidth: 3,
+          borderColor: fleetI18n.cssVar("--ink") || "#222",
+          backgroundColor: fleetI18n.cssVar("--ink") || "#222",
+          order: 0
+        }
+      ]
+    },
     options:{
+      maintainAspectRatio: false,
+      layout:{padding:{top:18}},
       plugins:{
-        legend:{display:true, position:"bottom", labels:{boxWidth:11, padding:10, font:{size:10.5}}},
-        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y!=null?ctx.parsed.y+"%":"—"}`}}
+        legend:{display:false},
+        tooltip:{callbacks:{
+          label: ctx=> ctx.datasetIndex===0
+            ? `${fleetI18n.tr("Avg Utilization")}: ${ctx.parsed.y!=null?ctx.parsed.y+"%":"—"} (${shown[ctx.dataIndex].count} ${T("vehicles")})`
+            : `${fleetI18n.tr("Target")}: ${ctx.parsed.y}%`
+        }}
       },
-      scales:{y:{min:yMin,max:yMax,grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}
-    }
+      scales:{
+        y:{min:0, max:100, ticks:{callback:v=>v+"%"}, grid:{color:fleetI18n.cssVar("--grid")}},
+        x:{grid:{display:false}}
+      }
+    },
+    plugins:[valueLabels]
   });
 }
 
