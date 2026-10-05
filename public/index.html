@@ -1535,7 +1535,7 @@ function renderSettings(){
   }).join("");
 }
 function ownFleetPlates(){
-  return complianceData.filter(v=>HIRE_ELIGIBLE_CATEGORIES.includes(v.category)).map(v=>v.plate).sort();
+  return complianceData.map(v=>v.plate).filter(Boolean).sort();
 }
 function renderDriverContacts(){
   const body = document.getElementById("driverContactsBody");
@@ -3694,15 +3694,20 @@ function ownFleetOptions(searchTerm, tarikh, excludeIndex, taken = {}, selected 
   const term = (searchTerm||"").trim().toLowerCase();
   const byCategory = {};
   complianceData.forEach(v=>{
-    if(!HIRE_ELIGIBLE_CATEGORIES.includes(v.category)) return;
     if(term){
       const hay = `${v.company} ${v.category} ${v.plate} ${v.location}`.toLowerCase();
       if(!hay.includes(term)) return;
     }
-    if(!byCategory[v.category]) byCategory[v.category] = [];
-    byCategory[v.category].push(v);
+    const cat = v.category || "OTHER";
+    if(!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(v);
   });
-  const categories = Object.keys(byCategory).sort();
+  // all vehicles are offered; the category matching the requested item is listed first
+  const req = hiringRecords[excludeIndex];
+  const reqItem = String((req && (req.item || req.unit)) || "").toUpperCase().replace(/^\d+\s*/,"");
+  const words = reqItem.split(/[^A-Z0-9]+/).filter(w=>w.length>2);
+  const score = cat => reqItem && (cat.includes(reqItem) || reqItem.includes(cat)) ? 0 : (words.length && words.every(w=>cat.includes(w)) ? 0 : 1);
+  const categories = Object.keys(byCategory).sort((a,b)=>score(a)-score(b) || a.localeCompare(b));
   const placeholder = `<option value="">${escHtml(fleetI18n.tr("— Select vehicle —"))}</option>`;
   if(categories.length===0) return placeholder + `<option value="" disabled>Tiada kenderaan sepadan</option>`;
   return placeholder + categories.map(cat=>{
@@ -3752,7 +3757,7 @@ function renderAssignRows(){
           </select>
         </div>
         ${r.source==="Sendiri" ? `<div>
-          <label>${escHtml(fleetI18n.tr("Select Vehicle (Lorry Tipper & Lorry Crane only — 🟢 available / 🔴 not available)"))}</label>
+          <label>${escHtml(fleetI18n.tr("Select Vehicle (all vehicles — 🟢 available / 🔴 not available)"))}</label>
           <input value="${escHtml(r.search)}" placeholder="${escHtml(fleetI18n.tr("e.g. AKLI, lorry tipper, WA 2281..."))}" oninput="setAssignSearch(${k},this.value)" style="margin-bottom:8px;">
           <select class="as-own" onchange="setAssignVehicle(${k},this.value)">${ownFleetOptions(r.search, tarikh, currentAssignIndex, assignTaken(k), r.vehicle)}</select>
         </div>` : `<div>

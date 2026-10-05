@@ -409,6 +409,7 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["Select Vehicle (all vehicles — 🟢 available / 🔴 not available)","Pilih Kenderaan (semua kenderaan — 🟢 ada / 🔴 tiada)"],
     ["Driver Contacts — Own & Hire","Kenalan Pemandu — Sendiri & Sewa"],
     ["+ Add Driver","+ Tambah Pemandu"],
     ["Used in Hiring → Reply & Assign: pick a driver from the list (or pick the vehicle) and the name & phone fill in by themselves. New drivers you type when assigning are added here automatically.","Digunakan di Sewaan → Balas & Assign: pilih pemandu dari senarai (atau pilih kenderaan) dan nama & no telefon diisi sendiri. Pemandu baharu yang ditaip semasa assign akan ditambah ke sini secara automatik."],
