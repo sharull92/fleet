@@ -448,7 +448,7 @@
     ["Coolant / water","Air radiator"],
     ["Horn & wipers","Hon & wiper"],
     ["Mirrors & windows","Cermin & tingkap"],
-    ["Body (no new damage)","Badan (tiada kerosakan baru)"],
+    ["Body vehicle","Body kenderaan"],
     ["Fire extinguisher & safety kit","Pemadam api & kit keselamatan"],
     ["Road tax & documents","Cukai jalan & dokumen"],
     ["Problem","Rosak"],
