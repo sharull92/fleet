@@ -953,22 +953,15 @@ body:not(.is-admin) .admin-only{display:none !important;}
             </div>
           </div>
 
-          <div class="form-row" style="grid-template-columns:1.2fr 1fr 1fr 1fr;align-items:end;margin-bottom:16px;">
-            <div><label>Search plate / driver</label><input id="cost_search" placeholder="cth: BLP 2169, Rosli..." oninput="renderCostingTable()"></div>
-            <div><label>Company</label><select id="cost_company" onchange="renderCostingTable()"><option value="">All</option></select></div>
-            <div><label>Branch</label><select id="cost_branch" onchange="renderCostingTable()"><option value="">All</option></select></div>
-            <div><label>Vehicle Type</label><select id="cost_type" onchange="renderCostingTable()"><option value="">All</option></select></div>
-          </div>
-
           <div style="max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
-              <tr><th>Plate</th><th>Company</th><th>Type</th><th>Driver</th><th>Fuel (RM)</th><th>Repair (RM)</th><th>Insurance (RM)</th><th>Toll (RM)</th><th>Wastage (RM)</th><th>Total (RM)</th><th></th></tr>
+              <tr id="costHeadRow"></tr>
             </thead>
             <tbody id="costBody"></tbody>
           </table>
           </div>
-          <div id="costCount" style="font-size:11px;color:var(--ink-soft);margin-top:8px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="costCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="costClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('cost')">✕ Clear all filters</button></div>
         </div>
       </section>
 
@@ -3028,65 +3021,65 @@ function populateCostingFilters(){
   const companies = [...new Set(costingData.map(d=>d.company))].sort();
   const types = [...new Set(costingData.map(d=>d.vehicleType))].sort();
   const branches = [...new Set(costingData.map(d=>d.branch))].sort();
-  document.getElementById("cost_company").innerHTML = `<option value="">All companies</option>` + companies.map(c=>`<option value="${c}">${c}</option>`).join("");
-  document.getElementById("cost_type").innerHTML = `<option value="">All types</option>` + types.map(c=>`<option value="${c}">${c}</option>`).join("");
-  document.getElementById("cost_branch").innerHTML = `<option value="">All branches</option>` + branches.map(c=>`<option value="${c}">${c}</option>`).join("");
   const monthSel = document.getElementById("cost_month");
   if(monthSel && monthSel.options.length<=1){
     monthSel.innerHTML = `<option value="">Full YTD (Jan–Jul 2026)</option>` + monthlyTrend.map(m=>`<option value="${m.month}">${m.month} 2026</option>`).join("");
   }
 }
+/* Per-vehicle cost for the selected month (or full YTD). The source Excel only has
+   per-vehicle YTD totals + fleet-wide MONTHLY totals, so a month is an estimated split:
+   vehicle YTD × (that month's fleet figure ÷ fleet YTD), or 1/7 if the fleet total is 0. */
+function costMonthEntry(){
+  const el = document.getElementById("cost_month");
+  const m = el ? el.value : "";
+  return m ? monthlyTrend.find(x=>x.month===m) || null : null;
+}
+function costRowValues(c){
+  const me = costMonthEntry();
+  const tot = k => costingData.reduce((s,x)=>s+(x[k]||0),0);
+  const split = (v, mv, ft) => !me ? v : ft>0 ? v*(mv/ft) : v/7;
+  const r = {
+    fuel: split(c.totalFuelRM, me?me.fuel:0, tot("totalFuelRM")),
+    repair: split(c.totalRepairRM, me?me.repair:0, tot("totalRepairRM")),
+    insurance: split(c.totalInsuranceRM, me?me.insurance:0, tot("totalInsuranceRM")),
+    toll: split(c.totalTollRM, me?me.toll:0, tot("totalTollRM")),
+    wastage: split(c.totalWastageRM, me?me.wastage:0, tot("totalWastageRM")),
+  };
+  r.total = r.fuel + r.repair + r.insurance + r.toll;
+  return r;
+}
+xlRegister("cost", {
+  data: ()=>costingData,
+  render: ()=>renderCostingTable(),
+  cols: [
+    {key:"plate", label:"Plate"},
+    {key:"company", label:"Company"},
+    {key:"vehicleType", label:"Type"},
+    {key:"branch", label:"Branch"},
+    {key:"driverName", label:"Driver"},
+    {key:"fuel", label:"Fuel (RM)", num:true, get:c=>Math.round(costRowValues(c).fuel)},
+    {key:"repair", label:"Repair (RM)", num:true, get:c=>Math.round(costRowValues(c).repair)},
+    {key:"insurance", label:"Insurance (RM)", num:true, get:c=>Math.round(costRowValues(c).insurance)},
+    {key:"toll", label:"Toll (RM)", num:true, get:c=>Math.round(costRowValues(c).toll)},
+    {key:"wastage", label:"Wastage (RM)", num:true, get:c=>Math.round(costRowValues(c).wastage)},
+    {key:"total", label:"Total (RM)", num:true, get:c=>Math.round(costRowValues(c).total)},
+  ],
+});
 function renderCostingTable(){
-  const search = document.getElementById("cost_search").value.trim().toLowerCase();
-  const company = document.getElementById("cost_company").value;
-  const branch = document.getElementById("cost_branch").value;
-  const type = document.getElementById("cost_type").value;
+  const head = document.getElementById("costHeadRow");
+  if(head) head.innerHTML = xlHeaderHtml("cost") + "<th></th>";
   const monthSelEl = document.getElementById("cost_month");
   const monthSel = monthSelEl ? monthSelEl.value : "";
-  const monthEntry = monthSel ? monthlyTrend.find(m=>m.month===monthSel) : null;
-
-  let rows = costingData.filter(c=>{
-    if(company && c.company!==company) return false;
-    if(branch && c.branch!==branch) return false;
-    if(type && c.vehicleType!==type) return false;
-    if(search && !(c.plate.toLowerCase().includes(search) || (c.driverName||"").toLowerCase().includes(search))) return false;
-    return true;
-  });
-
-  /* Fleet-wide YTD totals per category (all 143 vehicles) — used as the denominator for BOTH
-     the existing company/branch/type "estimated split" AND the new month-based split, since the
-     source Excel only has per-vehicle YTD totals + fleet-wide MONTHLY totals, never per-vehicle
-     monthly figures. */
-  const fleetTotalFuel = costingData.reduce((s,c)=>s+c.totalFuelRM,0);
-  const fleetTotalRepair = costingData.reduce((s,c)=>s+c.totalRepairRM,0);
-  const fleetTotalInsurance = costingData.reduce((s,c)=>s+c.totalInsuranceRM,0);
-  const fleetTotalToll = costingData.reduce((s,c)=>s+c.totalTollRM,0);
-  const fleetTotalWastage = costingData.reduce((s,c)=>s+c.totalWastageRM,0);
-
-  /* If a month is picked: vehicle's estimated cost for that month, per category =
-     vehicle YTD total × (that month's fleet-wide figure ÷ fleet YTD total for that category).
-     Falls back to an even 1/7 split if the fleet total for that category is 0. */
-  function monthSplit(vehicleTotal, monthVal, fleetTotal){
-    if(!monthEntry) return vehicleTotal;
-    if(fleetTotal>0) return vehicleTotal * (monthVal/fleetTotal);
-    return vehicleTotal/7;
-  }
-
-  const computed = rows.map(c=>({
-    c,
-    fuel: monthSplit(c.totalFuelRM, monthEntry?monthEntry.fuel:0, fleetTotalFuel),
-    repair: monthSplit(c.totalRepairRM, monthEntry?monthEntry.repair:0, fleetTotalRepair),
-    insurance: monthSplit(c.totalInsuranceRM, monthEntry?monthEntry.insurance:0, fleetTotalInsurance),
-    toll: monthSplit(c.totalTollRM, monthEntry?monthEntry.toll:0, fleetTotalToll),
-    wastage: monthSplit(c.totalWastageRM, monthEntry?monthEntry.wastage:0, fleetTotalWastage),
-  }));
-  computed.sort((a,b)=> (b.fuel+b.repair) - (a.fuel+a.repair));
+  const monthEntry = costMonthEntry();
+  const rows = xlRows("cost");
+  const computed = rows.map(c=>({c, ...costRowValues(c)}));
+  if(!XL_TABLES.cost.sort) computed.sort((a,b)=> (b.fuel+b.repair) - (a.fuel+a.repair));   // default: highest fuel+repair first
 
   document.getElementById("costBody").innerHTML = computed.map(r=>{
     const c = r.c;
     const total = r.fuel + r.repair + r.insurance + r.toll;
     const wastageStyle = r.wastage > 0 ? `color:var(--warn);font-weight:600;` : `color:var(--ink-soft);`;
-    return `<tr><td style="font-weight:600;">${c.plate}</td><td>${c.company}</td><td>${c.vehicleType}</td><td>${c.driverName||"—"}</td>
+    return `<tr><td style="font-weight:600;">${escHtml(c.plate)}</td><td>${escHtml(c.company||"—")}</td><td>${escHtml(c.vehicleType||"—")}</td><td class="mono-cell">${escHtml(c.branch||"—")}</td><td>${escHtml(c.driverName||"—")}</td>
     <td class="mono-cell">${Math.round(r.fuel).toLocaleString()}</td><td class="mono-cell">${Math.round(r.repair).toLocaleString()}</td>
     <td class="mono-cell">${Math.round(r.insurance).toLocaleString()}</td><td class="mono-cell">${Math.round(r.toll).toLocaleString()}</td>
     <td class="mono-cell" style="${wastageStyle}" title="Amaran idling berlebihan — tidak termasuk dalam Total">${Math.round(r.wastage).toLocaleString()}</td>
@@ -3094,6 +3087,8 @@ function renderCostingTable(){
     <td><button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openCostEntryFor('${c.plate.replace(/'/g,"\\'")}')">Edit</button></td></tr>`;
   }).join("");
   document.getElementById("costCount").textContent = `Showing ${computed.length} of ${costingData.length} vehicles` + (monthEntry?` · ${monthSel} 2026 (estimated split)`:"");
+  const clr = document.getElementById("costClearAllBtn");
+  if(clr) clr.style.display = xlAnyActive("cost") ? "inline-block" : "none";
 
   /* KPIs + category chart follow the current filter selection AND the selected month */
   const totalFuel = computed.reduce((s,r)=>s+r.fuel,0);
@@ -3129,12 +3124,7 @@ function renderCostingTable(){
     document.getElementById("costTopVehAmt").textContent = "";
   }
 
-  const scopeParts = [];
-  if(company) scopeParts.push(company);
-  if(branch) scopeParts.push(branch);
-  if(type) scopeParts.push(type);
-  if(search) scopeParts.push(`"${document.getElementById("cost_search").value.trim()}"`);
-  const scopeLabel = scopeParts.length ? `Filtered — ${scopeParts.join(" · ")} (${computed.length} vehicles)` : "All vehicles";
+  const scopeLabel = xlAnyActive("cost") ? `Filtered (${computed.length} vehicles)` : "All vehicles";
   document.getElementById("costCategoryScope").textContent = scopeLabel + (monthEntry ? ` · ${monthSel} 2026` : "");
 
   if(costCategoryChart) costCategoryChart.destroy();
@@ -3148,14 +3138,16 @@ function renderCostingTable(){
      when company/branch/type/search filters narrow the fleet — share is based on YTD totals, same
      technique as before, independent of which month is picked). The picked month (if any) gets a
      bigger highlighted point so admin/user can see where it sits in the trend. */
-  const isFiltered = scopeParts.length > 0;
+  const isFiltered = xlAnyActive("cost");
+  const fleetTotalFuel = costingData.reduce((s,c)=>s+c.totalFuelRM,0);
+  const fleetTotalRepair = costingData.reduce((s,c)=>s+c.totalRepairRM,0);
   const totalFuelYTD = rows.reduce((s,c)=>s+c.totalFuelRM,0);
   const totalRepairYTD = rows.reduce((s,c)=>s+c.totalRepairRM,0);
   const fuelShare = isFiltered && fleetTotalFuel>0 ? totalFuelYTD/fleetTotalFuel : 1;
   const repairShare = isFiltered && fleetTotalRepair>0 ? totalRepairYTD/fleetTotalRepair : 1;
 
   document.getElementById("costTrendScope").textContent = isFiltered
-    ? `Filtered — ${scopeParts.join(" · ")} · estimated split (${(fuelShare*100).toFixed(0)}% of fleet fuel, ${(repairShare*100).toFixed(0)}% of fleet repair)`
+    ? `Filtered (${rows.length} vehicles) · estimated split (${(fuelShare*100).toFixed(0)}% of fleet fuel, ${(repairShare*100).toFixed(0)}% of fleet repair)`
     : "All vehicles · actual fleet-wide monthly data";
 
   const selIdx = monthEntry ? monthlyTrend.findIndex(t=>t.month===monthSel) : -1;
