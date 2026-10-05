@@ -140,7 +140,7 @@
     ["— Select company —","— Pilih syarikat —"],
     ["Other (type the name)","Lain-lain (taip nama)"],
     ["Company name","Nama syarikat"],
-    ["Lorry Tipper","Lori Tipper"],["Lorry Crane","Lori Kren"],["Small Lorry","Lori Kecil"],["Motorcycle","Motosikal"],
+    ["Lorry Tipper","Lori Tipper"],["Lorry Crane","Lori Kren"],["Self Loader","Self Loader"],["Excavator","Jengkaut"],["Small Lorry","Lori Kecil"],["Motorcycle","Motosikal"],
     ["Please choose the vehicle item.","Sila pilih item kenderaan."],
     ["Please choose the company.","Sila pilih company."],
     ["📋 Paste from WhatsApp","📋 Tampal dari WhatsApp"],

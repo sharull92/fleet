@@ -542,6 +542,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
               <option value="">— Select item —</option>
               <option value="LORRY TIPPER">Lorry Tipper</option>
               <option value="LORRY CRANE">Lorry Crane</option>
+              <option value="SELF LOADER">Self Loader</option>
+              <option value="EXCAVATOR">Excavator</option>
               <option value="BACKHOE">Backhoe</option>
               <option value="SMALL LORRY">Small Lorry</option>
               <option value="VAN">Van</option>
@@ -3307,7 +3309,8 @@ function matchCompanyName(name, list){
 /* "2 LORI TIPPER", "LORRY KREN", "1 unit backhoe" → {item, qty} */
 function matchHireItem(text){
   const t = String(text||"").toUpperCase();
-  const rules = [[/TIPPER/,"LORRY TIPPER"],[/CRANE|KREN|SELF\s*LOADER/,"LORRY CRANE"],[/BACK\s*HOE|BACHOE|JCB/,"BACKHOE"],
+  const rules = [[/TIPPER/,"LORRY TIPPER"],[/SELF\s*-?\s*LOAD/,"SELF LOADER"],[/CRANE|KREN/,"LORRY CRANE"],
+    [/EXCAVATOR|EKSKAVATOR|EXCA\b|PC\s*\d{2,3}\b|SK\s*\d{2,3}\b/,"EXCAVATOR"],[/BACK\s*HOE|BACHOE|JCB/,"BACKHOE"],
     [/SMALL\s*LOR|LOR+[IY]\s*KECIL|\b[13]\s*TAN\b|\b[13]\s*TON/,"SMALL LORRY"],[/\bVAN\b/,"VAN"],[/4\s*X\s*4|4WD|PICK\s*-?\s*UP|HILUX/,"4X4"],[/MOTOR|M\/CYCLE/,"MOTORCYCLE"]];
   const hit = rules.find(([re])=>re.test(t));
   const q = t.match(/(\d+)\s*(?:UNIT|UNITS|BUAH|BIJI|X)\b/) || t.match(/^\s*(\d+)\b/) || t.match(/\bX\s*(\d+)\b/);
