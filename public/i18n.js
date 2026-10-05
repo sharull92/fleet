@@ -459,6 +459,7 @@
   ];
 
   const TEMPLATES = [
+    ["The whole page follows {a}; key-in / Excel import is saved to this month.","Seluruh halaman ikut {a}; key-in / import Excel disimpan ke bulan ini."],
     ["{a} vehicles · {b} companies","{a} kenderaan · {b} syarikat"],
     ["Showing {a} of {b} vehicles · {c} included in the calculation","Paparan {a} daripada {b} kenderaan · {c} dikira dalam pengiraan"],
     ["Showing {a} of {b} vehicles","Paparan {a} daripada {b} kenderaan"],
