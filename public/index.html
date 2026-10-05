@@ -981,7 +981,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
         <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
           <div class="kpi"><div class="label">Fleet Avg Utilization</div><div class="value mono" id="utilAvg">—</div><div class="foot" id="utilAvgFoot">Weighted, kenderaan terpilih sahaja</div></div>
-          <div class="kpi alert"><div class="label">Below Target</div><div class="value" id="utilLowCount">—</div><div class="foot bad">Utilization % &lt; fleet target %</div></div>
+          <div class="kpi alert"><div class="label">Below Target</div><div class="value" id="utilLowCount">—</div><div class="foot bad">Utilization % &lt; its branch target %</div></div>
           <div class="kpi"><div class="label">Idle Units</div><div class="value" id="utilIdleCount">—</div><div class="foot">0% utilization YTD</div></div>
           <div class="kpi">
             <div class="label" style="display:flex;align-items:center;justify-content:space-between;">
@@ -992,11 +992,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div class="foot" id="utilTargetFoot">Ditetapkan oleh admin</div>
             <div id="targetEditForm" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
               <label style="font-size:10.5px;">Bulan (bulan ni jugak jadi "Data Month" untuk key-in / import di bawah)</label>
-              <input id="fleetTargetMonth" type="month" style="width:100%;margin-bottom:8px;" oninput="previewFleetTarget()">
-              <label style="font-size:10.5px;">Hari bekerja (lepas tolak cuti syarikat &amp; cuti umum)</label>
-              <input id="fleetTargetWorkingDays" type="number" min="1" max="31" step="1" style="width:100%;margin-bottom:6px;" oninput="previewFleetTarget()">
-              <div id="fleetTargetPreview" style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;min-height:14px;"></div>
-              <button class="btn yellow" style="width:100%;padding:8px 12px;" onclick="saveFleetTarget()">Set Target</button>
+              <input id="fleetTargetMonth" type="month" style="width:100%;margin-bottom:8px;">
+              <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Working days are set per branch in Utilization by Branch below.</div>
+              <button class="btn yellow" style="width:100%;padding:8px 12px;" onclick="saveFleetTarget()">Set Month</button>
             </div>
           </div>
         </div>
@@ -1004,8 +1002,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="panel">
           <div class="panel-head"><h3>Utilization by Branch</h3></div>
           <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-10px;margin-bottom:12px;">Purata utilization dikira dari kenderaan yang <strong>ditandakan (included)</strong> sahaja bagi setiap branch</span>
+          <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:-6px;margin-bottom:12px;">Working days per branch for the selected month (after company &amp; public holidays — these differ by state). Target = working days ÷ days in month.</span>
           <table>
-            <thead><tr><th>Branch</th><th>Kenderaan Included</th><th>Avg Utilization</th><th>Below Target</th><th>Status</th></tr></thead>
+            <thead><tr><th>Branch</th><th>Working Days</th><th>Target</th><th>Kenderaan Included</th><th>Avg Utilization</th><th>Below Target</th><th>Status</th></tr></thead>
             <tbody id="utilBranchBody"></tbody>
           </table>
         </div>
@@ -3882,7 +3881,7 @@ async function importUtilExcel(){
   let msg = files.length>1
     ? `✓ ${totalUpdated} vehicle(s) updated, ${totalCreated} new vehicle(s) captured into the system from ${files.length} GPS Oncore files, saved as ${monthShortLabel(utilDataMonth)} data.`
     : `✓ ${totalUpdated} vehicle(s) updated, ${totalCreated} new vehicle(s) captured into the system from the GPS Oncore file, saved as ${monthShortLabel(utilDataMonth)} data.`;
-  if(!fleetTargetWorkingDays) msg += `\n⚠ Fleet Target (working days) belum ditetapkan — utilization % belum boleh dikira. Sila set di "Fleet Target" dahulu.`;
+  if(!hasAnyWorkingDays()) msg += `\n⚠ Hari bekerja branch belum ditetapkan — utilization % belum boleh dikira. Sila isi Working Days di "Utilization by Branch" dahulu.`;
   if(totalSkipped) msg += `\n${totalSkipped} row(s) skipped (empty or invalid plate/value).`;
   if(fileErrors.length) msg += `\n${fileErrors.join("\n")}`;
   statusEl.textContent = msg;
@@ -3894,7 +3893,21 @@ async function importUtilExcel(){
 const FLEET_TARGET_STORAGE_KEY = "fleetTargetConfig_v1";
 const MALAY_MONTHS = ["Januari","Februari","Mac","April","Mei","Jun","Julai","Ogos","September","Oktober","November","Disember"];
 let fleetTargetMonth = null;       // format "yyyy-mm"
-let fleetTargetWorkingDays = null; // integer
+let fleetTargetWorkingDays = null; // integer — default for branches without their own value
+/* Working days per branch per month, e.g. {"2026-08": {"OKLG": 21, "OPJ": 22}} — branches
+   follow different state public holidays, so each has its own target. */
+let branchWorkingDays = {};
+const UTIL_NO_BRANCH = "—";
+function utilBranchKey(br){ return br==null || br==="" || br==="null" ? UTIL_NO_BRANCH : br; }
+function wdForBranch(br, month = fleetTargetMonth){
+  const m = branchWorkingDays[month] || {};
+  return m[utilBranchKey(br)] || fleetTargetWorkingDays || null;
+}
+function targetPctFor(br, month = fleetTargetMonth){
+  const wd = wdForBranch(br, month);
+  if(!month || !wd) return FLEET_TARGET_PCT;
+  return Math.round(wd/daysInMonth(month)*1000)/10;
+}
 let FLEET_TARGET_PCT = 87.1;       // fallback sebelum admin tetapkan bulan/hari bekerja
 let utilForecastChart;
 
@@ -4003,10 +4016,15 @@ function monthLabel(yyyymm){
   const [y,m] = yyyymm.split("-").map(Number);
   return `${T(MALAY_MONTHS[m-1])} ${y}`;
 }
+/* Fleet target = average of the branch targets, weighted by included vehicles. */
 function computeFleetTarget(){
-  if(!fleetTargetMonth || !fleetTargetWorkingDays) return FLEET_TARGET_PCT;
-  const dim = daysInMonth(fleetTargetMonth);
-  return Math.round((fleetTargetWorkingDays/dim*100)*10)/10;
+  if(!fleetTargetMonth) return FLEET_TARGET_PCT;
+  const inc = costingData.filter(c=>c.includedInUtil && wdForBranch(c.branch));
+  if(!inc.length) return fleetTargetWorkingDays ? Math.round(fleetTargetWorkingDays/daysInMonth(fleetTargetMonth)*1000)/10 : FLEET_TARGET_PCT;
+  return Math.round(inc.reduce((s,c)=>s+targetPctFor(c.branch),0)/inc.length*10)/10;
+}
+function hasAnyWorkingDays(){
+  return !!fleetTargetWorkingDays || Object.values(branchWorkingDays[fleetTargetMonth]||{}).some(Boolean);
 }
 /* Utilization % setiap kenderaan SENTIASA dikira semula dari daysUtilized (nombor
    mentah "Days Utilized" GPS Oncore, boleh admin edit terus) ÷ fleetTargetWorkingDays
@@ -4015,15 +4033,17 @@ function computeFleetTarget(){
    kali render Utilization/Overview atau lepas Fleet Target ditukar, supaya % automatik
    ikut kadar target semasa tanpa perlu re-upload fail. */
 function recomputeUtilizationPercentages(){
-  if(!fleetTargetWorkingDays) return; // admin belum tetapkan Fleet Target — kekalkan nilai sedia ada
   costingData.forEach(c=>{
-    if(c.daysUtilized==null) return;
-    c.utilizationPct = Math.round((c.daysUtilized/fleetTargetWorkingDays)*1000)/10;
+    const wd = wdForBranch(c.branch);
+    if(c.daysUtilized==null || !wd) return;   // branch has no working days yet — keep existing value
+    c.utilizationPct = Math.round((c.daysUtilized/wd)*1000)/10;
+    const snap = c.utilHistory && c.utilHistory[utilDataMonth];
+    if(snap && snap.daysUtilized!=null) snap.utilizationPct = Math.round((snap.daysUtilized/wd)*1000)/10;
   });
 }
 async function persistFleetTarget(){
   try{
-    await window.storage.set(FLEET_TARGET_STORAGE_KEY, JSON.stringify({month:fleetTargetMonth, workingDays:fleetTargetWorkingDays}), true);
+    await window.storage.set(FLEET_TARGET_STORAGE_KEY, JSON.stringify({month:fleetTargetMonth, workingDays:fleetTargetWorkingDays, branchWorkingDays}), true);
   }catch(e){ console.warn("Tak dapat simpan fleet target ke shared storage:", e); }
 }
 async function loadFleetTarget(){
@@ -4031,9 +4051,10 @@ async function loadFleetTarget(){
     const result = await window.storage.get(FLEET_TARGET_STORAGE_KEY, true);
     if(!result) return;
     const saved = JSON.parse(result.value);
-    if(saved && saved.month && saved.workingDays){
+    if(saved && saved.month){
       fleetTargetMonth = saved.month;
-      fleetTargetWorkingDays = saved.workingDays;
+      fleetTargetWorkingDays = saved.workingDays || null;
+      branchWorkingDays = saved.branchWorkingDays || {};
       utilDataMonth = saved.month; // Data Month sentiasa ikut bulan Fleet Target yang disimpan
     }
   }catch(e){
@@ -4052,38 +4073,35 @@ function updateUtilAdminUI(){
 function openTargetEditForm(){
   if(currentRole!=="admin"){ A("Hanya admin boleh tetapkan fleet target."); return; }
   document.getElementById("fleetTargetMonth").value = fleetTargetMonth || APP_TODAY_ISO.slice(0,7);
-  document.getElementById("fleetTargetWorkingDays").value = fleetTargetWorkingDays || "";
-  previewFleetTarget();
   toggleForm('targetEditForm');
-}
-function previewFleetTarget(){
-  const monthVal = document.getElementById("fleetTargetMonth").value;
-  const wd = parseInt(document.getElementById("fleetTargetWorkingDays").value, 10);
-  const previewEl = document.getElementById("fleetTargetPreview");
-  if(!monthVal || !wd){ previewEl.textContent = ""; return; }
-  const dim = daysInMonth(monthVal);
-  if(wd > dim){
-    previewEl.style.color = "var(--danger)";
-    previewEl.textContent = T("⚠ {a} hari melebihi {b} hari dalam {month}.").replace("{a}",wd).replace("{b}",dim).replace("{month}",monthLabel(monthVal));
-    return;
-  }
-  const target = Math.round((wd/dim*100)*10)/10;
-  previewEl.style.color = "var(--ink-soft)";
-  previewEl.textContent = T("{a} hari ÷ {b} hari × 100 = {target}%").replace("{a}",wd).replace("{b}",dim).replace("{target}",target);
 }
 async function saveFleetTarget(){
   if(currentRole!=="admin"){ A("Hanya admin boleh tetapkan fleet target."); return; }
   const monthVal = document.getElementById("fleetTargetMonth").value;
-  const wd = parseInt(document.getElementById("fleetTargetWorkingDays").value, 10);
-  if(!monthVal || !wd || wd<1){ A("Sila isi bulan dan bilangan hari bekerja yang sah."); return; }
-  const dim = daysInMonth(monthVal);
-  if(wd > dim){ alert(T("Bilangan hari bekerja tak boleh lebih dari {n} hari (jumlah hari dalam {month}).").replace("{n}",dim).replace("{month}",monthLabel(monthVal))); return; }
+  if(!monthVal){ A("Sila pilih bulan."); return; }
   fleetTargetMonth = monthVal;
-  fleetTargetWorkingDays = wd;
   utilDataMonth = monthVal; // gabungkan Data Month dengan bulan Fleet Target — satu je input bulan
   toggleForm('targetEditForm');
   renderUtilization();
   await persistFleetTarget();
+}
+/* Working days for one branch (Utilization by Branch table). */
+async function setBranchWorkingDays(br, value, el){
+  if(currentRole!=="admin"){ A("Hanya admin boleh tetapkan fleet target."); renderUtilByBranch(); return; }
+  if(!fleetTargetMonth){ fleetTargetMonth = utilDataMonth || APP_TODAY_ISO.slice(0,7); }
+  const dim = daysInMonth(fleetTargetMonth);
+  const key = utilBranchKey(br);
+  const wd = value==="" ? null : parseInt(value, 10);
+  if(wd!==null && (isNaN(wd) || wd<1 || wd>dim)){
+    alert(T("Bilangan hari bekerja tak boleh lebih dari {n} hari (jumlah hari dalam {month}).").replace("{n}",dim).replace("{month}",monthLabel(fleetTargetMonth)));
+    if(el) el.value = (branchWorkingDays[fleetTargetMonth]||{})[key] || "";
+    return;
+  }
+  branchWorkingDays[fleetTargetMonth] = branchWorkingDays[fleetTargetMonth] || {};
+  if(wd===null) delete branchWorkingDays[fleetTargetMonth][key]; else branchWorkingDays[fleetTargetMonth][key] = wd;
+  renderUtilization();
+  await persistFleetTarget();
+  await persistCostingData();
 }
 function populateUtilFilters(){
   const companies = [...new Set(costingData.map(d=>d.company))].sort();
@@ -4106,7 +4124,7 @@ function getFilteredUtilRows(){
     if(type && c.vehicleType!==type) return false;
     if(branch && c.branch!==branch) return false;
     if(search && !(c.plate.toLowerCase().includes(search) || (c.driverName||"").toLowerCase().includes(search))) return false;
-    if(status==="below" && !(c.includedInUtil && c.utilizationPct!=null && c.utilizationPct < FLEET_TARGET_PCT)) return false;
+    if(status==="below" && !(c.includedInUtil && c.utilizationPct!=null && c.utilizationPct < targetPctFor(c.branch))) return false;
     if(status==="idle" && c.daysUtilized!==0) return false;
     return true;
   });
@@ -4133,7 +4151,7 @@ function renderUtilTable(){
 
   document.getElementById("utilBody").innerHTML = rows.map(c=>{
     const hasPct = c.utilizationPct!=null;
-    const belowTarget = c.includedInUtil && hasPct && c.utilizationPct < FLEET_TARGET_PCT;
+    const belowTarget = c.includedInUtil && hasPct && c.utilizationPct < targetPctFor(c.branch);
     const statusBadge = !c.includedInUtil ? badge("Excluded","neutral")
       : c.daysUtilized===0 ? badge("Idle","danger")
       : !hasPct ? badge(T("Set Fleet Target"),"neutral")
@@ -4161,17 +4179,30 @@ function renderUtilTable(){
    dipilih (bukan nilai live semasa), supaya table ni betul-betul berubah ikut bulan
    yang admin pilih/set (Data Month kini sama dengan bulan Fleet Target). */
 function renderUtilByBranch(){
-  const branches = [...new Set(costingData.map(c=>c.branch))].sort();
+  const branches = [...new Set(costingData.map(c=>utilBranchKey(c.branch)))].sort((a,b)=> a===UTIL_NO_BRANCH ? 1 : b===UTIL_NO_BRANCH ? -1 : a.localeCompare(b));
+  const isAdmin = currentRole==="admin";
+  const month = fleetTargetMonth || utilDataMonth;
+  const dim = month ? daysInMonth(month) : 31;
+  const own = branchWorkingDays[month] || {};
   const rowsHtml = branches.map(br=>{
+    const wdOwn = own[br];
+    const wd = wdForBranch(br, month);
+    const target = wd && month ? Math.round(wd/dim*1000)/10 : null;
+    const brEsc = br.replace(/'/g,"\\'");
+    const wdCell = isAdmin
+      ? `<input type="number" min="1" max="${dim}" step="1" value="${wdOwn||""}" placeholder="${fleetTargetWorkingDays||""}" class="mono-cell" style="width:64px;font-size:12px;padding:4px 6px;border:1px solid ${wdOwn?"var(--yellow-deep)":"var(--line)"};border-radius:4px;" onchange="setBranchWorkingDays('${brEsc}', this.value, this)"> <span style="font-size:11px;color:var(--ink-soft);">/ ${dim}</span>`
+      : `<span class="mono-cell">${wd ? wd+" / "+dim : "—"}</span>`;
+    const targetCell = `<span class="mono-cell">${target!=null ? target+"%" : "—"}</span>`;
     const included = costingData
-      .filter(c=>c.branch===br && c.includedInUtil)
+      .filter(c=>utilBranchKey(c.branch)===br && c.includedInUtil)
       .map(c=>utilSnapshotForMonth(c, utilDataMonth))
       .filter(snap=>snap && snap.utilizationPct!=null);
-    if(included.length===0) return `<tr><td style="font-weight:600;">${br}</td><td>0</td><td class="mono-cell">—</td><td>—</td><td>${badge(T("Tiada data bulan ini"),"neutral")}</td></tr>`;
+    if(included.length===0) return `<tr><td style="font-weight:600;">${escHtml(br)}</td><td>${wdCell}</td><td>${targetCell}</td><td>0</td><td class="mono-cell">—</td><td>—</td><td>${badge(T("Tiada data bulan ini"),"neutral")}</td></tr>`;
     const avg = Math.round(included.reduce((s,snap)=>s+snap.utilizationPct,0)/included.length*10)/10;
-    const below = included.filter(snap=>snap.utilizationPct < FLEET_TARGET_PCT).length;
-    const statusBadge = avg < FLEET_TARGET_PCT ? badge("Below Target","warn") : badge("On Target","good");
-    return `<tr><td style="font-weight:600;">${br}</td><td>${included.length}</td>
+    const t = target!=null ? target : FLEET_TARGET_PCT;
+    const below = included.filter(snap=>snap.utilizationPct < t).length;
+    const statusBadge = avg < t ? badge("Below Target","warn") : badge("On Target","good");
+    return `<tr><td style="font-weight:600;">${escHtml(br)}</td><td>${wdCell}</td><td>${targetCell}</td><td>${included.length}</td>
     <td class="mono-cell">${avg}%</td><td>${below}</td><td>${statusBadge}</td></tr>`;
   }).join("");
   document.getElementById("utilBranchBody").innerHTML = rowsHtml;
@@ -4184,22 +4215,22 @@ function renderUtilization(){
      berubah ikut bulan yang admin pilih. */
   const included = costingData
     .filter(c=>c.includedInUtil)
-    .map(c=>utilSnapshotForMonth(c, utilDataMonth))
+    .map(c=>{ const snap = utilSnapshotForMonth(c, utilDataMonth); return snap ? {...snap, branch:c.branch} : null; })
     .filter(snap=>snap!=null);
   const withPct = included.filter(snap=>snap.utilizationPct!=null);
   const avg = withPct.length ? Math.round(withPct.reduce((s,snap)=>s+snap.utilizationPct,0)/withPct.length) : null;
-  const belowTarget = withPct.filter(snap=>snap.utilizationPct < FLEET_TARGET_PCT).length;
+  const belowTarget = withPct.filter(snap=>snap.utilizationPct < targetPctFor(snap.branch)).length;
   const idle = included.filter(snap=>snap.daysUtilized===0).length;
 
   document.getElementById("utilAvg").textContent = avg!=null ? avg+"%" : "—";
-  document.getElementById("utilAvgFoot").textContent = fleetTargetWorkingDays
+  document.getElementById("utilAvgFoot").textContent = hasAnyWorkingDays()
     ? `Dari ${included.length} kenderaan terpilih — ${monthShortLabel(utilDataMonth)}`
     : T("Sila tetapkan Fleet Target (bilangan hari bekerja) dahulu untuk kira %");
   document.getElementById("utilLowCount").textContent = belowTarget;
   document.getElementById("utilIdleCount").textContent = idle;
   document.getElementById("utilTarget").textContent = FLEET_TARGET_PCT+"%";
-  document.getElementById("utilTargetFoot").textContent = (fleetTargetMonth && fleetTargetWorkingDays)
-    ? T("{a}/{b} hari bekerja — {month}").replace("{a}",fleetTargetWorkingDays).replace("{b}",daysInMonth(fleetTargetMonth)).replace("{month}",monthLabel(fleetTargetMonth))
+  document.getElementById("utilTargetFoot").textContent = (fleetTargetMonth && hasAnyWorkingDays())
+    ? fleetI18n.tr(`Average of branch targets — ${monthLabel(fleetTargetMonth)}`)
     : T("Admin belum tetapkan — guna default");
   updateUtilAdminUI();
 
