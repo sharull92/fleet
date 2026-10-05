@@ -61,6 +61,16 @@ Link/koordinat yang ditampal sendiri **ditambah** pada Lokasi sedia ada, bukan m
 Label boleh huruf besar/kecil, guna `:` atau `=`, dan format *tebal* WhatsApp tidak mengganggu.
 Parser: `public/wa-parse.js`.
 
+## Pergerakan Harian & Checklist Kenderaan
+
+Di **01 Pemandu & Pemohon** (paling atas). Setiap hari sebelum keluar kerja, pemandu isi: tarikh, branch,
+kenderaan, nama & no telefon, odometer & minyak, **checklist ringkas** (10 item — ✓ OK / ✕ Rosak, wajib
+tulis butiran jika rosak) dan **pergerakan** (satu baris setiap tempat/job, tanda **QR ✅** bila siap).
+Satu rekod setiap kenderaan setiap hari — tekan **Edit** untuk kemas kini (cth. tanda QR selepas siap).
+**Log Pergerakan** tunjuk semua kenderaan ikut tarikh/branch, dan **📋 Salin laporan untuk WhatsApp**
+menghasilkan format group (tarikh + hari, `1) PLAT`, nama, `-TEMPAT QR✅`). Item checklist yang rosak
+hari ini muncul dalam *Perlu Perhatian* di Dashboard.
+
 ## Deploy — Vercel + Supabase
 
 App ini di-host di **Vercel** (halaman dari `public/` + API serverless dalam `api/`) dan data
