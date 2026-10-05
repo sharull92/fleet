@@ -2326,6 +2326,7 @@ async function logoutComplianceRole(){
 function updateComplianceRoleUI(){
   const isAdmin = currentRole==="admin";
   document.body.classList.toggle("is-admin", isAdmin);
+  try{ renderDailyMovements(); }catch(e){}
   document.getElementById("cr_loginBtn").style.display = isAdmin ? "none" : "block";
   document.getElementById("adminStatusBox").style.display = isAdmin ? "block" : "none";
   document.getElementById("cr_addVehicleBtn").style.display = isAdmin ? "inline-block" : "none";
@@ -4969,8 +4970,8 @@ function renderDailyMovements(){
       <td>${escHtml(m.driver)}${m.phone?`<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(m.phone)}</div>`:""}</td>
       <td class="mono-cell">${escHtml(m.branch||"—")}</td><td style="font-size:12px;">${mv}</td><td>${chk}</td>
       <td style="font-size:10.5px;color:var(--ink-soft);white-space:nowrap;">${escHtml(m.updatedAt||"")}</td>
-      ${currentRole==="admin"?`<td style="white-space:nowrap;"><button class="btn ghost" style="padding:4px 9px;font-size:11px;" onclick="dmEdit('${m.id}')">${escHtml(fleetI18n.tr("Edit"))}</button><button class="btn ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);margin-left:4px;" onclick="dmDelete('${m.id}')">✕</button></td>`:""}</tr>`;
-  }).join("") || `<tr><td colspan="${currentRole==="admin"?7:6}" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr("No daily movement submitted for this date yet"))}</td></tr>`;
+      <td class="admin-only" style="white-space:nowrap;"><button class="btn ghost" style="padding:4px 9px;font-size:11px;" onclick="dmEdit('${m.id}')">${escHtml(fleetI18n.tr("Edit"))}</button><button class="btn ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);margin-left:4px;" onclick="dmDelete('${m.id}')">✕</button></td></tr>`;
+  }).join("") || `<tr><td colspan="7" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr("No daily movement submitted for this date yet"))}</td></tr>`;
   const probs = rows.filter(m=>(m.problems||[]).length).length;
   document.getElementById("dm_summary").textContent = fleetI18n.tr(`${rows.length} vehicle(s) · ${probs} with checklist problems`);
 }
