@@ -3275,8 +3275,10 @@ function renderHireTable(){
    Company list = companies in the Compliance Register, so requesters pick instead of
    typing (no spelling variants). "Other" lets them type one that isn't listed yet. */
 const HIRE_OTHER = "__OTHER__";
+const HIRE_COMPANY_EXCLUDE = ["DIJ","MFI"];   // in the register, but not offered for job requests
 function hireCompanyList(){
-  return [...new Set(complianceData.map(d=>String(d.company||"").trim().toUpperCase()).filter(Boolean))].sort();
+  return [...new Set(complianceData.map(d=>String(d.company||"").trim().toUpperCase()).filter(Boolean))]
+    .filter(c=>!HIRE_COMPANY_EXCLUDE.includes(c)).sort();
 }
 function populateHireCompanies(){
   const sel = document.getElementById("hr_company");
