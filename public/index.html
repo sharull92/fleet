@@ -249,6 +249,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .dm-note{flex:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:var(--radius);padding:6px 10px;}
 .dm-note.on{color:#C1443C;border-color:#C1443C;background:rgba(193,68,60,.08);font-weight:700;}
 .panel.dm-flash{box-shadow:0 0 0 3px var(--yellow-deep);transition:box-shadow .3s;}
+.tk-issue{border:1px solid var(--line);border-left:3px solid var(--yellow-deep);border-radius:var(--radius);padding:8px;margin-bottom:8px;background:var(--panel-2);display:grid;gap:6px;}
+.tk-issue-head{display:flex;gap:8px;align-items:center;}
+.tk-issue-head select{flex:1;}
 .dm-move{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;margin-bottom:6px;}
 .dm-move .n{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--ink-soft);text-align:right;}
 
@@ -580,11 +583,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="form-row">
             <div style="grid-column:1/-1;">
               <label>Issue (boleh tambah lebih dari satu)</label>
-              <div style="display:flex;gap:8px;">
-                <input id="tk_issue" placeholder="e.g. Brake pad replacement" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addIssueChip();}">
-                <button type="button" class="btn ghost" style="white-space:nowrap;" onclick="addIssueChip()">+ Add Issue</button>
-              </div>
-              <div id="tk_issueChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+              <div id="tk_issueRows"></div>
+              <button type="button" class="btn ghost" style="white-space:nowrap;padding:5px 12px;font-size:11.5px;" onclick="addIssueRow()">+ Add Issue</button>
             </div>
           </div>
           <div class="form-row">
@@ -2747,30 +2747,40 @@ async function deleteTicket(id){
   renderRepair();
   await persistTickets();
 }
-let tk_issueList = [];
+/* Issues are grouped by part (same groups as the daily checklist) + a description of
+   the damage, e.g. Brakes — BRAKE PUMP, Engine part — TUKAR WATER PUMP, so the repair
+   history can be read per part. */
+let tk_issueList = [{group:"", desc:""}];
+function repairGroups(){ return [...DM_CHECK_ITEMS, ["other","Other"]]; }
+function repairGroupLabel(k){ return (repairGroups().find(g=>g[0]===k)||[k,k])[1]; }
 function renderIssueChips(){
-  document.getElementById("tk_issueChips").innerHTML = tk_issueList.map((iss,idx)=>`
-    <span style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:11.5px;display:inline-flex;align-items:center;gap:6px;">
-      ${iss}
-      <span style="cursor:pointer;color:var(--danger);font-weight:700;" onclick="removeIssueChip(${idx})">✕</span>
-    </span>`).join("");
+  if(!tk_issueList.length) tk_issueList = [{group:"", desc:""}];
+  document.getElementById("tk_issueRows").innerHTML = tk_issueList.map((it,idx)=>`
+    <div class="tk-issue">
+      <div class="tk-issue-head">
+        <select onchange="tk_issueList[${idx}].group=this.value">
+          <option value="">${escHtml(fleetI18n.tr("— Select part —"))}</option>
+          ${repairGroups().map(([k,l])=>`<option value="${k}" ${it.group===k?"selected":""}>${escHtml(fleetI18n.tr(l))}</option>`).join("")}
+        </select>
+        ${tk_issueList.length>1?`<button type="button" class="btn ghost" style="padding:4px 9px;font-size:11px;color:var(--danger);" onclick="removeIssueChip(${idx})">✕</button>`:""}
+      </div>
+      <input value="${escHtml(it.desc)}" placeholder="${escHtml(fleetI18n.tr("What is the damage? e.g. BRAKE PUMP / TUKAR WATER PUMP"))}" oninput="tk_issueList[${idx}].desc=this.value" style="text-transform:uppercase;">
+    </div>`).join("");
 }
-function addIssueChip(){
-  const input = document.getElementById("tk_issue");
-  const val = input.value.trim();
-  if(!val) return;
-  tk_issueList.push(val);
-  input.value = "";
+function addIssueRow(group){
+  tk_issueList.push({group: group||"", desc:""});
   renderIssueChips();
+  const ins = document.querySelectorAll("#tk_issueRows input");
+  if(ins.length) ins[ins.length-1].focus();
 }
 function removeIssueChip(idx){
   tk_issueList.splice(idx,1);
   renderIssueChips();
 }
+window.addEventListener("fleet:lang", ()=>{ try{ renderIssueChips(); }catch(e){} });
 function cancelTicketForm(){
   tk_issueList = [];
   renderIssueChips();
-  document.getElementById("tk_issue").value = "";
   document.getElementById("tk_reportedBy").value = "";
   document.getElementById("tk_phone").value = "";
   document.getElementById("tk_date").value = "";
@@ -2781,8 +2791,6 @@ async function addTicket(){
   const branch = document.getElementById("tk_branch").value;
   const vehicle = document.getElementById("tk_vehicle").value.split(" — ")[0];
   const priority = document.getElementById("tk_priority").value;
-  const leftoverIssue = document.getElementById("tk_issue").value.trim();
-  if(leftoverIssue) tk_issueList.push(leftoverIssue);
   const reportedBy = document.getElementById("tk_reportedBy").value.trim() || "—";
   const reportedByPhone = document.getElementById("tk_phone").value.trim() || null;
   const dateVal = document.getElementById("tk_date").value;
@@ -2790,10 +2798,13 @@ async function addTicket(){
     A("Sila pilih branch anda.");
     return;
   }
-  if(tk_issueList.length===0){
+  const issues = tk_issueList.map(it=>({group:it.group, desc:normText(it.desc||"")})).filter(it=>it.group || it.desc);
+  if(issues.length===0){
     A("Sila isi sekurang-kurangnya satu issue.");
     return;
   }
+  if(issues.some(it=>!it.group)){ A(fleetI18n.tr("Please choose the part for every issue.")); return; }
+  if(issues.some(it=>!it.desc)){ A(fleetI18n.tr("Please describe the damage for every issue (e.g. BRAKE PUMP).")); return; }
   if(!dateVal){
     A("Sila pilih tarikh repair (hari ini atau akan datang).");
     return;
@@ -2802,14 +2813,13 @@ async function addTicket(){
     A("Tarikh repair tak boleh tarikh yang sudah lepas — sila pilih tarikh hari ini atau akan datang.");
     return;
   }
-  const issue = tk_issueList.join(", ");
+  const issue = issues.map(it=>`${repairGroupLabel(it.group).toUpperCase()} — ${it.desc}`).join(", ");
   ticketSeq++;
-  tickets.unshift({id:"RT-"+String(ticketSeq).padStart(3,"0"),vehicle,issue,opened:isoToDMY(dateVal),priority,costAwal:0,costFinal:null,status:"Pending",reportedBy,reportedByPhone,branch,location:null,repairBy:null,adminNote:null,completedDate:null});
+  tickets.unshift({id:"RT-"+String(ticketSeq).padStart(3,"0"),vehicle,issue,issues,opened:isoToDMY(dateVal),priority,costAwal:0,costFinal:null,status:"Pending",reportedBy,reportedByPhone,branch,location:null,repairBy:null,adminNote:null,completedDate:null});
   renderTickets();
   renderRepair();
   tk_issueList = [];
   renderIssueChips();
-  document.getElementById("tk_issue").value="";
   document.getElementById("tk_reportedBy").value="";
   document.getElementById("tk_phone").value="";
   document.getElementById("tk_date").value="";
@@ -2955,7 +2965,10 @@ function renderRepairFrequency(){
 
     // kira issue yang paling kerap berulang untuk kenderaan ni
     const issueCounts = {};
-    sortedTickets.forEach(t=>{ issueCounts[t.issue] = (issueCounts[t.issue]||0)+1; });
+    sortedTickets.forEach(t=>{
+      const keys = Array.isArray(t.issues) && t.issues.length ? t.issues.map(it=>fleetI18n.tr(repairGroupLabel(it.group))) : [t.issue];
+      keys.forEach(k=>{ issueCounts[k] = (issueCounts[k]||0)+1; });
+    });
     const topIssues = Object.entries(issueCounts).sort((a,b)=>b[1]-a[1]);
 
     const detailRows = sortedTickets.map(t=>{
@@ -4766,7 +4779,8 @@ const DM_STORAGE_KEY = "fleetDailyMovement_v1";
 const DM_CHECK_ITEMS = [
   ["tyres","Tyres"], ["lights","Lights & signals"], ["brakes","Brakes"], ["oil","Engine oil"],
   ["coolant","Coolant / water"], ["horn","Horn & wipers"], ["mirrors","Mirrors & windows"],
-  ["body","Body (no new damage)"], ["safety","Fire extinguisher & safety kit"], ["docs","Road tax & documents"]
+  ["body","Body (no new damage)"], ["safety","Fire extinguisher & safety kit"], ["docs","Road tax & documents"],
+  ["engine","Engine part"], ["hydraulic","Hydraulic part"]
 ];
 let dailyMovements = [];
 let dmCheckDraft = {};
@@ -4847,8 +4861,10 @@ function dmGoTicket(d){
   const opt = [...vs.options].find(o=>o.value.split(" — ")[0]===d.plate);
   if(opt) vs.value = opt.value;
   if(typeof tk_issueList!=="undefined"){
-    d.problems.forEach(k=>{ const label = fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1]); if(!tk_issueList.includes(label)) tk_issueList.push(label); });
+    tk_issueList = tk_issueList.filter(it=>it.group || it.desc);
+    d.problems.forEach(k=>{ if(!tk_issueList.some(it=>it.group===k)) tk_issueList.push({group:k, desc:""}); });
     renderIssueChips();
+    const first = document.querySelector("#tk_issueRows input"); if(first) setTimeout(()=>first.focus({preventScroll:true}), 600);
   }
   if(d.driver && !document.getElementById("tk_reportedBy").value) document.getElementById("tk_reportedBy").value = d.driver;
   if(d.phone && !document.getElementById("tk_phone").value) document.getElementById("tk_phone").value = d.phone;
@@ -5023,6 +5039,7 @@ function dmCopyReport(){
   renderUtilization();
   renderDispose();
   initDailyMovementForm();
+  renderIssueChips();
   applyLanguage();
   document.getElementById("pageTitle").textContent = T(titles.overview[0]);
   document.getElementById("pageMeta").textContent = T(titles.overview[1]);
