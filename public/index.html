@@ -549,11 +549,11 @@ body:not(.is-admin) .admin-only{display:none !important;}
               <input type="date" id="dm_viewDate" onchange="renderDailyMovements()" style="width:auto;padding:5px 8px;">
               <select id="dm_viewBranch" onchange="renderDailyMovements()" style="width:auto;padding:5px 8px;"></select>
               <span id="dm_summary" style="font-size:11px;color:var(--ink-soft);"></span>
-              <button type="button" class="btn yellow" style="margin-left:auto;padding:5px 12px;font-size:11.5px;" onclick="dmCopyReport()">📋 Copy report for WhatsApp</button>
+              <button type="button" class="btn yellow admin-only" style="margin-left:auto;padding:5px 12px;font-size:11.5px;" onclick="dmCopyReport()">📋 Copy report for WhatsApp</button>
             </div>
             <div style="overflow-x:auto;">
             <table>
-              <thead><tr><th>Vehicle</th><th>Driver</th><th>Branch</th><th>Movement</th><th>Checklist</th><th>Updated</th><th></th></tr></thead>
+              <thead><tr><th>Vehicle</th><th>Driver</th><th>Branch</th><th>Movement</th><th>Checklist</th><th>Updated</th><th class="admin-only"></th></tr></thead>
               <tbody id="dm_body"></tbody>
             </table>
             </div>
@@ -4904,6 +4904,7 @@ async function dmSubmit(){
   dmMsg(fleetI18n.tr(updated ? `✓ Updated — ${plate}, ${dmDateLabel(date)}.` : `✓ Submitted — ${plate}, ${dmDateLabel(date)}. Thank you!`) + (problems.length ? " " + fleetI18n.tr("Problem noted — please also log a Workshop Repair Ticket below if the vehicle needs repair.") : ""), false);
 }
 function dmEdit(id){
+  if(currentRole!=="admin") return;
   const m = dailyMovements.find(x=>x.id===id);
   if(!m) return;
   dmEditId = id;
@@ -4950,8 +4951,8 @@ function renderDailyMovements(){
       <td>${escHtml(m.driver)}${m.phone?`<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(m.phone)}</div>`:""}</td>
       <td class="mono-cell">${escHtml(m.branch||"—")}</td><td style="font-size:12px;">${mv}</td><td>${chk}</td>
       <td style="font-size:10.5px;color:var(--ink-soft);white-space:nowrap;">${escHtml(m.updatedAt||"")}</td>
-      <td style="white-space:nowrap;"><button class="btn ghost" style="padding:4px 9px;font-size:11px;" onclick="dmEdit('${m.id}')">${escHtml(fleetI18n.tr("Edit"))}</button>${currentRole==="admin"?`<button class="btn ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);margin-left:4px;" onclick="dmDelete('${m.id}')">✕</button>`:""}</td></tr>`;
-  }).join("") || `<tr><td colspan="7" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr("No daily movement submitted for this date yet"))}</td></tr>`;
+      ${currentRole==="admin"?`<td style="white-space:nowrap;"><button class="btn ghost" style="padding:4px 9px;font-size:11px;" onclick="dmEdit('${m.id}')">${escHtml(fleetI18n.tr("Edit"))}</button><button class="btn ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);margin-left:4px;" onclick="dmDelete('${m.id}')">✕</button></td>`:""}</tr>`;
+  }).join("") || `<tr><td colspan="${currentRole==="admin"?7:6}" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr("No daily movement submitted for this date yet"))}</td></tr>`;
   const probs = rows.filter(m=>(m.problems||[]).length).length;
   document.getElementById("dm_summary").textContent = fleetI18n.tr(`${rows.length} vehicle(s) · ${probs} with checklist problems`);
 }
@@ -4968,6 +4969,7 @@ function dmReportText(){
   return lines.join("\n").trim();
 }
 function dmCopyReport(){
+  if(currentRole!=="admin") return;
   const rows = dmViewRows();
   const msg = document.getElementById("dm_copyMsg");
   if(!rows.length){ msg.textContent = fleetI18n.tr("No daily movement submitted for this date yet"); msg.style.color="var(--warn)"; msg.style.display="block"; return; }
