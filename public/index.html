@@ -538,16 +538,29 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
 
           <div class="form-row">
-            <div><label>Unit / Item (cth: 1 LORRY BESAR)</label><input id="hr_unit" placeholder="1 LORRY BESAR"></div>
+            <div><label for="hr_item">Item</label><select id="hr_item">
+              <option value="">— Select item —</option>
+              <option value="LORRY TIPPER">Lorry Tipper</option>
+              <option value="LORRY CRANE">Lorry Crane</option>
+              <option value="BACKHOE">Backhoe</option>
+              <option value="SMALL LORRY">Small Lorry</option>
+              <option value="VAN">Van</option>
+              <option value="4X4">4x4</option>
+              <option value="MOTORCYCLE">Motorcycle</option>
+            </select></div>
+            <div><label for="hr_qty">Unit (number of vehicles needed)</label><input id="hr_qty" type="number" min="1" max="50" step="1" value="1" inputmode="numeric"></div>
+          </div>
+          <div class="form-row">
+            <div><label for="hr_company">Company</label><select id="hr_company" onchange="onHireCompanyChange()"><option value="">— Select company —</option></select>
+              <input id="hr_company_other" placeholder="Company name" style="display:none;margin-top:8px;"></div>
             <div><label>Branch Anda</label><select id="hr_branch"><option value="">— Pilih branch —</option></select></div>
           </div>
           <div class="form-row">
-            <div><label>Company</label><input id="hr_company" placeholder="Khidmat Rentang"></div>
             <div><label>Tarikh</label><input id="hr_tarikh" type="date"></div>
+            <div><label>Masa</label><input id="hr_masa" type="time"></div>
           </div>
           <div class="form-row">
-            <div><label>Masa</label><input id="hr_masa" type="time"></div>
-            <div><label>Project</label><input id="hr_project" placeholder="Bdown 11kv Shah Alam"></div>
+            <div style="grid-column:1/-1;"><label>Project</label><input id="hr_project" placeholder="Bdown 11kv Shah Alam"></div>
           </div>
           <div class="form-row">
             <div style="grid-column:1/-1;">
@@ -1736,6 +1749,7 @@ function calcComplianceStatus(dmy){
   return "ok";
 }
 function populateComplianceFilters(){
+  populateHireCompanies();     // job request Company dropdown follows the register
   const companies = new Set(complianceData.map(d=>d.company));
   document.getElementById("cr_countSub").textContent = `${complianceData.length} vehicles · ${companies.size} companies`;
 }
@@ -3218,7 +3232,8 @@ xlRegister("hiring", {
   data: ()=>hiringRecords,
   render: ()=>renderHireTable(),
   cols: [
-    {key:"unit",    label:"Unit"},
+    {key:"item",    label:"Item", get: h=>h.item || h.unit},
+    {key:"qty",     label:"Unit", num:true, get: h=>h.qty || (String(h.unit||"").match(/^\s*(\d+)\b/)||[])[1] || 1},
     {key:"company", label:"Company / Project"},
     {key:"branch",  label:"Branch"},
     {key:"tarikh",  label:"Date / Time", date:true},
@@ -3243,16 +3258,63 @@ function renderHireTable(){
     }
     const actionCell = h.status==="New" ? `<button class="btn yellow" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Balas / Assign")}</button>` : `<button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Edit")}</button>`;
     const deleteBtn = currentRole==="admin" ? `<button class="btn ghost" style="padding:5px 9px;font-size:10.5px;color:var(--danger);margin-left:6px;" onclick="deleteHireRecord(${i})" title="${T("Padam job ini (cth. job dibatalkan)")}">✕ ${T("Padam")}</button>` : "";
-    return `<tr><td style="font-weight:600;">${escHtml(h.unit)}</td><td>${escHtml(h.company)}<br><span style="font-size:11px;color:var(--ink-soft);">${escHtml(h.project)}</span></td>
+    const qty = h.qty || (String(h.unit||"").match(/^\s*(\d+)\b/)||[])[1] || 1;
+    return `<tr><td style="font-weight:600;">${escHtml(h.item || h.unit)}</td><td class="mono-cell" style="text-align:center;">${qty}</td><td>${escHtml(h.company)}<br><span style="font-size:11px;color:var(--ink-soft);">${escHtml(h.project)}</span></td>
     <td class="mono-cell">${escHtml(h.branch||"—")}</td>
     <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td class="loc-cell">${locationHtml(h.tempat)}</td><td>${escHtml(svLine)}</td>
     <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td style="white-space:nowrap;">${actionCell}${deleteBtn}</td></tr>`;
-  }).join("") || `<tr><td colspan="9" style="color:var(--faint);text-align:center;">No job records</td></tr>`;
+  }).join("") || `<tr><td colspan="10" style="color:var(--faint);text-align:center;">No job records</td></tr>`;
   const cnt = document.getElementById("hireCount");
   if(cnt) cnt.textContent = `Showing ${rows.length} of ${hiringRecords.length} jobs`;
   const clr = document.getElementById("hireClearAllBtn");
   if(clr) clr.style.display = xlAnyActive("hiring") ? "inline-block" : "none";
 }
+/* ---- Job request Item / Company pickers ----
+   Company list = companies in the Compliance Register, so requesters pick instead of
+   typing (no spelling variants). "Other" lets them type one that isn't listed yet. */
+const HIRE_OTHER = "__OTHER__";
+function hireCompanyList(){
+  return [...new Set(complianceData.map(d=>String(d.company||"").trim().toUpperCase()).filter(Boolean))].sort();
+}
+function populateHireCompanies(){
+  const sel = document.getElementById("hr_company");
+  if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">— Select company —</option>` + hireCompanyList().map(c=>`<option value="${escHtml(c)}">${escHtml(c)}</option>`).join("") + `<option value="${HIRE_OTHER}">Other (type the name)</option>`;
+  sel.value = cur;
+}
+function onHireCompanyChange(){
+  const other = document.getElementById("hr_company").value===HIRE_OTHER;
+  const inp = document.getElementById("hr_company_other");
+  inp.style.display = other ? "block" : "none";
+  if(other) inp.focus();
+}
+function setHireCompany(name){
+  const sel = document.getElementById("hr_company");
+  const hit = matchCompanyName(name, hireCompanyList());
+  if(hit){ sel.value = hit; document.getElementById("hr_company_other").value = ""; }
+  else { sel.value = HIRE_OTHER; document.getElementById("hr_company_other").value = normText(name); }
+  onHireCompanyChange();
+  return !!hit;
+}
+/* "akli s/b", "Akli Sdn Bhd", "k.rentang" → AKLI, K/RENTANG … (ignores case, punctuation, Sdn Bhd / S/B) */
+function matchCompanyName(name, list){
+  const key = s => String(s||"").toUpperCase().replace(/\b(SDN\.?\s*BHD\.?|S\s*\/\s*B|BHD|ENTERPRISE|ENT)\b/g,"").replace(/[^A-Z0-9]/g,"");
+  const k = key(name);
+  if(!k) return null;
+  return list.find(c=>key(c)===k) || list.find(c=>{ const ck = key(c); return ck.length>=3 && (k.startsWith(ck) || ck.startsWith(k)); }) || null;
+}
+/* "2 LORI TIPPER", "LORRY KREN", "1 unit backhoe" → {item, qty} */
+function matchHireItem(text){
+  const t = String(text||"").toUpperCase();
+  const rules = [[/TIPPER/,"LORRY TIPPER"],[/CRANE|KREN|SELF\s*LOADER/,"LORRY CRANE"],[/BACK\s*HOE|BACHOE|JCB/,"BACKHOE"],
+    [/SMALL\s*LOR|LOR+[IY]\s*KECIL|\b[13]\s*TAN\b|\b[13]\s*TON/,"SMALL LORRY"],[/\bVAN\b/,"VAN"],[/4\s*X\s*4|4WD|PICK\s*-?\s*UP|HILUX/,"4X4"],[/MOTOR|M\/CYCLE/,"MOTORCYCLE"]];
+  const hit = rules.find(([re])=>re.test(t));
+  const q = t.match(/(\d+)\s*(?:UNIT|UNITS|BUAH|BIJI|X)\b/) || t.match(/^\s*(\d+)\b/) || t.match(/\bX\s*(\d+)\b/);
+  const qty = q ? Math.max(1, Math.min(50, +q[1])) : null;
+  return { item: hit ? hit[1] : null, qty };
+}
+
 /* ---- Paste from WhatsApp → auto-fill Log Job Request (parser: wa-parse.js) ---- */
 function toggleWaPaste(show){
   const box = document.getElementById("waPasteBox");
@@ -3265,9 +3327,32 @@ function applyWaPaste(){
   const status = document.getElementById("waPasteStatus");
   if(!text.trim()){ status.style.color = "var(--danger)"; status.textContent = fleetI18n.tr("Paste a WhatsApp message first."); return; }
   const { fields, extras } = fleetWaParse.parseWhatsAppJob(text, { branches: BRANCH_CODES });
-  const map = { unit:"hr_unit", company:"hr_company", tarikh:"hr_tarikh", masa:"hr_masa", project:"hr_project",
-                tempat:"hr_tempat", load:"hr_load", sv:"hr_sv", phone:"hr_phone", branch:"hr_branch" };
   let n = 0;
+  const flash = el => { el.classList.add("autofilled"); setTimeout(()=>el.classList.remove("autofilled"), 2500); };
+  // Item + number of units from the first line (e.g. "2 LORI TIPPER")
+  let itemNote = "";
+  if(fields.unit){
+    const { item, qty } = matchHireItem(fields.unit);
+    if(qty){ const q = document.getElementById("hr_qty"); q.value = qty; flash(q); n++; }
+    if(item){ const s = document.getElementById("hr_item"); s.value = item; flash(s); n++; }
+    else if(!/^\s*\d+\s*$/.test(fields.unit)){
+      document.getElementById("hr_item").value = "";         // not recognised → requester picks it
+      itemNote = normText(fields.unit);
+      extras.push("ITEM: " + itemNote);
+      fields.project = fields.project ? `${fields.project} (ITEM: ${itemNote})` : `ITEM: ${itemNote}`;
+    }
+  }
+  delete fields.unit;
+  // Company → pick from the list (or "Other")
+  let companyNote = "";
+  if(fields.company){
+    const listed = setHireCompany(fields.company);
+    flash(document.getElementById("hr_company")); n++;
+    if(!listed) companyNote = normText(fields.company);
+  }
+  delete fields.company;
+  const map = { tarikh:"hr_tarikh", masa:"hr_masa", project:"hr_project",
+                tempat:"hr_tempat", load:"hr_load", sv:"hr_sv", phone:"hr_phone", branch:"hr_branch" };
   for(const [f,id] of Object.entries(map)){
     if(fields[f]==null || fields[f]==="") continue;
     if(["unit","company","project","tempat","load","sv"].includes(f)) fields[f] = normText(fields[f]);   // same format as saved records
@@ -3291,6 +3376,8 @@ function applyWaPaste(){
   status.style.color = "var(--good)";
   let msg = fleetI18n.tr(`✓ ${n} fields filled in.`);
   if(extras.length) msg += " " + fleetI18n.tr(`Other details (${extras.map(e=>e.split(":")[0]).join(", ")}) were added to Project.`);
+  if(itemNote) msg += " " + fleetI18n.tr(`Item "${itemNote}" isn't in the list — choose the Item.`);
+  if(companyNote) msg += " " + fleetI18n.tr(`Company "${companyNote}" isn't in the list — saved as Other.`);
   if(!fields.branch) msg += " " + fleetI18n.tr("Choose Your Branch, check the details, then press Log Request.");
   else msg += " " + fleetI18n.tr("Check the details, then press Log Request.");
   status.textContent = msg;
@@ -3302,7 +3389,9 @@ document.addEventListener("DOMContentLoaded", ()=>{
 });
 
 function clearHireForm(){
-  ["hr_unit","hr_branch","hr_company","hr_tarikh","hr_masa","hr_project","hr_tempat","hr_load","hr_sv","hr_phone"].forEach(id=>document.getElementById(id).value="");
+  ["hr_item","hr_branch","hr_company","hr_company_other","hr_tarikh","hr_masa","hr_project","hr_tempat","hr_load","hr_sv","hr_phone"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("hr_qty").value = 1;
+  document.getElementById("hr_company_other").style.display = "none";
   const st = document.getElementById("hr_locStatus"); if(st) st.textContent = "";
   const wt = document.getElementById("waPasteText"); if(wt) wt.value = "";
   const ws = document.getElementById("waPasteStatus"); if(ws) ws.textContent = "";
@@ -3342,8 +3431,13 @@ let lastLoggedHireIndex = null;
 async function logHireRequest(){
   const branch = document.getElementById("hr_branch").value;
   if(!branch){ A("Sila pilih branch anda."); return; }
-  const unit = document.getElementById("hr_unit").value.trim() || "1 LORRY";
-  const company = document.getElementById("hr_company").value.trim() || "—";
+  const item = document.getElementById("hr_item").value;
+  if(!item){ A("Sila pilih item kenderaan."); document.getElementById("hr_item").focus(); return; }
+  const qty = Math.max(1, Math.min(50, parseInt(document.getElementById("hr_qty").value,10) || 1));
+  const companySel = document.getElementById("hr_company").value;
+  const company = companySel===HIRE_OTHER ? normText(document.getElementById("hr_company_other").value) : companySel;
+  if(!company){ A("Sila pilih company."); document.getElementById("hr_company").focus(); return; }
+  const unit = `${qty} ${item}`;          // e.g. "2 LORRY TIPPER" — used in notifications & replies
   const tarikhIso = document.getElementById("hr_tarikh").value;
   const tarikh = tarikhIso ? isoToDmySlash(tarikhIso) : "—";
   const masaRaw = document.getElementById("hr_masa").value;
@@ -3354,7 +3448,7 @@ async function logHireRequest(){
   const sv = document.getElementById("hr_sv").value.trim() || "—";
   const phone = document.getElementById("hr_phone").value.trim() || "—";
 
-  const rec = {unit,branch,company,project,tarikh,masa,tempat,load,sv,phone,status:"New",source:null,assignedVehicle:null,driverName:null,driverPhone:null};
+  const rec = {unit,item,qty,branch,company,project,tarikh,masa,tempat,load,sv,phone,status:"New",source:null,assignedVehicle:null,driverName:null,driverPhone:null};
   normalizeHireRecord(rec);
   hiringRecords.unshift(rec);
   renderHireTable();

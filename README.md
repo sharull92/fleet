@@ -44,10 +44,10 @@ Di **Pemandu & Pemohon → Log Permintaan Kerja**, tekan
 Pilih **Branch Anda**, semak, tekan **Hantar Permintaan**.
 
 ```
-LORI TIPPER                      → Unit (baris pertama tanpa label)
+2 LORI TIPPER                    → Item (Lorry Tipper) + Unit = 2 (baris pertama tanpa label)
 TARIKH:2/10/26                   → Tarikh   (2/10/26, 2.10.2026, 2 Okt, esok, hari ini)
 MASA:10.00                       → Masa     (10.00, 2.30 ptg, 8am, 1400)
-COMPANY:Akli                     → Syarikat
+COMPANY:akli s/b                 → Syarikat dipadankan dengan senarai (AKLI); tiada → Lain-lain
 SV:Yus'ran 01128278075           → Sv + No. Telefon Sv
 LOKASI:jln pjs 2d/1              → Lokasi   (link Google Maps / koordinat juga ditambah)
 LOAD: 3 pasir 3 Crusher run      → Muatan
