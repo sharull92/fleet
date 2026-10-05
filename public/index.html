@@ -416,8 +416,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
       <div class="brand-mark">FLEET SWIS GROUP</div>
     </div>
     <nav>
-      <button class="nav-btn active" data-view="overview"><span class="num">00</span>Dashboard</button>
-      <button class="nav-btn" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
+      <button class="nav-btn admin-only" data-view="overview"><span class="num">00</span>Dashboard</button>
+      <button class="nav-btn active" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
       <button class="nav-btn admin-only" data-view="compliance"><span class="num">02</span>Compliance Register</button>
       <button class="nav-btn admin-only" data-view="insurance"><span class="num">03</span>Insurance</button>
       <button class="nav-btn admin-only" data-view="repair"><span class="num">04</span>Repair &amp; Maintenance</button>
@@ -442,12 +442,12 @@ body:not(.is-admin) .admin-only{display:none !important;}
       <div>
         <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
         <div>
-        <h1 id="pageTitle">Fleet Dashboard</h1>
-        <div class="meta" id="pageMeta">Company-owned fleet — overview across all modules</div>
+        <h1 id="pageTitle">Driver &amp; Requester</h1>
+        <div class="meta" id="pageMeta">Submit a workshop repair ticket or log a new job request</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div class="gf-bar" style="display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 10px;">
+        <div class="gf-bar admin-only" style="display:flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 10px;">
           <span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);white-space:nowrap;">🌐 Dashboard view:</span>
           <select id="gf_company" onchange="applyGlobalFilter()" style="width:auto;font-size:12px;padding:5px 8px;min-width:130px;"><option value="">All companies</option></select>
           <select id="gf_branch" onchange="applyGlobalFilter()" style="width:auto;font-size:12px;padding:5px 8px;min-width:110px;"><option value="">All branches</option></select>
@@ -468,7 +468,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
     <div class="content">
 
       <!-- ============ OVERVIEW ============ -->
-      <section class="view active" id="view-overview">
+      <section class="view" id="view-overview">
         <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(4,1fr);"></div>
 
         <div class="grid-2">
@@ -507,7 +507,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
       </section>
 
       <!-- ============ EXTERNAL — DRIVER & REQUESTER ============ -->
-      <section class="view" id="view-external">
+      <section class="view active" id="view-external">
         <div class="section-plate"><span class="rivet"></span><h2>Driver &amp; Requester</h2><span class="sub">Submit a workshop repair ticket or log a new job request — for drivers &amp; requesters</span></div>
 
         <div class="panel" id="dmPanel">
@@ -2309,6 +2309,7 @@ async function submitAdminLogin(){
   currentBranch = null;
   closeAdminLogin();
   updateComplianceRoleUI();
+  document.querySelector('.nav-btn[data-view="overview"]').click();   // admin lands on the Dashboard
   renderComplianceTable();
   renderTickets();
 }
@@ -2332,10 +2333,10 @@ function updateComplianceRoleUI(){
   document.getElementById("cr_addVehicleBtn").style.display = isAdmin ? "inline-block" : "none";
   if(typeof renderHireTable==="function") renderHireTable();   // show / hide job Delete buttons
   if(typeof renderInsurance==="function" && complianceData.length) renderInsurance();   // editable for admin
-  // logged out while on an admin page → back to the Dashboard
+  // logged out while on an admin page → back to Driver & Requester (the only page open without login)
   const active = document.querySelector(".nav-btn.active");
   if(!isAdmin && active && active.classList.contains("admin-only")){
-    document.querySelector('.nav-btn[data-view="overview"]').click();
+    document.querySelector('.nav-btn[data-view="external"]').click();
   }
   updateUtilAdminUI();
   if(document.getElementById("settingsAdminWrap")) renderSettings();
@@ -5040,9 +5041,11 @@ function dmCopyReport(){
   renderDispose();
   initDailyMovementForm();
   renderIssueChips();
+  if(currentRole==="admin") document.querySelector('.nav-btn[data-view="overview"]').click();
   applyLanguage();
-  document.getElementById("pageTitle").textContent = T(titles.overview[0]);
-  document.getElementById("pageMeta").textContent = T(titles.overview[1]);
+  const startView = (document.querySelector(".nav-btn.active")||{}).dataset?.view || "external";
+  document.getElementById("pageTitle").textContent = T(titles[startView][0]);
+  document.getElementById("pageMeta").textContent = T(titles[startView][1]);
 })();
 </script>
 </body>
