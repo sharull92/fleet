@@ -408,6 +408,9 @@
     ["Included","Dikira"],
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
+    ["Edit — saved for this vehicle","Edit — disimpan untuk kenderaan ini"],
+    ["Only admin can edit vehicle details.","Hanya admin boleh edit maklumat kenderaan."],
+    ["Plate cannot be empty.","No. plat tidak boleh kosong."],
     ["No data for this month yet — key in / import utilization above.","Belum ada data untuk bulan ini — key in / import penggunaan di atas."],
     ["vehicles","kenderaan"],
     ["No monthly data yet — set a Data Month above and key in / import utilization to start building the trend.","Belum ada data bulanan — tetapkan Bulan Data di atas dan key in / import penggunaan untuk mula bina trend."],
@@ -459,6 +462,7 @@
   ];
 
   const TEMPLATES = [
+    ["Plate {a} already exists in the list.","No. plat {a} sudah ada dalam senarai."],
     ["The whole page follows {a}; key-in / Excel import is saved to this month.","Seluruh halaman ikut {a}; key-in / import Excel disimpan ke bulan ini."],
     ["{a} vehicles · {b} companies","{a} kenderaan · {b} syarikat"],
     ["Showing {a} of {b} vehicles · {c} included in the calculation","Paparan {a} daripada {b} kenderaan · {c} dikira dalam pengiraan"],

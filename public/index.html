@@ -241,6 +241,9 @@ input,select,textarea{
 label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
 .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
+.util-edit{font-size:11.5px;padding:4px 6px;border:1px solid transparent;border-bottom:1px dashed var(--line);border-radius:4px;background:transparent;color:inherit;text-transform:uppercase;}
+.util-edit:hover{border-color:var(--line);}
+.util-edit:focus{border-color:var(--yellow-deep);background:var(--panel);outline:none;}
 
 /* ---- Gauge (oil-pressure style utilization dial) ---- */
 .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
@@ -3836,7 +3839,8 @@ async function importUtilExcel(){
           if(!isNaN(pct) && wd) daysVal = Math.round(pct/100*wd*10)/10;
         }
         if(daysVal===null || isNaN(daysVal) || daysVal<0){ totalSkipped++; continue; }
-        let match = costingData.find(c=>normalize(c.plate)===normalize(plateRaw));
+        let match = costingData.find(c=>normalize(c.plate)===normalize(plateRaw))
+          || costingData.find(c=>(c.oncorePlates||[]).some(a=>normalize(a)===normalize(plateRaw)));   // plate edited by admin
         if(!match){
           match = createBlankCostingRecord(plateRaw);
           totalCreated++;
@@ -4106,6 +4110,54 @@ async function toggleUtilInclude(plate, checked){
   await persistUtilOverrides();
   await persistCostingData();
 }
+/* Admin boleh betulkan Plate / Company / Type / Branch / Driver dalam Utilization by
+   Vehicle bila rekod GPS Oncore berlainan dengan rekod sistem. Plat lama disimpan
+   sebagai alias (oncorePlates) supaya import Oncore seterusnya masih padan dengan
+   kenderaan yang sama dan tak cipta rekod baharu. */
+function fillUtilEditLists(){
+  const uniq = arr => [...new Set(arr.map(v=>String(v||"").trim()).filter(v=>v && v!=="—"))].sort();
+  const lists = {
+    utilDlCompany: uniq([...complianceData.map(d=>d.company), ...costingData.map(c=>c.company)]),
+    utilDlType: uniq([...complianceData.map(d=>d.category), ...costingData.map(c=>c.vehicleType)].map(v=>String(v||"").toUpperCase())),
+    utilDlBranch: uniq([...complianceData.map(d=>locationBranch(d.location)), ...costingData.map(c=>c.branch)])
+  };
+  Object.entries(lists).forEach(([id,vals])=>{
+    let dl = document.getElementById(id);
+    if(!dl){ dl = document.createElement("datalist"); dl.id = id; document.body.appendChild(dl); }
+    dl.innerHTML = vals.map(v=>`<option value="${escHtml(v)}">`).join("");
+  });
+}
+const utilPlateKey = s => String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function utilRecomputeHistory(c){
+  if(c.utilHistory) Object.entries(c.utilHistory).forEach(([m,snap])=>{
+    const wd = wdForBranch(c.branch, m);
+    if(snap && snap.daysUtilized!=null && wd) snap.utilizationPct = Math.round((snap.daysUtilized/wd)*1000)/10;
+  });
+  const wd = wdForBranch(c.branch);
+  if(c.daysUtilized!=null && wd) c.utilizationPct = Math.round((c.daysUtilized/wd)*1000)/10;
+}
+async function updateUtilVehicleField(plate, field, value, el){
+  if(currentRole!=="admin"){ A(T("Only admin can edit vehicle details.")); renderUtilTable(); return; }
+  const c = costingData.find(x=>x.plate===plate);
+  if(!c) return;
+  let v = String(value||"").trim().replace(/\s+/g," ").toUpperCase();
+  if(field==="plate"){
+    if(!v){ A(T("Plate cannot be empty.")); renderUtilTable(); return; }
+    if(v===c.plate) return;
+    if(costingData.some(x=>x!==c && utilPlateKey(x.plate)===utilPlateKey(v))){
+      A(fleetI18n.tr(`Plate ${v} already exists in the list.`)); renderUtilTable(); return;
+    }
+    c.oncorePlates = [...new Set([...(c.oncorePlates||[]), c.plate])];
+  }
+  if((c[field]||"")===v){ if(el) el.value = v; return; }
+  c[field] = v || (field==="driverName" ? "" : null);
+  c.utilEditedAt = nowDateTimeStr();
+  if(field==="branch") utilRecomputeHistory(c);
+  renderUtilization();
+  if(typeof renderCosting==="function") renderCosting();
+  await persistUtilOverrides();
+  await persistCostingData();
+}
 function renderUtilTable(){
   const head = document.getElementById("utilHeadRow");
   if(head) head.innerHTML = xlHeaderHtml("util");
@@ -4115,6 +4167,7 @@ function renderUtilTable(){
     rows = rows.slice().sort((a,b)=>d(a)-d(b));
   }
   const isAdmin = currentRole==="admin";
+  if(isAdmin) fillUtilEditLists();
   const STATUS_CLS = {"Excluded":"neutral","No data":"neutral","Idle":"danger","Set Fleet Target":"neutral","Below Target":"warn","On Target":"good"};
 
   document.getElementById("utilBody").innerHTML = rows.map(c=>{
@@ -4136,7 +4189,14 @@ function renderUtilTable(){
       : `<span class="mono-cell" style="font-size:11px;">${days!=null?days:"—"} ${T("hari")}</span>
          <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;">${pctNote}</div>`;
     return `<tr style="${c.includedInUtil?"":"opacity:.55;"}"><td style="text-align:center;"><input type="checkbox" ${c.includedInUtil?"checked":""} ${isAdmin?"":"disabled"} onchange="toggleUtilInclude('${plateEsc}', this.checked)"></td>
-    <td style="font-weight:600;">${escHtml(c.plate)}</td><td>${escHtml(c.company||"—")}</td><td>${escHtml(c.vehicleType||"—")}</td><td>${escHtml(utilBranchKey(c.branch))}</td><td>${escHtml(c.driverName||"—")}</td>
+    ${isAdmin ? [
+      ["plate", c.plate, "", "font-weight:700;width:104px;"],
+      ["company", c.company, "utilDlCompany", "width:130px;"],
+      ["vehicleType", c.vehicleType, "utilDlType", "width:118px;"],
+      ["branch", c.branch, "utilDlBranch", "width:70px;"],
+      ["driverName", c.driverName, "", "width:110px;"]
+    ].map(([f,v,dl,st])=>`<td><input type="text" class="util-edit" value="${escHtml(v||"")}" placeholder="—" ${dl?`list="${dl}"`:""} style="${st}" title="${escHtml(T("Edit — saved for this vehicle"))}" onchange="updateUtilVehicleField('${plateEsc}','${f}',this.value,this)"></td>`).join("")
+    : `<td style="font-weight:600;">${escHtml(c.plate)}</td><td>${escHtml(c.company||"—")}</td><td>${escHtml(c.vehicleType||"—")}</td><td>${escHtml(utilBranchKey(c.branch))}</td><td>${escHtml(c.driverName||"—")}</td>`}
     <td style="min-width:150px;">${utilCell}</td>
     <td>${statusBadge}</td></tr>`;
   }).join("") || `<tr><td colspan="8" style="color:var(--faint);text-align:center;">${fleetI18n.tr("No vehicles match the filters")}</td></tr>`;
