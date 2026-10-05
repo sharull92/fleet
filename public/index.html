@@ -246,6 +246,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .dm-item.ok{border-color:#3F7D5C;} .dm-item.bad{border-color:#C1443C;background:rgba(193,68,60,.08);}
 .dm-pill{white-space:nowrap;border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer;}
 .dm-pill.on.ok{background:#3F7D5C;border-color:#3F7D5C;color:#fff;} .dm-pill.on.bad{background:#C1443C;border-color:#C1443C;color:#fff;}
+.dm-note{flex:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:var(--radius);padding:6px 10px;}
+.dm-note.on{color:#C1443C;border-color:#C1443C;background:rgba(193,68,60,.08);font-weight:700;}
+.panel.dm-flash{box-shadow:0 0 0 3px var(--yellow-deep);transition:box-shadow .3s;}
 .dm-move{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;margin-bottom:6px;}
 .dm-move .n{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--ink-soft);text-align:right;}
 
@@ -529,7 +532,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="dm-check" id="dm_check"></div>
           <div style="display:flex;gap:8px;margin:6px 0 14px;">
             <button type="button" class="btn ghost" style="padding:4px 10px;font-size:11px;" onclick="dmAllOk()">✓ All OK</button>
-            <input id="dm_checknote" placeholder="Problem details (if any) — e.g. left signal light not working" style="flex:1;">
+            <div id="dm_problemNote" class="dm-note">⚠ <span>If any item has a problem, please fill in the Workshop Repair Ticket below.</span></div>
           </div>
 
           <label>Daily Movement <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-soft);">— one line per stop / job</span></label>
@@ -4824,6 +4827,8 @@ function dmDriverPicked(){
   }
 }
 function renderDmCheck(){
+  const note = document.getElementById("dm_problemNote");
+  if(note) note.classList.toggle("on", DM_CHECK_ITEMS.some(([k])=>dmCheckDraft[k]==="bad"));
   document.getElementById("dm_check").innerHTML = DM_CHECK_ITEMS.map(([k,label])=>{
     const v = dmCheckDraft[k];
     return `<div class="dm-item ${v||""}"><span>${escHtml(fleetI18n.tr(label))}</span><span style="display:flex;gap:4px;">
@@ -4832,6 +4837,23 @@ function renderDmCheck(){
   }).join("");
 }
 window.addEventListener("fleet:lang", ()=>{ try{ renderDmCheck(); renderDmMoves(); renderDailyMovements(); }catch(e){} });
+/* Checklist problem → driver is pointed to the Workshop Repair Ticket (prefilled). */
+function dmGoTicket(d){
+  const tk = document.getElementById("tk_branch");
+  if(!tk) return;
+  if(d.branch) tk.value = d.branch;
+  const vs = document.getElementById("tk_vehicle");
+  const opt = [...vs.options].find(o=>o.value.split(" — ")[0]===d.plate);
+  if(opt) vs.value = opt.value;
+  if(typeof tk_issueList!=="undefined"){
+    d.problems.forEach(k=>{ const label = fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1]); if(!tk_issueList.includes(label)) tk_issueList.push(label); });
+    renderIssueChips();
+  }
+  if(d.driver && !document.getElementById("tk_reportedBy").value) document.getElementById("tk_reportedBy").value = d.driver;
+  if(d.phone && !document.getElementById("tk_phone").value) document.getElementById("tk_phone").value = d.phone;
+  const panel = tk.closest(".panel");
+  if(panel){ panel.scrollIntoView({behavior:"smooth", block:"start"}); panel.classList.add("dm-flash"); setTimeout(()=>panel.classList.remove("dm-flash"), 2500); }
+}
 function dmSetCheck(k, v){ dmCheckDraft[k] = dmCheckDraft[k]===v ? undefined : v; renderDmCheck(); }
 function dmAllOk(){ DM_CHECK_ITEMS.forEach(([k])=>{ dmCheckDraft[k] = "ok"; }); renderDmCheck(); }
 function renderDmMoves(){
@@ -4849,7 +4871,7 @@ function dmMsg(text, bad){
 }
 function dmClearForm(){
   dmEditId = null; dmCheckDraft = {}; dmMovesDraft = [{place:""}];
-  ["dm_driver","dm_phone","dm_odo","dm_checknote"].forEach(id=>document.getElementById(id).value="");
+  ["dm_driver","dm_phone","dm_odo"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("dm_fuel").value = "";
   document.getElementById("dm_plate").value = "";
   document.getElementById("dm_date").value = APP_TODAY_ISO;
@@ -4872,12 +4894,10 @@ async function dmSubmit(){
   const moves = dmMovesDraft.map(m=>({place:normText(m.place||"")})).filter(m=>m.place);
   if(!moves.length){ dmMsg(fleetI18n.tr("Please enter at least one stop / job for today."), true); return; }
   const problems = DM_CHECK_ITEMS.filter(([k])=>dmCheckDraft[k]==="bad").map(([k])=>k);
-  const note = document.getElementById("dm_checknote").value.trim();
-  if(problems.length && !note){ dmMsg(fleetI18n.tr("Please write the problem details for the item(s) marked ✕ Problem."), true); return; }
   const rec = {
     date, branch, plate, driver, phone,
     odometer: document.getElementById("dm_odo").value || "", fuel: document.getElementById("dm_fuel").value || "",
-    checklist: {...dmCheckDraft}, problems, checkNote: note, movements: moves, updatedAt: nowDateTimeStr()
+    checklist: {...dmCheckDraft}, problems, checkNote: "", movements: moves, updatedAt: nowDateTimeStr()
   };
   const btn = document.getElementById("dm_submitBtn"); btn.disabled = true;
   let updated = false;
@@ -4899,7 +4919,8 @@ async function dmSubmit(){
   dmClearForm();
   document.getElementById("dm_branch").value = keep.branch; dmFillVehicles();
   document.getElementById("dm_driver").value = keep.driver; document.getElementById("dm_phone").value = keep.phone;
-  dmMsg(fleetI18n.tr(updated ? `✓ Updated — ${plate}, ${dmDateLabel(date)}.` : `✓ Submitted — ${plate}, ${dmDateLabel(date)}. Thank you!`) + (problems.length ? " " + fleetI18n.tr("Problem noted — please also log a Workshop Repair Ticket below if the vehicle needs repair.") : ""), false);
+  dmMsg(fleetI18n.tr(updated ? `✓ Updated — ${plate}, ${dmDateLabel(date)}.` : `✓ Submitted — ${plate}, ${dmDateLabel(date)}. Thank you!`) + (problems.length ? " " + fleetI18n.tr("Problem noted — please fill in the Workshop Repair Ticket below.") : ""), false);
+  if(problems.length) dmGoTicket({branch, plate, driver, phone, problems});
 }
 function dmEdit(id){
   if(currentRole!=="admin") return;
@@ -4914,7 +4935,6 @@ function dmEdit(id){
   document.getElementById("dm_phone").value = m.phone || "";
   document.getElementById("dm_odo").value = m.odometer || "";
   document.getElementById("dm_fuel").value = m.fuel || "";
-  document.getElementById("dm_checknote").value = m.checkNote || "";
   dmCheckDraft = {...(m.checklist||{})};
   dmMovesDraft = (m.movements||[]).map(x=>({...x}));
   if(!dmMovesDraft.length) dmMovesDraft = [{place:""}];

@@ -64,8 +64,8 @@ Parser: `public/wa-parse.js`.
 ## Pergerakan Harian & Checklist Kenderaan
 
 Di **01 Pemandu & Pemohon** (paling atas). Setiap hari sebelum keluar kerja, pemandu isi: tarikh, branch,
-kenderaan, nama & no telefon, odometer & minyak, **checklist ringkas** (10 item — ✓ OK / ✕ Rosak, wajib
-tulis butiran jika rosak) dan **pergerakan** (satu baris setiap tempat/job).
+kenderaan, nama & no telefon, odometer & minyak, **checklist ringkas** (10 item — ✓ OK / ✕ Rosak; jika ada yang rosak,
+borang Tiket Repair Bengkel di bawah diisi awal dan pemandu diminta hantar tiket) dan **pergerakan** (satu baris setiap tempat/job).
 Satu rekod setiap kenderaan setiap hari — admin boleh **Edit** / padam.
 **Log Pergerakan** tunjuk semua kenderaan ikut tarikh/branch, dan **📋 Salin laporan untuk WhatsApp**
 menghasilkan format group (tarikh + hari, `1) PLAT`, nama, `-TEMPAT`). Item checklist yang rosak
