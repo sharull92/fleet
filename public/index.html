@@ -1018,10 +1018,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
           <div id="utilDataMonthPanel" style="background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
             <div class="form-row" style="grid-template-columns:220px 1fr;align-items:end;margin-bottom:0;">
-              <div><label>Data Month</label><input type="month" id="utilDataMonth" disabled style="background:var(--field-ro);color:var(--ink-soft);cursor:not-allowed;"></div>
+              <div><label for="utilDataMonth">Month</label><input type="month" id="utilDataMonth" onchange="setUtilMonth(this.value)"></div>
               <div style="font-size:11px;color:var(--ink-soft);" id="utilDataMonthNote"></div>
             </div>
-            <div style="font-size:10.5px;color:var(--ink-soft);margin-top:8px;">🔗 Bulan ni sentiasa ikut bulan <strong>Fleet Target</strong> di atas (satu je tempat nak set bulan) — <button class="btn ghost" style="padding:1px 8px;font-size:10.5px;" onclick="jumpToFleetTargetEdit()">Tukar bulan →</button></div>
           </div>
 
           <div id="utilExcelImportPanel" style="display:none;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
@@ -1034,17 +1033,6 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div id="utilExcelStatus" style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;white-space:pre-line;"></div>
           </div>
 
-          <div class="form-row" style="grid-template-columns:1.1fr 1fr 1fr 1fr 1fr;align-items:end;margin-bottom:10px;">
-            <div><label>Search plate / driver</label><input id="util_search" placeholder="cth: BLP 2169, Rosli..." oninput="renderUtilTable()"></div>
-            <div><label>Company</label><select id="util_company" onchange="renderUtilTable()"><option value="">All</option></select></div>
-            <div><label>Type</label><select id="util_type" onchange="renderUtilTable()"><option value="">All</option></select></div>
-            <div><label>Branch</label><select id="util_branch" onchange="renderUtilTable()"><option value="">All</option></select></div>
-            <div><label>Status</label><select id="util_status" onchange="renderUtilTable()">
-              <option value="">All</option>
-              <option value="below">Below target</option>
-              <option value="idle">Idle (0%)</option>
-            </select></div>
-          </div>
           <div class="form-actions" style="justify-content:flex-start;margin-bottom:14px;">
             <button class="btn ghost" onclick="setIncludeForFiltered(true)">✓ Select All (Filtered)</button>
             <button class="btn ghost" onclick="setIncludeForFiltered(false)">✕ Clear All (Filtered)</button>
@@ -1053,12 +1041,12 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div style="max-height:480px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
-              <tr><th>Included</th><th>Plate</th><th>Company</th><th>Type</th><th>Branch</th><th>Driver</th><th>Utilization</th><th>Status</th></tr>
+              <tr id="utilHeadRow"></tr>
             </thead>
             <tbody id="utilBody"></tbody>
           </table>
           </div>
-          <div id="utilCount" style="font-size:11px;color:var(--ink-soft);margin-top:8px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="utilCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="utilClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('util')">✕ Clear all filters</button></div>
         </div>
 
         <div class="panel">
@@ -3926,15 +3914,18 @@ function monthShortLabel(yyyymm){
 /* Data Month kini disatukan dengan bulan Fleet Target — tiada input berasingan lagi.
    Fungsi ni kekal (dipanggil dari saveFleetTarget/loadFleetTarget) supaya utilDataMonth
    sentiasa sync dengan fleetTargetMonth sebaik sahaja admin tukar/simpan Fleet Target. */
-function setUtilDataMonth(val){
+/* One month for the whole Utilization page: summary, branch table (and its working days),
+   vehicle table, key-in / import and the trend chart all follow it. */
+async function setUtilMonth(val){
   if(!val) return;
   utilDataMonth = val;
-  updateUtilDataMonthNote();
+  fleetTargetMonth = val;
   renderUtilization();
+  if(currentRole==="admin") await persistFleetTarget();
 }
 function updateUtilDataMonthNote(){
   const note = document.getElementById("utilDataMonthNote");
-  if(note) note.textContent = `Key-in manual / import Excel di bawah akan disimpan sebagai data bulan ${monthShortLabel(utilDataMonth)}. Utilization by Branch & ringkasan di atas pun ikut bulan ni.`;
+  if(note) note.textContent = fleetI18n.tr(`Showing ${monthShortLabel(utilDataMonth)}. The summary, branch table, vehicle table and trend follow this month; key-in / Excel import below is saved to this month.`);
   const monthInput = document.getElementById("utilDataMonth");
   if(monthInput && monthInput.value !== utilDataMonth) monthInput.value = utilDataMonth;
 }
@@ -3966,7 +3957,7 @@ function snapshotUtilHistory(match){
     daysUtilized: match.daysUtilized,
     utilizationPct: match.utilizationPct,
     updatedAt: match.utilUpdatedAt
-  };
+  };   // updatedAt shown per month in the vehicle table
 }
 /* Bina data "Monthly Trend" dari utilHistory setiap kenderaan (included sahaja) — fleet-wide
    DAN dipecah ikut branch sekali, guna set bulan yang SAMA supaya semua line dalam graf
@@ -3981,7 +3972,9 @@ function buildUtilMonthlyData(){
       branchesSet.add(c.branch || "—");
     }
   });
-  const months = Array.from(monthsSet).sort();
+  // Trend runs up to the selected month (last 12 months of data), so picking a month
+  // above also moves the chart to it.
+  const months = Array.from(monthsSet).filter(m=>!utilDataMonth || m<=utilDataMonth).sort().slice(-12);
   const branches = Array.from(branchesSet).sort();
 
   const fleet = months.map(m=>{
@@ -4103,32 +4096,30 @@ async function setBranchWorkingDays(br, value, el){
   await persistFleetTarget();
   await persistCostingData();
 }
-function populateUtilFilters(){
-  const companies = [...new Set(costingData.map(d=>d.company))].sort();
-  const types = [...new Set(costingData.map(d=>d.vehicleType))].sort();
-  const branches = [...new Set(costingData.map(d=>d.branch))].sort();
-  document.getElementById("util_company").innerHTML = `<option value="">All companies</option>` + companies.map(c=>`<option value="${c}">${c}</option>`).join("");
-  document.getElementById("util_type").innerHTML = `<option value="">All types</option>` + types.map(c=>`<option value="${c}">${c}</option>`).join("");
-  document.getElementById("util_branch").innerHTML = `<option value="">All branches</option>` + branches.map(c=>`<option value="${c}">${c}</option>`).join("");
+function utilRowSnap(c){ return utilSnapshotForMonth(c, utilDataMonth); }
+function utilStatusLabel(c){
+  const snap = utilRowSnap(c);
+  if(!c.includedInUtil) return "Excluded";
+  if(!snap || snap.daysUtilized==null) return "No data";
+  if(snap.daysUtilized===0) return "Idle";
+  if(snap.utilizationPct==null) return "Set Fleet Target";
+  return snap.utilizationPct < targetPctFor(c.branch) ? "Below Target" : "On Target";
 }
-function getFilteredUtilRows(){
-  const search = document.getElementById("util_search").value.trim().toLowerCase();
-  const company = document.getElementById("util_company").value;
-  const type = document.getElementById("util_type").value;
-  const branch = document.getElementById("util_branch").value;
-  const status = document.getElementById("util_status").value;
-
-  return costingData.filter(c=>{
-    if(c.daysUtilized==null) return false;
-    if(company && c.company!==company) return false;
-    if(type && c.vehicleType!==type) return false;
-    if(branch && c.branch!==branch) return false;
-    if(search && !(c.plate.toLowerCase().includes(search) || (c.driverName||"").toLowerCase().includes(search))) return false;
-    if(status==="below" && !(c.includedInUtil && c.utilizationPct!=null && c.utilizationPct < targetPctFor(c.branch))) return false;
-    if(status==="idle" && c.daysUtilized!==0) return false;
-    return true;
-  });
-}
+xlRegister("util", {
+  data: ()=>costingData.filter(c=>c.daysUtilized!=null || (c.utilHistory && Object.keys(c.utilHistory).length)),
+  render: ()=>renderUtilTable(),
+  cols: [
+    {key:"included",    label:"Included", get: c=>c.includedInUtil ? "Included" : "Excluded"},
+    {key:"plate",       label:"Plate"},
+    {key:"company",     label:"Company"},
+    {key:"vehicleType", label:"Type"},
+    {key:"branch",      label:"Branch", get: c=>utilBranchKey(c.branch)},
+    {key:"driverName",  label:"Driver"},
+    {key:"days",        label:"Utilization", num:true, get: c=>{ const s = utilRowSnap(c); return s && s.daysUtilized!=null ? s.daysUtilized : null; }},
+    {key:"status",      label:"Status", get: c=>utilStatusLabel(c)},
+  ],
+});
+function getFilteredUtilRows(){ return xlRows("util"); }
 async function setIncludeForFiltered(include){
   if(currentRole!=="admin"){ A("Hanya admin boleh tukar senarai kenderaan included."); return; }
   const rows = getFilteredUtilRows();
@@ -4145,35 +4136,43 @@ async function toggleUtilInclude(plate, checked){
   await persistCostingData();
 }
 function renderUtilTable(){
-  let rows = getFilteredUtilRows();
-  rows.sort((a,b)=>a.daysUtilized-b.daysUtilized);
+  const head = document.getElementById("utilHeadRow");
+  if(head) head.innerHTML = xlHeaderHtml("util");
+  let rows = xlRows("util");
+  if(!XL_TABLES.util.sort){       // default: lowest utilization first
+    const d = c=>{ const s = utilRowSnap(c); return s && s.daysUtilized!=null ? s.daysUtilized : Infinity; };
+    rows = rows.slice().sort((a,b)=>d(a)-d(b));
+  }
   const isAdmin = currentRole==="admin";
+  const STATUS_CLS = {"Excluded":"neutral","No data":"neutral","Idle":"danger","Set Fleet Target":"neutral","Below Target":"warn","On Target":"good"};
 
   document.getElementById("utilBody").innerHTML = rows.map(c=>{
-    const hasPct = c.utilizationPct!=null;
-    const belowTarget = c.includedInUtil && hasPct && c.utilizationPct < targetPctFor(c.branch);
-    const statusBadge = !c.includedInUtil ? badge("Excluded","neutral")
-      : c.daysUtilized===0 ? badge("Idle","danger")
-      : !hasPct ? badge(T("Set Fleet Target"),"neutral")
-      : belowTarget ? badge("Below Target","warn") : badge("On Target","good");
+    const snap = utilRowSnap(c);
+    const days = snap && snap.daysUtilized!=null ? snap.daysUtilized : null;
+    const pct = snap ? snap.utilizationPct : null;
+    const label = utilStatusLabel(c);
+    const statusBadge = badge(T(label), STATUS_CLS[label]);
     const plateEsc = c.plate.replace(/'/g,"\\'");
-    const pctNote = hasPct ? `≈ ${c.utilizationPct}% ${T("dari Fleet Target")}` : T("Tetapkan Fleet Target untuk kira %");
+    const updated = snap && snap.updatedAt ? snap.updatedAt : (c.utilUpdatedAt || "");
+    const pctNote = pct!=null ? `≈ ${pct}% · ${fleetI18n.tr("target")} ${targetPctFor(c.branch)}%` : (days==null ? fleetI18n.tr("No data this month") : T("Tetapkan Fleet Target untuk kira %"));
     const utilCell = isAdmin
       ? `<span style="display:flex;align-items:center;gap:5px;">
-           <input type="number" step="1" min="0" value="${c.daysUtilized}" class="mono-cell" style="width:58px;font-size:11px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;" onchange="updateDaysUtilized('${plateEsc}', this.value)">
+           <input type="number" step="1" min="0" value="${days!=null?days:""}" placeholder="—" class="mono-cell" style="width:58px;font-size:11px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;" onchange="updateDaysUtilized('${plateEsc}', this.value)">
            <span style="font-size:11px;color:var(--ink-soft);">${T("hari")}</span>
          </span>
          <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;">${pctNote}</div>
-         ${c.utilUpdatedAt ? `<div style="font-size:9.5px;color:var(--ink-soft);">GPS Oncore: ${c.utilUpdatedAt}</div>` : `<div style="font-size:9.5px;color:var(--ink-soft);">${T("Dari Excel asal")}</div>`}`
-      : `<span class="mono-cell" style="font-size:11px;">${c.daysUtilized} ${T("hari")}</span>
-         <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;">${pctNote}</div>
-         ${c.utilUpdatedAt ? `<div style="font-size:9.5px;color:var(--ink-soft);">GPS Oncore: ${c.utilUpdatedAt}</div>` : ``}`;
+         ${updated ? `<div style="font-size:9.5px;color:var(--ink-soft);">GPS Oncore: ${updated}</div>` : ``}`
+      : `<span class="mono-cell" style="font-size:11px;">${days!=null?days:"—"} ${T("hari")}</span>
+         <div style="font-size:9.5px;color:var(--ink-soft);margin-top:4px;">${pctNote}</div>`;
     return `<tr style="${c.includedInUtil?"":"opacity:.55;"}"><td style="text-align:center;"><input type="checkbox" ${c.includedInUtil?"checked":""} ${isAdmin?"":"disabled"} onchange="toggleUtilInclude('${plateEsc}', this.checked)"></td>
-    <td style="font-weight:600;">${c.plate}</td><td>${c.company}</td><td>${c.vehicleType}</td><td>${c.branch}</td><td>${c.driverName||"—"}</td>
+    <td style="font-weight:600;">${escHtml(c.plate)}</td><td>${escHtml(c.company||"—")}</td><td>${escHtml(c.vehicleType||"—")}</td><td>${escHtml(utilBranchKey(c.branch))}</td><td>${escHtml(c.driverName||"—")}</td>
     <td style="min-width:150px;">${utilCell}</td>
     <td>${statusBadge}</td></tr>`;
-  }).join("");
-  document.getElementById("utilCount").textContent = `${T("Showing")} ${rows.length} ${T("of")} ${costingData.filter(c=>c.daysUtilized!=null).length} ${T("vehicles")} · ${costingData.filter(c=>c.includedInUtil).length} ${T("included dalam pengiraan")}`;
+  }).join("") || `<tr><td colspan="8" style="color:var(--faint);text-align:center;">${fleetI18n.tr("No vehicles match the filters")}</td></tr>`;
+  const all = XL_TABLES.util.data();
+  document.getElementById("utilCount").textContent = fleetI18n.tr(`Showing ${rows.length} of ${all.length} vehicles · ${all.filter(c=>c.includedInUtil).length} included in the calculation`) + (xlAnyActive("util") ? "" : "");
+  const clr = document.getElementById("utilClearAllBtn");
+  if(clr) clr.style.display = xlAnyActive("util") ? "inline-block" : "none";
 }
 /* Utilization by Branch — dikira dari snapshot utilHistory bagi utilDataMonth yang
    dipilih (bukan nilai live semasa), supaya table ni betul-betul berubah ikut bulan
@@ -4234,7 +4233,6 @@ function renderUtilization(){
     : T("Admin belum tetapkan — guna default");
   updateUtilAdminUI();
 
-  populateUtilFilters();
   renderUtilTable();
   renderUtilByBranch();
   updateUtilDataMonthNote();
@@ -4271,15 +4269,17 @@ function renderUtilization(){
      ikut atas/bawah target) + garis putus-putus "Target" merentasi graf supaya senang
      nampak bulan/branch mana yang on target vs below target. */
   const BRANCH_CHART_COLORS = ["#2F80ED","#27AE60","#9B51E0","#F2994A","#EB5757","#56CCF2","#BB6BD9","#219653","#6FCF97","#F2C94C"];
+  const selIdx = monthlyData.months.indexOf(utilDataMonth);          // selected month → bigger points
+  const ptSize = base => monthlyData.months.map((m,i)=> i===selIdx ? base*2.2 : base);
   const branchDatasets = monthlyData.branchSeries.map((s,i)=>({
     label: s.branch,
     data: s.data,
     borderColor: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
     backgroundColor: "transparent",
     fill: false,
-    tension: .3,
+    tension: 0,
     borderWidth: 1.5,
-    pointRadius: 2.5,
+    pointRadius: ptSize(2.5),
     pointBackgroundColor: BRANCH_CHART_COLORS[i % BRANCH_CHART_COLORS.length],
     spanGaps: true
   }));
@@ -4289,9 +4289,9 @@ function renderUtilization(){
     borderColor: fleetI18n.cssVar("--needle"),
     backgroundColor: fleetI18n.cssVar("--needle-fill"),
     fill: true,
-    tension: .3,
+    tension: 0,
     borderWidth: 3,
-    pointRadius: 3.5,
+    pointRadius: ptSize(3.5),
     pointBackgroundColor: monthlyData.fleet.map(v => v==null ? fleetI18n.cssVar("--needle") : (v>=FLEET_TARGET_PCT ? "#27AE60" : "#EB5757")),
     spanGaps: true,
     order: 1
