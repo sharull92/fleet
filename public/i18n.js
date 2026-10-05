@@ -408,6 +408,19 @@
     ["Included","Dikira"],
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
+    ["By government requirement / enforcement agency","Ikut keperluan kerajaan / agensi penguatkuasa"],
+    ["Requirement","Keperluan"],
+    ["Agency","Agensi"],
+    ["Due ≤ 30 days","Tamat ≤ 30 hari"],
+    ["No record","Tiada rekod"],
+    ["JKKP Certificate","Sijil JKKP"],
+    ["APAD Permit","Permit APAD"],
+    ["Year","Tahun"],
+    ["current","semasa"],
+    ["Target (avg)","Sasaran (purata)"],
+    ["Best month","Bulan terbaik"],
+    ["Lowest month","Bulan terendah"],
+    ["Idle units","Unit terbiar"],
     ["Edit — saved for this vehicle","Edit — disimpan untuk kenderaan ini"],
     ["Only admin can edit vehicle details.","Hanya admin boleh edit maklumat kenderaan."],
     ["Plate cannot be empty.","No. plat tidak boleh kosong."],
@@ -462,6 +475,8 @@
   ];
 
   const TEMPLATES = [
+    ["Included vehicles · average of {a} month(s) with data, {b}","Kenderaan dikira · purata {a} bulan yang ada data, {b}"],
+    ["No utilization data for {a} yet","Belum ada data penggunaan untuk {a}"],
     ["Plate {a} already exists in the list.","No. plat {a} sudah ada dalam senarai."],
     ["The whole page follows {a}; key-in / Excel import is saved to this month.","Seluruh halaman ikut {a}; key-in / import Excel disimpan ke bulan ini."],
     ["{a} vehicles · {b} companies","{a} kenderaan · {b} syarikat"],

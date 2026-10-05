@@ -249,6 +249,12 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;}
 .gauge-label{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
 .gauge-value{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;margin-top:-46px;}
+.ov-gauge-value{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;margin-top:-4px;line-height:1;}
+.ov-util-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.ov-util-stats > div{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:7px 9px;}
+.ov-util-stats .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:600;}
+.ov-util-stats .v{white-space:nowrap;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;margin-top:2px;}
+@media (max-width:700px){ .ov-util-stats{grid-template-columns:repeat(2,1fr);} }
 
 /* ---- Views ---- */
 .view{display:none;}
@@ -447,20 +453,28 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
       <!-- ============ OVERVIEW ============ -->
       <section class="view active" id="view-overview">
-        <div class="kpi-row" id="kpiRow"></div>
+        <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(3,1fr);"></div>
 
         <div class="grid-2">
-          <div class="panel">
-            <div class="panel-head"><h3>Compliance Status</h3></div>
-            <canvas id="chartFleetStatus" height="200"></canvas>
+          <div class="panel" style="min-width:0;">
+            <div class="panel-head"><h3>Compliance Status</h3><span class="sub" style="font-size:11px;color:var(--ink-soft);">By government requirement / enforcement agency</span></div>
+            <div style="position:relative;height:230px;"><canvas id="chartFleetStatus"></canvas></div>
+            <div style="overflow-x:auto;"><table style="margin-top:12px;">
+              <thead><tr><th>Requirement</th><th>Agency</th><th style="text-align:right;">OK</th><th style="text-align:right;">Due ≤ 30 days</th><th style="text-align:right;">Overdue</th><th style="text-align:right;">No record</th></tr></thead>
+              <tbody id="ovComplianceBody"></tbody>
+            </table></div>
           </div>
-          <div class="panel">
-            <div class="panel-head"><h3>Utilization — Company Average</h3></div>
+          <div class="panel" style="min-width:0;">
+            <div class="panel-head"><h3>Utilization — Company Average</h3>
+              <div style="display:flex;align-items:center;gap:6px;"><label for="ovUtilYear" style="margin:0;">Year</label><select id="ovUtilYear" onchange="setOvUtilYear(this.value)" style="width:auto;padding:4px 8px;"></select></div>
+            </div>
             <div class="gauge-wrap">
               <svg id="mainGauge" width="220" height="130" viewBox="0 0 220 130"></svg>
-              <div class="gauge-value" id="mainGaugeValue">—</div>
-              <div class="gauge-label">Included vehicles, YTD Jan–Jul 2026</div>
+              <div class="ov-gauge-value" id="mainGaugeValue">—</div>
+              <div class="gauge-label" id="mainGaugeLabel"></div>
             </div>
+            <div class="ov-util-stats" id="ovUtilStats"></div>
+            <div style="position:relative;height:190px;margin-top:10px;"><canvas id="chartOvUtilYear"></canvas></div>
           </div>
         </div>
 
@@ -469,10 +483,10 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <h3>Attention Needed This Week</h3>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);">Auto-flagged from Repair, Hiring &amp; Dispose modules</span>
           </div>
-          <table>
+<div style="overflow-x:auto;"><table>
             <thead><tr><th>Vehicle</th><th>Module</th><th>Item</th><th>Due / Status</th><th>Priority</th></tr></thead>
             <tbody id="attentionBody"></tbody>
-          </table>
+          </table></div>
         </div>
       </section>
 
@@ -2345,14 +2359,7 @@ function renderOverview(){
   /* Live from the real register — same source as Repair/Costing/Utilization tabs */
   const crScope = complianceData.filter(inGlobalScopeCompliance);
   const totalFleet = crScope.length;
-  const overdueService = crScope.filter(d=>rowHasStatus(d,"overdue")).length;
-  const dueSoon = crScope.filter(d=>rowHasStatus(d,"soon") && !rowHasStatus(d,"overdue")).length;
-  const okCompliance = totalFleet - overdueService - dueSoon;
 
-  const costScope = costingData.filter(c=>inGlobalScopeCosting(c) && c.utilizationPct!=null);
-  const includedScope = costScope.filter(c=>c.includedInUtil);
-  const avgUtil = includedScope.length ? Math.round(includedScope.reduce((s,c)=>s+c.utilizationPct,0)/includedScope.length) : 0;
-  const idleCount = costingData.filter(c=>inGlobalScopeCosting(c) && c.includedInUtil && c.daysUtilized===0).length;
 
   const openTickets = tickets.filter(t=>t.status!=="Completed" && ticketInGlobalScope(t));
   const inRepairPlates = new Set(tickets.filter(t=>t.status==="In Progress" && ticketInGlobalScope(t)).map(t=>t.vehicle));
@@ -2360,9 +2367,6 @@ function renderOverview(){
   const kpis = [
     {label:"Total Fleet",value:totalFleet,foot:scoped?`in ${scopeLabel}`:"across all companies & branches",cls:""},
     {label:"In Repair",value:inRepairPlates.size,foot:"active workshop tickets",cls:inRepairPlates.size>0?"alert":""},
-    {label:"Idle Vehicles",value:idleCount,foot:"0% utilization (GPS Oncore)",cls:idleCount>0?"alert":""},
-    {label:"Avg Utilization",value:avgUtil+"%",foot:"included vehicles, YTD",cls:""},
-    {label:"Overdue Service",value:overdueService,foot:"needs scheduling",cls:overdueService>0?"alert":""},
     {label:"Open Repair Tickets",value:openTickets.length,foot:"status \u2260 Completed",cls:""},
   ];
   document.getElementById("kpiRow").innerHTML = kpis.map(k=>`
@@ -2372,18 +2376,29 @@ function renderOverview(){
       <div class="foot ${k.cls==='alert'?'bad':''}">${k.foot}</div>
     </div>`).join("");
 
-  // compliance status chart — OK / Due soon / Overdue, live from the register (scoped)
+  // compliance status — per government requirement / enforcement agency (scoped)
+  const reqStats = COMPLIANCE_REQUIREMENTS.map(r=>{
+    const st = crScope.map(d=>d[r.key+"Status"]);
+    return {...r, ok:st.filter(x=>x==="ok").length, soon:st.filter(x=>x==="soon").length, overdue:st.filter(x=>x==="overdue").length, none:st.filter(x=>!x).length};
+  });
+  const reqLabels = reqStats.map(r=>`${fleetI18n.tr(r.label)} (${r.agency})`);
   if(fleetStatusChart) fleetStatusChart.destroy();
   fleetStatusChart = new Chart(document.getElementById("chartFleetStatus"),{
     type:"bar",
-    data:{labels:["OK","Due Soon","Overdue"].map(fleetI18n.tr),
-      datasets:[{data:[okCompliance,dueSoon,overdueService],
-        backgroundColor:["#3F7D5C","#B9791A","#C1443C"],borderRadius:3,maxBarThickness:46}]},
-    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}}
+    data:{labels:reqLabels, datasets:[
+      {label:fleetI18n.tr("OK"), data:reqStats.map(r=>r.ok), backgroundColor:"#3F7D5C"},
+      {label:fleetI18n.tr("Due Soon"), data:reqStats.map(r=>r.soon), backgroundColor:"#B9791A"},
+      {label:fleetI18n.tr("Overdue"), data:reqStats.map(r=>r.overdue), backgroundColor:"#C1443C"}
+    ].map(d=>({...d, borderRadius:2, maxBarThickness:26}))},
+    options:{indexAxis:"y", maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:"bottom",labels:{boxWidth:11,font:{size:10.5}}}},
+      scales:{x:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:fleetI18n.cssVar("--grid")}},y:{stacked:true,grid:{display:false}}}}
   });
+  const num = (n,cls)=> `<td class="mono-cell" style="text-align:right;${n&&cls?`color:${cls};font-weight:700;`:""}">${n}</td>`;
+  document.getElementById("ovComplianceBody").innerHTML = reqStats.map(r=>
+    `<tr><td style="font-weight:600;">${T(r.label)}</td><td>${r.agencyFull}</td>${num(r.ok)}${num(r.soon,"#B9791A")}${num(r.overdue,"#C1443C")}${num(r.none)}</tr>`).join("");
 
-  drawGauge("mainGauge",avgUtil);
-  document.getElementById("mainGaugeValue").textContent = avgUtil+"%";
+  renderOvUtilYear();
 
   // attention table — scoped to the same company/branch selection
   const rows = [];
@@ -2403,6 +2418,75 @@ function renderOverview(){
   document.getElementById("attentionBody").innerHTML = rows.length
     ? rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("")
     : `<tr><td colspan="5" style="color:var(--faint);text-align:center;">Nothing needs attention in ${scopeLabel}</td></tr>`;
+}
+
+const COMPLIANCE_REQUIREMENTS = [
+  {key:"roadTax",    label:"Road Tax",          agency:"JPJ",      agencyFull:"JPJ"},
+  {key:"inspection", label:"Inspection",        agency:"PUSPAKOM", agencyFull:"PUSPAKOM (JPJ)"},
+  {key:"insurance",  label:"Insurance",         agency:"JPJ",      agencyFull:"JPJ (Akta Pengangkutan Jalan 1987)"},
+  {key:"jkkp",       label:"JKKP Certificate",  agency:"DOSH",     agencyFull:"JKKP / DOSH"},
+  {key:"apad",       label:"APAD Permit",       agency:"APAD",     agencyFull:"APAD"}
+];
+
+/* Utilization — Company Average ikut tahun: gauge = purata bulan-bulan yang ada data
+   dalam tahun dipilih; graf bar Jan–Dis dengan sasaran setiap bulan. */
+let ovUtilYear = null;
+let ovUtilYearChart = null;
+function setOvUtilYear(y){ ovUtilYear = y; renderOvUtilYear(); }
+function renderOvUtilYear(){
+  const thisYear = String(APP_TODAY_ISO).slice(0,4);
+  const scope = costingData.filter(c=>inGlobalScopeCosting(c) && c.includedInUtil);
+  const years = new Set([thisYear]);
+  costingData.forEach(c=>Object.keys(c.utilHistory||{}).forEach(m=>years.add(m.slice(0,4))));
+  if(!ovUtilYear || !years.has(ovUtilYear)) ovUtilYear = thisYear;
+  const sel = document.getElementById("ovUtilYear");
+  if(sel){
+    sel.innerHTML = [...years].sort().reverse().map(y=>`<option value="${y}"${y===ovUtilYear?" selected":""}>${y}${y===thisYear?" ("+fleetI18n.tr("current")+")":""}</option>`).join("");
+  }
+  const months = Array.from({length:12},(_,i)=>`${ovUtilYear}-${String(i+1).padStart(2,"0")}`);
+  const stats = months.map(m=>{
+    const recs = scope.filter(c=>c.utilHistory && c.utilHistory[m] && c.utilHistory[m].utilizationPct!=null);
+    if(!recs.length) return {m, avg:null, target:null, count:0, idle:0};
+    const avg = Math.round(recs.reduce((s,c)=>s+c.utilHistory[m].utilizationPct,0)/recs.length*10)/10;
+    const target = Math.round(recs.reduce((s,c)=>s+targetPctFor(c.branch, m),0)/recs.length*10)/10;
+    return {m, avg, target, count:recs.length, idle:recs.filter(c=>c.utilHistory[m].daysUtilized===0).length};
+  });
+  const withData = stats.filter(x=>x.avg!=null);
+  const yearAvg = withData.length ? Math.round(withData.reduce((s,x)=>s+x.avg,0)/withData.length) : null;
+  const yearTarget = withData.length ? Math.round(withData.reduce((s,x)=>s+x.target,0)/withData.length*10)/10 : null;
+  drawGauge("mainGauge", yearAvg||0);
+  document.getElementById("mainGaugeValue").textContent = yearAvg!=null ? yearAvg+"%" : "—";
+  const lbl = document.getElementById("mainGaugeLabel");
+  if(lbl) lbl.textContent = withData.length
+    ? fleetI18n.tr(`Included vehicles · average of ${withData.length} month(s) with data, ${ovUtilYear}`)
+    : fleetI18n.tr(`No utilization data for ${ovUtilYear} yet`);
+  const latest = withData[withData.length-1];
+  const best = withData.slice().sort((a,b)=>b.avg-a.avg)[0];
+  const low = withData.slice().sort((a,b)=>a.avg-b.avg)[0];
+  const st = document.getElementById("ovUtilStats");
+  if(st) st.innerHTML = [
+    [fleetI18n.tr("Target (avg)"), yearTarget!=null ? yearTarget+"%" : "—"],
+    [fleetI18n.tr("Best month"), best ? `${monthShortLabel(best.m).split(" ")[0]} · ${best.avg}%` : "—"],
+    [fleetI18n.tr("Lowest month"), low ? `${monthShortLabel(low.m).split(" ")[0]} · ${low.avg}%` : "—"],
+    [fleetI18n.tr("Idle units"), latest ? `${latest.idle} <span style="font-size:10px;color:var(--ink-soft);font-weight:500;">(${monthShortLabel(latest.m).split(" ")[0]})</span>` : "—"]
+  ].map(([k,v])=>`<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const ink = fleetI18n.cssVar("--ink") || "#222";
+  if(ovUtilYearChart) ovUtilYearChart.destroy();
+  ovUtilYearChart = new Chart(document.getElementById("chartOvUtilYear"),{
+    type:"bar",
+    data:{labels: months.map(m=>monthShortLabel(m).split(" ")[0]), datasets:[
+      {label:fleetI18n.tr("Avg Utilization"), data:stats.map(x=>x.avg),
+       backgroundColor:stats.map(x=>x.avg==null?"transparent":(x.avg>=x.target?"#27AE60":"#EB5757")), borderRadius:3, maxBarThickness:28, order:1},
+      {type:"line", label:fleetI18n.tr("Target"), data:stats.map(x=>x.target), showLine:false, pointStyle:"line",
+       pointRadius:11, pointHoverRadius:11, pointBorderWidth:2.5, borderColor:ink, backgroundColor:ink, order:0}
+    ]},
+    options:{maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=> ctx.datasetIndex===0
+        ? `${fleetI18n.tr("Avg Utilization")}: ${ctx.parsed.y!=null?ctx.parsed.y+"%":"—"} (${stats[ctx.dataIndex].count} ${T("vehicles")})`
+        : `${fleetI18n.tr("Target")}: ${ctx.parsed.y}%`}}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+"%",stepSize:25},grid:{color:fleetI18n.cssVar("--grid")}},x:{grid:{display:false}}}}
+  });
 }
 
 function drawGauge(svgId, pct){
