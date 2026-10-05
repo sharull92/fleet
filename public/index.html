@@ -953,9 +953,10 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="panel">
           <div class="panel-head"><h3>Job Records</h3></div>
           <table>
-            <thead><tr><th>Unit</th><th>Company / Project</th><th>Tarikh / Masa</th><th>Tempat</th><th>Sv (tapak)</th><th>Kenderaan Assigned</th><th>Status</th><th></th></tr></thead>
+            <thead><tr id="hireHeadRow"></tr></thead>
             <tbody id="hireBody"></tbody>
           </table>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="hireCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="hireClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('hiring')">✕ Clear all filters</button></div>
         </div>
       </section>
 
@@ -1651,7 +1652,7 @@ async function loadHiringRecords(){
     const saved = JSON.parse(result.value);
     if(saved && Array.isArray(saved.data) && saved.data.length){
       hiringRecords.length = 0;
-      saved.data.forEach(h=>hiringRecords.push(h));
+      saved.data.forEach(h=>{ normalizeHireRecord(h); hiringRecords.push(h); });   // older records had mixed case
     }
   }catch(e){
     console.info("Hiring records: tiada simpanan shared lagi, guna data asal.", e);
@@ -3198,8 +3199,41 @@ function updateAssignMapLink(tempat){
   el.innerHTML = tempat && tempat!=="—" ? locationHtml(tempat).replace(/^<span>.*?<\/span>/, "") : "";
 }
 
+/* Job request text is stored in one format — UPPERCASE with single spaces — whether it
+   was typed or pasted from WhatsApp (where spelling/case varies). Map links stay as is. */
+function normText(v){
+  if(v==null) return v;
+  const str = String(v).replace(/\s+/g, " ").trim();
+  if(!str || str==="—") return str;
+  return str.split(/(https?:\/\/\S+)/).map((part,i)=> i%2 ? part : part.toUpperCase()).join("");
+}
+const HIRE_TEXT_FIELDS = ["unit","company","project","tempat","load","sv","driverName"];
+function normalizeHireRecord(h){
+  let changed = false;
+  HIRE_TEXT_FIELDS.forEach(f=>{ if(typeof h[f]==="string"){ const n = normText(h[f]); if(n!==h[f]){ h[f] = n; changed = true; } } });
+  return changed;
+}
+const HIRE_STATUS_LABEL = {New:"New", Assigned:"Assigned"};
+xlRegister("hiring", {
+  data: ()=>hiringRecords,
+  render: ()=>renderHireTable(),
+  cols: [
+    {key:"unit",    label:"Unit"},
+    {key:"company", label:"Company / Project"},
+    {key:"branch",  label:"Branch"},
+    {key:"tarikh",  label:"Date / Time", date:true},
+    {key:"tempat",  label:"Location", get: h=>String(h.tempat||"").replace(/https?:\/\/\S+/g,"").replace(/\s*·\s*/g," ").trim()},
+    {key:"sv",      label:"Supervisor (site)"},
+    {key:"assignedVehicle", label:"Assigned Vehicle"},
+    {key:"status",  label:"Status"},
+  ],
+});
 function renderHireTable(){
-  document.getElementById("hireBody").innerHTML = hiringRecords.map((h,i)=>{
+  const head = document.getElementById("hireHeadRow");
+  if(head) head.innerHTML = xlHeaderHtml("hiring") + "<th></th>";
+  const rows = xlRows("hiring");
+  document.getElementById("hireBody").innerHTML = rows.map(h=>{
+    const i = hiringRecords.indexOf(h);
     const cls = h.status==="Assigned"?"good":"warn";
     const svLine = !h.sv || h.sv==="—" ? "—" : `${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
     let vehCell = "—";
@@ -3209,10 +3243,15 @@ function renderHireTable(){
     }
     const actionCell = h.status==="New" ? `<button class="btn yellow" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Balas / Assign")}</button>` : `<button class="btn ghost" style="padding:5px 11px;font-size:11.5px;" onclick="openAssignPanel(${i})">${T("Edit")}</button>`;
     const deleteBtn = currentRole==="admin" ? `<button class="btn ghost" style="padding:5px 9px;font-size:10.5px;color:var(--danger);margin-left:6px;" onclick="deleteHireRecord(${i})" title="${T("Padam job ini (cth. job dibatalkan)")}">✕ ${T("Padam")}</button>` : "";
-    return `<tr><td style="font-weight:600;">${h.unit}</td><td>${h.company}<br><span style="font-size:11px;color:var(--ink-soft);">${h.project}</span></td>
-    <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td class="loc-cell">${locationHtml(h.tempat)}</td><td>${svLine}</td>
+    return `<tr><td style="font-weight:600;">${escHtml(h.unit)}</td><td>${escHtml(h.company)}<br><span style="font-size:11px;color:var(--ink-soft);">${escHtml(h.project)}</span></td>
+    <td class="mono-cell">${escHtml(h.branch||"—")}</td>
+    <td class="mono-cell">${h.tarikh} ${h.masa && h.masa!=="—"?"· "+h.masa:""}</td><td class="loc-cell">${locationHtml(h.tempat)}</td><td>${escHtml(svLine)}</td>
     <td>${vehCell}</td><td>${badge(h.status,cls)}</td><td style="white-space:nowrap;">${actionCell}${deleteBtn}</td></tr>`;
-  }).join("");
+  }).join("") || `<tr><td colspan="9" style="color:var(--faint);text-align:center;">No job records</td></tr>`;
+  const cnt = document.getElementById("hireCount");
+  if(cnt) cnt.textContent = `Showing ${rows.length} of ${hiringRecords.length} jobs`;
+  const clr = document.getElementById("hireClearAllBtn");
+  if(clr) clr.style.display = xlAnyActive("hiring") ? "inline-block" : "none";
 }
 /* ---- Paste from WhatsApp → auto-fill Log Job Request (parser: wa-parse.js) ---- */
 function toggleWaPaste(show){
@@ -3231,6 +3270,7 @@ function applyWaPaste(){
   let n = 0;
   for(const [f,id] of Object.entries(map)){
     if(fields[f]==null || fields[f]==="") continue;
+    if(["unit","company","project","tempat","load","sv"].includes(f)) fields[f] = normText(fields[f]);   // same format as saved records
     const el = document.getElementById(id);
     // A pasted map link / coordinates on its own is added to the existing location, not a replacement.
     if(f==="tempat" && /^https?:\/\/\S+$/.test(fields.tempat) && el.value.trim()){
@@ -3314,7 +3354,9 @@ async function logHireRequest(){
   const sv = document.getElementById("hr_sv").value.trim() || "—";
   const phone = document.getElementById("hr_phone").value.trim() || "—";
 
-  hiringRecords.unshift({unit,branch,company,project,tarikh,masa,tempat,load,sv,phone,status:"New",source:null,assignedVehicle:null,driverName:null,driverPhone:null});
+  const rec = {unit,branch,company,project,tarikh,masa,tempat,load,sv,phone,status:"New",source:null,assignedVehicle:null,driverName:null,driverPhone:null};
+  normalizeHireRecord(rec);
+  hiringRecords.unshift(rec);
   renderHireTable();
   renderHiring();
   clearHireForm();
@@ -3460,7 +3502,7 @@ async function generateAssignReply(){
   h.status = "Assigned";
   h.source = source;
   h.assignedVehicle = vehicle;
-  h.driverName = driverName;
+  h.driverName = normText(driverName);
   h.driverPhone = driverPhone;
   h.tarikh = tarikh;
   h.masa = masa;

@@ -158,7 +158,7 @@
     }
 
     const link = mapsLink(String(text || ""));
-    if (link) fields.tempat = fields.tempat ? `${fields.tempat} · ${link}` : link;
+    if (link && !(fields.tempat || "").includes(link)) fields.tempat = fields.tempat ? `${fields.tempat} · ${link}` : link;
 
     if (extras.length) {
       const extra = extras.join(" · ");

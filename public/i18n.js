@@ -337,6 +337,7 @@
     ["Company / Project","Syarikat / Projek"],
     ["Reply / Assign","Balas / Assign"],
     ["Delete this job (e.g. the job was cancelled)","Padam job ini (cth. job dibatalkan)"],
+    ["No job records","Tiada rekod kerja"],
     ["Own Fleet","Sendiri"],
     ["Hired","Sewa"],
 
@@ -449,6 +450,7 @@
     ["New — Delivered ({a})","Baharu — Diterima ({a})"],
     ["Disposed ({a})","Telah Dilupus ({a})"],
     ["Ticket: {a}","Tiket: {a}"],
+    ["Showing {a} of {b} jobs","Paparan {a} daripada {b} kerja"],
     ["{a} of {b} vehicles keyed in","{a} daripada {b} kenderaan dimasukkan"],
     ["Clear Filter From \"{a}\"","Kosongkan Tapisan \"{a}\""],
     ["Filter {a}","Tapis {a}"],
