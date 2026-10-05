@@ -131,6 +131,7 @@
     ["Log Job Request","Log Permintaan Kerja"],
     ["Company","Syarikat"],
     ["Project","Projek"],
+    ["Project / Breakdown","Projek / Breakdown"],
     ["Location","Lokasi"],
     ["Load","Muatan"],
     ["Log Request","Hantar Permintaan"],

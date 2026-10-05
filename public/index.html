@@ -588,8 +588,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
             </div>
           </div>
           <div class="form-row">
-            <div><label>Dilaporkan Oleh (nama)</label><input id="tk_reportedBy" placeholder="e.g. Azlan"></div>
-            <div><label>No. Telefon Anda (untuk reply WhatsApp)</label><input id="tk_phone" placeholder="e.g. 0104508296"></div>
+            <div><label>Dilaporkan Oleh (nama)</label><input id="tk_reportedBy" placeholder="e.g. ABC"></div>
+            <div><label>No. Telefon Anda (untuk reply WhatsApp)</label><input id="tk_phone" placeholder="e.g. 1234"></div>
           </div>
           <div class="form-actions">
             <button class="btn ghost" onclick="cancelTicketForm()">Clear</button>
@@ -648,13 +648,13 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div><label>Masa</label><input id="hr_masa" type="time"></div>
           </div>
           <div class="form-row">
-            <div style="grid-column:1/-1;"><label>Project</label><input id="hr_project" placeholder="Bdown 11kv Shah Alam"></div>
+            <div style="grid-column:1/-1;"><label>Project / Breakdown</label><input id="hr_project"></div>
           </div>
           <div class="form-row">
             <div style="grid-column:1/-1;">
               <label>Tempat</label>
               <div style="display:flex;gap:8px;align-items:center;">
-                <input id="hr_tempat" placeholder="Jalan Persiaran Sukan Sek 13 S.A" style="flex:1;">
+                <input id="hr_tempat" style="flex:1;">
                 <button type="button" class="btn ghost" style="white-space:nowrap;padding:9px 12px;" onclick="shareHireLocation()" id="hr_locBtn">📍 Kongsi Lokasi</button>
               </div>
               <span id="hr_locStatus" style="font-size:11px;color:var(--ink-soft);display:block;margin-top:4px;"></span>
@@ -664,8 +664,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div style="grid-column:1/-1;"><label>Load</label><input id="hr_load" placeholder="3 bucket pasir, 3 bucket crushrun, buang tanah"></div>
           </div>
           <div class="form-row">
-            <div><label>Sv (nama, di tapak)</label><input id="hr_sv" placeholder="Zainal"></div>
-            <div><label>No. Telefon Sv</label><input id="hr_phone" placeholder="0104508296"></div>
+            <div><label>Sv (nama, di tapak)</label><input id="hr_sv" placeholder="e.g. ABC"></div>
+            <div><label>No. Telefon Sv</label><input id="hr_phone" placeholder="e.g. 1234"></div>
           </div>
           <div class="form-actions">
             <button class="btn ghost" onclick="clearHireForm()">Clear</button>
