@@ -424,7 +424,7 @@
     ["✓ All OK","✓ Semua OK"],
     ["Problem details (if any) — e.g. left signal light not working","Butiran kerosakan (jika ada) — cth. lampu signal kiri tak menyala"],
     ["Daily Movement","Pergerakan Harian"],
-    ["— one line per stop / job, tick QR ✅ when done","— satu baris setiap tempat / job, tanda QR ✅ bila siap"],
+    ["— one line per stop / job","— satu baris setiap tempat / job"],
     ["+ Add stop","+ Tambah tempat"],
     ["Submit Daily Movement","Hantar Pergerakan Harian"],
     ["Update Daily Movement","Kemas Kini Pergerakan Harian"],

@@ -246,10 +246,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .dm-item.ok{border-color:#3F7D5C;} .dm-item.bad{border-color:#C1443C;background:rgba(193,68,60,.08);}
 .dm-pill{white-space:nowrap;border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700;cursor:pointer;}
 .dm-pill.on.ok{background:#3F7D5C;border-color:#3F7D5C;color:#fff;} .dm-pill.on.bad{background:#C1443C;border-color:#C1443C;color:#fff;}
-.dm-move{display:grid;grid-template-columns:28px 1fr auto auto;gap:8px;align-items:center;margin-bottom:6px;}
+.dm-move{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;margin-bottom:6px;}
 .dm-move .n{font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--ink-soft);text-align:right;}
-.dm-qr{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;white-space:nowrap;cursor:pointer;}
-.dm-qr input{width:auto;}
+
 .as-row{border:1px solid var(--line);border-left:3px solid var(--yellow-deep);border-radius:var(--radius);padding:12px 14px 2px;margin-bottom:12px;background:var(--panel);}
 .as-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;}
 .util-edit{font-size:11.5px;padding:4px 6px;border:1px solid transparent;border-bottom:1px dashed var(--line);border-radius:4px;background:transparent;color:inherit;text-transform:uppercase;}
@@ -533,7 +532,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <input id="dm_checknote" placeholder="Problem details (if any) — e.g. left signal light not working" style="flex:1;">
           </div>
 
-          <label>Daily Movement <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-soft);">— one line per stop / job, tick QR ✅ when done</span></label>
+          <label>Daily Movement <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-soft);">— one line per stop / job</span></label>
           <div id="dm_moves"></div>
           <button type="button" class="btn ghost" style="padding:5px 12px;font-size:11.5px;margin:2px 0 12px;" onclick="dmAddMove()">+ Add stop</button>
 
@@ -4755,7 +4754,7 @@ function renderDispose(){
 
 /* ===================== DAILY MOVEMENT & VEHICLE CHECKLIST =====================
    Driver key in setiap hari sebelum keluar kerja: checklist ringkas kenderaan +
-   senarai pergerakan (tempat / job, tanda QR ✅ bila siap). Satu rekod setiap
+   senarai pergerakan (tempat / job). Satu rekod setiap
    kenderaan setiap hari — hantar semula = kemas kini rekod yang sama. Simpanan
    dikongsi; sebelum simpan, data terkini ditarik dahulu supaya hantaran driver
    lain pada masa yang sama tak hilang. */
@@ -4801,7 +4800,7 @@ function initDailyMovementForm(){
   if(!dl){ dl = document.createElement("datalist"); dl.id = "dlDmDrivers"; document.body.appendChild(dl); }
   dl.innerHTML = driverContacts.filter(d=>d.name).map(d=>`<option value="${escHtml(d.name)}">`).join("");
   dmFillVehicles();
-  if(!dmMovesDraft.length) dmMovesDraft = [{place:"", done:false}];
+  if(!dmMovesDraft.length) dmMovesDraft = [{place:""}];
   renderDmCheck(); renderDmMoves(); renderDailyMovements();
 }
 function dmFillVehicles(){
@@ -4839,18 +4838,17 @@ function renderDmMoves(){
   document.getElementById("dm_moves").innerHTML = dmMovesDraft.map((m,i)=>`
     <div class="dm-move"><span class="n">${i+1}.</span>
       <input value="${escHtml(m.place)}" placeholder="${escHtml(fleetI18n.tr("e.g. SIMEN — JALAN BELATUK, PUCHONG JAYA"))}" oninput="dmMovesDraft[${i}].place=this.value" style="text-transform:uppercase;">
-      <label class="dm-qr"><input type="checkbox" ${m.done?"checked":""} onchange="dmMovesDraft[${i}].done=this.checked"> QR ✅</label>
       ${dmMovesDraft.length>1?`<button type="button" class="btn ghost" style="padding:3px 8px;font-size:11px;" onclick="dmRemoveMove(${i})">✕</button>`:"<span></span>"}
     </div>`).join("");
 }
-function dmAddMove(){ dmMovesDraft.push({place:"", done:false}); renderDmMoves(); const ins = document.querySelectorAll("#dm_moves input:not([type=checkbox])"); if(ins.length) ins[ins.length-1].focus(); }
+function dmAddMove(){ dmMovesDraft.push({place:""}); renderDmMoves(); const ins = document.querySelectorAll("#dm_moves input:not([type=checkbox])"); if(ins.length) ins[ins.length-1].focus(); }
 function dmRemoveMove(i){ dmMovesDraft.splice(i,1); renderDmMoves(); }
 function dmMsg(text, bad){
   const el = document.getElementById("dm_msg");
   el.textContent = text; el.style.display = "block"; el.style.color = bad ? "var(--danger)" : "var(--good)";
 }
 function dmClearForm(){
-  dmEditId = null; dmCheckDraft = {}; dmMovesDraft = [{place:"", done:false}];
+  dmEditId = null; dmCheckDraft = {}; dmMovesDraft = [{place:""}];
   ["dm_driver","dm_phone","dm_odo","dm_checknote"].forEach(id=>document.getElementById(id).value="");
   document.getElementById("dm_fuel").value = "";
   document.getElementById("dm_plate").value = "";
@@ -4871,7 +4869,7 @@ async function dmSubmit(){
   if(!driver){ dmMsg(fleetI18n.tr("Please enter the driver name."), true); return; }
   const unanswered = DM_CHECK_ITEMS.filter(([k])=>!dmCheckDraft[k]);
   if(unanswered.length){ dmMsg(fleetI18n.tr(`Checklist not complete — ${unanswered.length} item(s) not ticked yet.`), true); return; }
-  const moves = dmMovesDraft.map(m=>({place:normText(m.place||""), done:!!m.done})).filter(m=>m.place);
+  const moves = dmMovesDraft.map(m=>({place:normText(m.place||"")})).filter(m=>m.place);
   if(!moves.length){ dmMsg(fleetI18n.tr("Please enter at least one stop / job for today."), true); return; }
   const problems = DM_CHECK_ITEMS.filter(([k])=>dmCheckDraft[k]==="bad").map(([k])=>k);
   const note = document.getElementById("dm_checknote").value.trim();
@@ -4919,7 +4917,7 @@ function dmEdit(id){
   document.getElementById("dm_checknote").value = m.checkNote || "";
   dmCheckDraft = {...(m.checklist||{})};
   dmMovesDraft = (m.movements||[]).map(x=>({...x}));
-  if(!dmMovesDraft.length) dmMovesDraft = [{place:"", done:false}];
+  if(!dmMovesDraft.length) dmMovesDraft = [{place:""}];
   document.getElementById("dm_submitBtn").textContent = fleetI18n.tr("Update Daily Movement");
   renderDmCheck(); renderDmMoves();
   document.getElementById("dm_msg").style.display = "none";
@@ -4945,7 +4943,7 @@ function renderDailyMovements(){
   body.innerHTML = rows.map(m=>{
     const probs = (m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1]));
     const chk = probs.length ? `${badge(fleetI18n.tr(`${probs.length} problem(s)`),"danger")}<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${escHtml(probs.join(", "))}${m.checkNote?" — "+escHtml(m.checkNote):""}</div>` : badge(fleetI18n.tr("All OK"),"good");
-    const mv = (m.movements||[]).map((x,i)=>`<div>${i+1}. ${escHtml(x.place)} ${x.done?"✅":`<span style="color:var(--faint);">⏳</span>`}</div>`).join("");
+    const mv = (m.movements||[]).map((x,i)=>`<div>${i+1}. ${escHtml(x.place)}</div>`).join("");
     const extra = [m.odometer?`${m.odometer} km`:"", m.fuel?`${fleetI18n.tr("Fuel")} ${m.fuel}`:""].filter(Boolean).join(" · ");
     return `<tr><td style="font-weight:700;white-space:nowrap;">${escHtml(m.plate)}${extra?`<div style="font-size:10.5px;color:var(--ink-soft);font-weight:500;">${escHtml(extra)}</div>`:""}</td>
       <td>${escHtml(m.driver)}${m.phone?`<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(m.phone)}</div>`:""}</td>
@@ -4962,7 +4960,7 @@ function dmReportText(){
   const lines = [dmDateLabel(date), ""];
   rows.forEach((m,i)=>{
     lines.push(`${i+1}) ${m.plate}`, m.driver);
-    (m.movements||[]).forEach(x=>lines.push(`-${x.place}${x.done?" QR✅":""}`));
+    (m.movements||[]).forEach(x=>lines.push(`-${x.place}`));
     if((m.problems||[]).length) lines.push(`⚠ CHECKLIST: ${(m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1]).toUpperCase()).join(", ")}${m.checkNote?" — "+m.checkNote:""}`);
     lines.push("");
   });
