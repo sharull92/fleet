@@ -261,6 +261,10 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .dm-note{flex:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);border:1px dashed var(--line);border-radius:var(--radius);padding:6px 10px;}
 .dm-note.on{color:#C1443C;border-color:#C1443C;background:rgba(193,68,60,.08);font-weight:700;}
 .panel.dm-flash{box-shadow:0 0 0 3px var(--yellow-deep);transition:box-shadow .3s;}
+.ar-job{border:1px solid var(--line);border-left:3px solid var(--yellow-deep);border-radius:var(--radius);padding:10px 12px 2px;margin-bottom:10px;background:var(--panel);}
+.ar-job-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-weight:700;font-size:12px;}
+.ar-job .form-row{grid-template-columns:repeat(3,1fr);}
+@media (max-width:700px){ .ar-job .form-row{grid-template-columns:1fr;} }
 .tk-issue{border:1px solid var(--line);border-left:3px solid var(--yellow-deep);border-radius:var(--radius);padding:8px;margin-bottom:8px;background:var(--panel-2);display:grid;gap:6px;}
 .tk-issue-head{display:flex;gap:8px;align-items:center;}
 .tk-issue-head select{flex:1;}
@@ -796,26 +800,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
               <h3 style="font-size:12.5px;">Admin Reply — <span id="ar_summary" class="mono"></span></h3>
             </div>
             <input type="hidden" id="ar_ticketId">
-            <div class="form-row">
-              <div><label>Nama Vendor (Outsource) / Foreman (In-house)</label><input id="ar_location" placeholder="e.g. Hassan Auto (vendor) atau Din (foreman)"></div>
-              <div><label>Jenis Repair</label><select id="ar_repairBy">
-                <option value="">— Pilih —</option>
-                <option value="In-house">In-house</option>
-                <option value="Outsource">Outsource</option>
-              </select></div>
-            </div>
-            <div class="form-row">
-              <div><label>Status</label><select id="ar_status">
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select></div>
-              <div><label>Cost Estimate / Awalan (RM)</label><input id="ar_costAwal" type="number" placeholder="Anggaran cost repair"></div>
-            </div>
-            <div class="form-row">
-              <div><label>Cost Final (RM)</label><input id="ar_costFinal" type="number" placeholder="Isi bila repair siap / dikira"></div>
-              <div><label>Tarikh Siap Repair</label><input id="ar_completedDate" type="date"></div>
-            </div>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);display:block;margin:-4px 0 10px;">Each damage can go to a different vendor / foreman — fill in one box per damage. The ticket is Completed when every damage is Completed.</span>
+            <div id="ar_jobs"></div>
             <div class="form-row">
               <div style="grid-column:1/-1;"><label>Nota (pilihan)</label><input id="ar_note" placeholder="e.g. ETA siap 20.08.2026"></div>
             </div>
@@ -2727,7 +2713,10 @@ function renderTickets(){
     const diffCell = diff===null ? `<span style="color:var(--faint);">—</span>`
       : diff===0 ? `<span class="mono-cell">RM 0</span>`
       : `<span class="mono-cell" style="color:${diff>0?'var(--danger)':'var(--good)'};font-weight:600;">${diff>0?"+":""}${diff.toLocaleString()}</span>`;
-    return `<tr><td class="mono-cell">${t.id}</td><td>${t.vehicle}</td><td>${t.issue}</td><td class="mono-cell">${t.opened}</td>
+    const issueCell = Array.isArray(t.work) && t.work.length
+      ? t.work.map(w=>`<div style="margin-bottom:4px;">${escHtml(w.label)}<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(w.vendor||T("Belum di-assign"))}${w.repairBy?" · "+escHtml(w.repairBy):""} · ${escHtml(fleetI18n.tr(w.status))}</div></div>`).join("")
+      : escHtml(t.issue);
+    return `<tr><td class="mono-cell">${t.id}</td><td>${t.vehicle}</td><td>${issueCell}</td><td class="mono-cell">${t.opened}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
     <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
@@ -2848,17 +2837,67 @@ function notifyTicketWhatsApp(){
 }
 
 /* ---- Admin reply — repair di mana / dengan siapa / status / cost final ---- */
+/* ---- Admin reply — one job per damage (each can have its own vendor / foreman,
+   repair type, status, cost and completion date). Ticket-level fields are derived. ---- */
+let arJobs = [];
+function ticketIssueLabels(t){
+  if(Array.isArray(t.issues) && t.issues.length) return t.issues.map(it=>`${repairGroupLabel(it.group).toUpperCase()} — ${it.desc}`);
+  return [t.issue || "—"];
+}
+function ticketJobs(t){
+  const labels = ticketIssueLabels(t);
+  return labels.map((label,i)=>{
+    const w = (Array.isArray(t.work) && t.work[i]) || null;
+    if(w) return {...w, label};
+    // older tickets: one set of fields for the whole ticket
+    return {label, vendor:t.location||"", repairBy:t.repairBy||"", status:t.status||"Pending",
+      costAwal: i===0 && t.costAwal ? t.costAwal : "", costFinal: i===0 && t.costFinal!=null ? t.costFinal : "",
+      completedDate: t.completedDate ? dmyToIso(t.completedDate) : ""};
+  });
+}
+function renderArJobs(){
+  let dl = document.getElementById("dlVendorsRepair");
+  if(!dl){ dl = document.createElement("datalist"); dl.id = "dlVendorsRepair"; document.body.appendChild(dl); }
+  const vendors = new Set();
+  tickets.forEach(t=>{ (t.work||[]).forEach(w=>w.vendor && vendors.add(w.vendor)); if(t.location && !(t.work||[]).length) vendors.add(t.location); });
+  dl.innerHTML = [...vendors].sort().map(v=>`<option value="${escHtml(v)}">`).join("");
+  const tr = x => escHtml(fleetI18n.tr(x));
+  document.getElementById("ar_jobs").innerHTML = arJobs.map((j,i)=>`
+    <div class="ar-job">
+      <div class="ar-job-head"><span>${i+1}. ${escHtml(j.label)}</span>${i>0?`<button type="button" class="btn ghost" style="padding:3px 9px;font-size:10.5px;" onclick="arCopyPrev(${i})">${tr("⤓ Same vendor as above")}</button>`:""}</div>
+      <div class="form-row">
+        <div><label>${tr("Vendor Name (Outsource) / Foreman (In-house)")}</label><input list="dlVendorsRepair" value="${escHtml(j.vendor)}" oninput="arJobs[${i}].vendor=this.value" placeholder="${tr("e.g. ABC")}"></div>
+        <div><label>${tr("Repair Type")}</label><select onchange="arJobs[${i}].repairBy=this.value">
+          <option value="">${tr("— Select —")}</option>
+          <option value="In-house" ${j.repairBy==="In-house"?"selected":""}>In-house</option>
+          <option value="Outsource" ${j.repairBy==="Outsource"?"selected":""}>Outsource</option></select></div>
+        <div><label>${tr("Status")}</label><select onchange="arSetStatus(${i},this.value)">
+          ${["Pending","In Progress","Completed"].map(st=>`<option value="${st}" ${j.status===st?"selected":""}>${tr(st)}</option>`).join("")}</select></div>
+      </div>
+      <div class="form-row">
+        <div><label>${tr("Cost Estimate (RM)")}</label><input type="number" value="${escHtml(j.costAwal)}" oninput="arJobs[${i}].costAwal=this.value" placeholder="0"></div>
+        <div><label>${tr("Final Cost (RM)")}</label><input type="number" value="${escHtml(j.costFinal)}" oninput="arJobs[${i}].costFinal=this.value" placeholder="${tr("When done")}"></div>
+        <div><label>${tr("Completion Date")}</label><input type="date" value="${escHtml(j.completedDate)}" onchange="arJobs[${i}].completedDate=this.value"></div>
+      </div>
+    </div>`).join("");
+}
+function arCopyPrev(i){
+  const p = arJobs[i-1]; if(!p) return;
+  arJobs[i].vendor = p.vendor; arJobs[i].repairBy = p.repairBy;
+  renderArJobs();
+}
+function arSetStatus(i, v){
+  arJobs[i].status = v;
+  if(v==="Completed" && !arJobs[i].completedDate){ arJobs[i].completedDate = APP_TODAY_ISO; renderArJobs(); }
+}
+window.addEventListener("fleet:lang", ()=>{ try{ if(document.getElementById("adminReplyForm").style.display==="block") renderArJobs(); }catch(e){} });
 function openAdminReply(id){
   const t = tickets.find(x=>x.id===id);
   if(!t) return;
   document.getElementById("ar_ticketId").value = id;
-  document.getElementById("ar_summary").textContent = `${t.id} — ${t.vehicle} — ${t.issue}`;
-  document.getElementById("ar_location").value = t.location || "";
-  document.getElementById("ar_repairBy").value = t.repairBy || "";
-  document.getElementById("ar_status").value = t.status;
-  document.getElementById("ar_costAwal").value = t.costAwal!=null && t.costAwal!==0 ? t.costAwal : "";
-  document.getElementById("ar_costFinal").value = t.costFinal!=null ? t.costFinal : "";
-  document.getElementById("ar_completedDate").value = t.completedDate ? dmyToIso(t.completedDate) : "";
+  document.getElementById("ar_summary").textContent = `${t.id} — ${t.vehicle}`;
+  arJobs = ticketJobs(t);
+  renderArJobs();
   document.getElementById("ar_note").value = t.adminNote || "";
   document.getElementById("adminReplyForm").style.display = "block";
   document.getElementById("adminReplyForm").scrollIntoView({behavior:"smooth",block:"center"});
@@ -2870,15 +2909,18 @@ async function submitAdminReply(sendWa){
   const id = document.getElementById("ar_ticketId").value;
   const t = tickets.find(x=>x.id===id);
   if(!t) return;
-  t.location = document.getElementById("ar_location").value.trim() || null;
-  t.repairBy = document.getElementById("ar_repairBy").value.trim() || null;
-  t.status = document.getElementById("ar_status").value;
-  const costAwalRaw = document.getElementById("ar_costAwal").value;
-  t.costAwal = costAwalRaw!=="" ? parseFloat(costAwalRaw) : (t.costAwal||0);
-  const costFinalRaw = document.getElementById("ar_costFinal").value;
-  t.costFinal = costFinalRaw!=="" ? parseFloat(costFinalRaw) : null;
-  const completedDateRaw = document.getElementById("ar_completedDate").value;
-  t.completedDate = completedDateRaw ? isoToDMY(completedDateRaw) : t.completedDate;
+  const num = v => v===""||v==null||isNaN(parseFloat(v)) ? null : parseFloat(v);
+  t.work = arJobs.map(j=>({label:j.label, vendor:normText((j.vendor||"").trim()), repairBy:j.repairBy||"", status:j.status||"Pending",
+    costAwal:num(j.costAwal), costFinal:num(j.costFinal), completedDate:j.completedDate||""}));
+  // ticket-level summary, used by the ticket list, costing & dashboard
+  const uniq = arr => [...new Set(arr.filter(Boolean))];
+  t.location = uniq(t.work.map(w=>w.vendor)).join(" / ") || null;
+  t.repairBy = uniq(t.work.map(w=>w.repairBy)).join(" / ") || null;
+  t.status = t.work.every(w=>w.status==="Completed") ? "Completed" : t.work.some(w=>w.status!=="Pending") ? "In Progress" : "Pending";
+  t.costAwal = t.work.reduce((s,w)=>s+(w.costAwal||0),0);
+  t.costFinal = t.work.every(w=>w.costFinal!=null) ? t.work.reduce((s,w)=>s+w.costFinal,0) : null;
+  const doneDates = t.work.map(w=>w.completedDate).filter(Boolean).sort();
+  t.completedDate = t.status==="Completed" && doneDates.length ? isoToDMY(doneDates[doneDates.length-1]) : null;
   t.adminNote = document.getElementById("ar_note").value.trim() || null;
   // Keep fleet availability synchronized with the Workshop Ticket status.
   syncFleetStatusFromTickets();
@@ -2889,7 +2931,8 @@ async function submitAdminReply(sendWa){
   await persistTickets();
   if(sendWa===true){
     if(!t.reportedByPhone){ A("Tiada no telefon pemandu untuk ticket ni — tak boleh reply WhatsApp terus."); return; }
-    const text = `*Update Repair — ${t.id}*\n\nKenderaan : ${t.vehicle}\nIssue : ${t.issue}\nStatus : ${t.status}\nVendor/Foreman : ${t.location || "—"}\nJenis Repair : ${t.repairBy || "—"}\nCost : RM ${t.costFinal!=null ? t.costFinal : t.costAwal}${t.completedDate ? "\nTarikh Siap : "+t.completedDate : ""}${t.adminNote ? "\nNota : "+t.adminNote : ""}`;
+    const lines = t.work.map((w,i)=>`${i+1}) ${w.label}\n    Vendor/Foreman : ${w.vendor || "—"}${w.repairBy ? " ("+w.repairBy+")" : ""}\n    Status : ${w.status}${w.completedDate ? " · Siap "+isoToDMY(w.completedDate) : ""}${(w.costFinal!=null||w.costAwal) ? "\n    Cost : RM "+(w.costFinal!=null ? w.costFinal : w.costAwal) : ""}`).join("\n");
+    const text = `*Update Repair — ${t.id}*\n\nKenderaan : ${t.vehicle}\nStatus : ${t.status}\n\n${lines}${t.adminNote ? "\n\nNota : "+t.adminNote : ""}`;
     openWhatsApp(t.reportedByPhone, text);
   }
 }
