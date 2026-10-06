@@ -833,7 +833,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
 
           <table>
-            <thead><tr><th>Ticket</th><th>Vehicle</th><th>Issue</th><th>Tarikh</th><th>Priority</th><th>Cost Awalan (RM)</th><th>Cost Final (RM)</th><th>Selisih (RM)</th><th>Tarikh Siap</th><th>Vendor / Foreman</th><th>Jenis Repair</th><th>Status</th><th></th><th></th></tr></thead>
+            <thead><tr><th>Ticket</th><th>Vehicle</th><th>Issue</th><th>Tarikh</th><th>Cost Awalan (RM)</th><th>Cost Final (RM)</th><th>Selisih (RM)</th><th>Tarikh Siap</th><th>Vendor / Foreman</th><th>Jenis Repair</th><th>Status</th><th></th><th></th></tr></thead>
             <tbody id="ticketBody"></tbody>
           </table>
         </div>
@@ -2723,13 +2723,11 @@ function renderTickets(){
   });
   document.getElementById("ticketBody").innerHTML = filtered.map(t=>{
     const cls = t.status==="Completed"?"good":t.status==="In Progress"?"warn":"danger";
-    const pcls = t.priority==="High"?"danger":t.priority==="Medium"?"warn":"neutral";
     const diff = t.costFinal!=null ? (t.costFinal - t.costAwal) : null;
     const diffCell = diff===null ? `<span style="color:var(--faint);">—</span>`
       : diff===0 ? `<span class="mono-cell">RM 0</span>`
       : `<span class="mono-cell" style="color:${diff>0?'var(--danger)':'var(--good)'};font-weight:600;">${diff>0?"+":""}${diff.toLocaleString()}</span>`;
     return `<tr><td class="mono-cell">${t.id}</td><td>${t.vehicle}</td><td>${t.issue}</td><td class="mono-cell">${t.opened}</td>
-    <td>${badge(t.priority,pcls)}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
     <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
@@ -2977,13 +2975,11 @@ function renderRepairFrequency(){
 
     const detailRows = sortedTickets.map(t=>{
       const tCls = t.status==="Completed"?"good":t.status==="In Progress"?"warn":"danger";
-      const pcls = t.priority==="High"?"danger":t.priority==="Medium"?"warn":"neutral";
       const diff = t.costFinal!=null ? (t.costFinal - t.costAwal) : null;
       const diffCell = diff===null ? `<span style="color:var(--faint);">—</span>`
         : diff===0 ? `RM 0`
         : `<span style="color:${diff>0?'var(--danger)':'var(--good)'};font-weight:600;">${diff>0?"+":""}${diff.toLocaleString()}</span>`;
       return `<tr><td class="mono-cell">${t.id}</td><td class="mono-cell">${t.opened}</td><td>${t.issue}</td>
-      <td>${badge(t.priority,pcls)}</td>
       <td class="mono-cell">${t.costAwal.toLocaleString()}${t.costFinal!=null?` → ${t.costFinal.toLocaleString()}`:""}</td>
       <td class="mono-cell">${diffCell}</td>
       <td class="mono-cell">${t.completedDate || `<span style="color:var(--faint);">—</span>`}</td>
@@ -3004,7 +3000,7 @@ function renderRepairFrequency(){
           <strong>Isu Yang Kerap Berulang:</strong> ${issuesSummary}
         </div>
         <table style="font-size:12px;">
-          <thead><tr><th>Ticket</th><th>Tarikh</th><th>Issue</th><th>Priority</th><th>Cost (RM)</th><th>Selisih (RM)</th><th>Tarikh Siap</th><th>Vendor / Foreman</th><th>Jenis Repair</th><th>Status</th></tr></thead>
+          <thead><tr><th>Ticket</th><th>Tarikh</th><th>Issue</th><th>Cost (RM)</th><th>Selisih (RM)</th><th>Tarikh Siap</th><th>Vendor / Foreman</th><th>Jenis Repair</th><th>Status</th></tr></thead>
           <tbody>${detailRows}</tbody>
         </table>
       </td>
