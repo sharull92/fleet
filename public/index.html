@@ -589,7 +589,6 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div><label>Vehicle</label><select id="tk_vehicle"></select></div>
           </div>
           <div class="form-row">
-            <div><label>Priority</label><select id="tk_priority"><option>Low</option><option>Medium</option><option selected>High</option></select></div>
             <div><label>Tarikh Hantar / Perancangan Repair</label><input id="tk_date" type="date"></div>
           </div>
           <div class="form-row">
@@ -2791,12 +2790,11 @@ function cancelTicketForm(){
   document.getElementById("tk_phone").value = "";
   document.getElementById("tk_date").value = "";
   document.getElementById("tk_branch").value = "";
-  document.getElementById("tk_priority").value = "High";
 }
 async function addTicket(){
   const branch = document.getElementById("tk_branch").value;
   const vehicle = document.getElementById("tk_vehicle").value.split(" — ")[0];
-  const priority = document.getElementById("tk_priority").value;
+  const priority = "High";   // priority is no longer asked from drivers; every new ticket is treated as High
   const reportedBy = document.getElementById("tk_reportedBy").value.trim() || "—";
   const reportedByPhone = document.getElementById("tk_phone").value.trim() || null;
   const dateVal = document.getElementById("tk_date").value;
