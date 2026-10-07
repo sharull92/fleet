@@ -410,6 +410,10 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["WhatsApp driver","WhatsApp pemandu"],
+    ["No driver phone number for this unit.","Tiada no telefon pemandu untuk unit ini."],
+    ["📲 Supervisor","📲 Penyelia"],
+    ["Send the full summary to the supervisor who requested","Hantar ringkasan penuh kepada penyelia yang request"],
     ["Each damage can go to a different vendor / foreman — fill in one box per damage. The ticket is Completed when every damage is Completed.","Setiap kerosakan boleh diberi kepada vendor / foreman berbeza — isi satu kotak setiap kerosakan. Tiket jadi Completed bila semua kerosakan Completed."],
     ["⤓ Same vendor as above","⤓ Sama vendor seperti di atas"],
     ["Vendor Name (Outsource) / Foreman (In-house)","Nama Vendor (Outsource) / Foreman (In-house)"],
@@ -571,6 +575,7 @@
   ];
 
   const TEMPLATES = [
+    ["No phone number for {a} — fill in the driver's phone to send WhatsApp.","Tiada no telefon untuk {a} — isi no telefon pemandu untuk hantar WhatsApp."],
     ["Checklist not complete — {a} item(s) not ticked yet.","Checklist belum lengkap — {a} item belum ditanda."],
     ["✓ Updated — {a}, {b}.","✓ Dikemas kini — {a}, {b}."],
     ["✓ Submitted — {a}, {b}. Thank you!","✓ Dihantar — {a}, {b}. Terima kasih!"],

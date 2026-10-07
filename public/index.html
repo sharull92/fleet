@@ -1018,8 +1018,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div class="form-actions" style="margin-top:8px;">
               <button class="btn ghost" onclick="document.getElementById('hireReplyWrap').style.display='none';">Close</button>
               <button class="btn yellow" onclick="copyHireReply()">📋 Copy Text</button>
-              <button class="btn yellow" onclick="sendHireReplyWhatsApp()" style="background:#25D366;color:#fff;">📲 Hantar ke WhatsApp Sv</button>
+              <button class="btn ghost" onclick="sendHireReplyWhatsApp()" title="Send the full summary to the supervisor who requested">📲 Supervisor</button>
             </div>
+            <div id="hireDriverWaBtns" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:8px;"></div>
             <div id="copyConfirm" style="font-size:11px;color:var(--good);margin-top:6px;display:none;">Copied — paste terus dalam WhatsApp.</div>
           </div>
         </div>
@@ -4053,6 +4054,7 @@ ${vehLines}
 Sv tapak : ${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
 
   document.getElementById("hireReplyText").value = text;
+  renderHireDriverButtons(h);
   document.getElementById("hireReplyWrap").style.display = "block";
   document.getElementById("copyConfirm").style.display = "none";
 
@@ -4072,6 +4074,38 @@ function copyHireReply(){
     try{ document.execCommand("copy"); confirmEl.style.display = "block"; }
     catch(e){ confirmEl.textContent = "Tak dapat auto-copy — teks dah di-highlight, tekan Ctrl+C / Cmd+C."; confirmEl.style.display = "block"; confirmEl.style.color = "var(--warn)"; }
   });
+}
+/* Reply goes to each assigned driver's own WhatsApp, with that driver's job details. */
+function hireDriverText(h, a){
+  return `*TUGASAN — ${h.item || h.unit}*
+
+Tarikh : ${h.tarikh || "—"}
+Masa : ${h.masa || "—"}
+Company : ${h.company}
+Project : ${h.project || "—"}
+Tempat : ${h.tempat || "—"}
+Load : ${h.load || "—"}
+Kenderaan : ${a.vehicle}
+Sv tapak : ${h.sv}${h.phone && h.phone!=="—" ? " ("+h.phone+")" : ""}`;
+}
+function renderHireDriverButtons(h){
+  const wrap = document.getElementById("hireDriverWaBtns");
+  if(!wrap) return;
+  const list = hireAssignments(h);
+  wrap.innerHTML = list.map((a,i)=>{
+    const ok = a.driverPhone && a.driverPhone!=="—";
+    const name = a.driverName && a.driverName!=="—" ? a.driverName : fleetI18n.tr(`Unit ${i+1}`);
+    return ok
+      ? `<button class="btn yellow" style="background:#25D366;color:#fff;" onclick="sendHireDriverWhatsApp(${i})">📲 ${escHtml(fleetI18n.tr("WhatsApp driver"))}: ${escHtml(name)}</button>`
+      : `<span style="font-size:11px;color:var(--warn);align-self:center;">${escHtml(fleetI18n.tr(`No phone number for ${name} — fill in the driver's phone to send WhatsApp.`))}</span>`;
+  }).join("");
+}
+function sendHireDriverWhatsApp(i){
+  if(currentAssignIndex===null) return;
+  const h = hiringRecords[currentAssignIndex];
+  const a = hireAssignments(h)[i];
+  if(!a || !a.driverPhone || a.driverPhone==="—"){ A(fleetI18n.tr("No driver phone number for this unit.")); return; }
+  openWhatsApp(a.driverPhone, hireDriverText(h, a));
 }
 function sendHireReplyWhatsApp(){
   if(currentAssignIndex===null) return;
