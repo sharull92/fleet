@@ -4956,7 +4956,7 @@ async function dmSubmit(){
   const rec = {
     date, branch, plate, driver, phone,
     odometer: document.getElementById("dm_odo").value || "", fuel: document.getElementById("dm_fuel").value || "",
-    checklist: {...dmCheckDraft}, problems, checkNote: "", movements: moves, updatedAt: nowDateTimeStr()
+    checklist: {...dmCheckDraft}, problems, checkNote: "", movements: moves, updatedAt: nowDateTimeStr(), updatedTs: Date.now()
   };
   const btn = document.getElementById("dm_submitBtn"); btn.disabled = true;
   let updated = false;
@@ -5015,10 +5015,20 @@ function dmViewRows(){
   const br = document.getElementById("dm_viewBranch").value;
   return dailyMovements.filter(m=>m.date===date && (!br || m.branch===br)).sort((a,b)=>a.plate.localeCompare(b.plate));
 }
+/* Time a record was last submitted, in ms. New records carry updatedTs; older ones only
+   have the "dd/mm/yyyy hh:mm am" text, which is parsed. */
+function dmTime(m){
+  if(m.updatedTs) return m.updatedTs;
+  const x = String(m.updatedAt||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\D+(\d{1,2}):(\d{2})\s*([ap])?/i);
+  if(!x) return 0;
+  let h = +x[4]; const ap = (x[6]||"").toLowerCase();
+  if(ap==="p" && h<12) h += 12; if(ap==="a" && h===12) h = 0;
+  return new Date(+x[3], +x[2]-1, +x[1], h, +x[5]).getTime();
+}
 function renderDailyMovements(){
   const body = document.getElementById("dm_body");
   if(!body) return;
-  const rows = dmViewRows();
+  const rows = dmViewRows().sort((a,b)=>dmTime(b)-dmTime(a));   // latest submission on top
   body.innerHTML = rows.map(m=>{
     const probs = (m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1]));
     const chk = probs.length ? `${badge(fleetI18n.tr(`${probs.length} problem(s)`),"danger")}<div style="font-size:11px;color:var(--ink-soft);margin-top:3px;">${escHtml(probs.join(", "))}${m.checkNote?" — "+escHtml(m.checkNote):""}</div>` : badge(fleetI18n.tr("All OK"),"good");
