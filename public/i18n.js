@@ -419,7 +419,7 @@
     ["Note","Nota"],
     ["Location / Job","Lokasi / Job"],
     ["Driver signature","Tandatangan pemandu"],
-    ["Checked by (Supervisor / Admin)","Disemak oleh (Penyelia / Admin)"],
+    ["Checked by Fleet Department","Disemak oleh Jabatan Fleet"],
     ["Please allow pop-ups to print the report.","Sila benarkan pop-up untuk cetak laporan."],
     ["🖨 Print","🖨 Cetak"],
     ["WhatsApp driver","WhatsApp pemandu"],

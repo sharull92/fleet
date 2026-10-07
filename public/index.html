@@ -5134,8 +5134,18 @@ function dmReportHtml(m){
     ${m.checkNote ? `<div style="font-size:12px;margin-top:6px;"><b>${tr("Note")}:</b> ${escHtml(m.checkNote)}</div>` : ""}
     <h4>${tr("Daily Movement")}</h4>
     <table><thead><tr><th>#</th><th>${tr("Location / Job")}</th></tr></thead><tbody>${moves}</tbody></table>
-    <div class="sign"><div>${tr("Driver signature")}</div><div>${tr("Checked by (Supervisor / Admin)")}</div></div>
+    <div class="sign">
+      <div>${tr("Driver signature")}<br><b>${escHtml(m.driver||"—")}</b></div>
+      <div>${tr("Checked by Fleet Department")}<br><b>${escHtml(dmCheckerName(m.branch))}</b></div>
+    </div>
   </div>`;
+}
+/* Fleet Department checker for a branch = that branch's PIC (Settings), else the main admin. */
+function dmCheckerName(branch){
+  const bc = branchContacts[branch];
+  if(bc && bc.name && bc.name.trim()) return bc.name.trim().toUpperCase();
+  const a = adminContacts.find(x=>x.name && x.name.trim());
+  return a ? a.name.trim().toUpperCase() : "—";
 }
 function dmOpenReport(id){
   const m = dailyMovements.find(x=>x.id===id);
