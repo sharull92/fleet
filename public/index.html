@@ -324,6 +324,20 @@ body:not(.is-admin) .admin-only{display:none !important;}
 .admin-login-btn.ghost:hover{background:#232527;color:#fff;}
 .admin-on{font-size:12px;font-weight:600;color:var(--yellow);text-align:center;}
 .modal-backdrop{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.45);padding:16px;}
+.modal-card.dm-report-card{max-width:760px;margin:5vh auto;}
+.dmr h2{margin:0;font-size:16px;letter-spacing:.04em;}
+.dmr .sub{font-size:11.5px;color:var(--ink-soft);}
+.dmr table{width:100%;border-collapse:collapse;margin-top:6px;}
+.dmr th,.dmr td{border:1px solid var(--line);padding:6px 8px;font-size:12px;text-align:left;}
+.dmr th{background:var(--panel-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
+.dmr .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-top:10px;}
+.dmr .grid div{border:1px solid var(--line);padding:6px 8px;font-size:12px;}
+.dmr .grid b{display:block;font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;}
+.dmr .ok{color:#3F7D5C;font-weight:700;} .dmr .bad{color:#C1443C;font-weight:700;}
+.dmr h4{margin:14px 0 2px;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;}
+.dmr .sign{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:34px;font-size:11px;}
+.dmr .sign div{border-top:1px solid var(--ink-soft);padding-top:4px;}
+.dm-chk-click{cursor:pointer;} .dm-chk-click:hover{text-decoration:underline;}
 .modal-card{max-width:400px;margin:14vh auto 0;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--yellow);
   border-radius:var(--radius);padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
 
@@ -413,6 +427,15 @@ body:not(.is-admin) .admin-only{display:none !important;}
 </head>
 <body>
 
+<div class="modal-backdrop" id="dmReportModal" style="display:none;overflow:auto;" onclick="if(event.target===this)dmCloseReport()">
+  <div class="modal-card dm-report-card" role="dialog" aria-modal="true">
+    <div id="dmReportBody"></div>
+    <div class="form-actions" style="margin-top:14px;">
+      <button class="btn ghost" onclick="dmCloseReport()">Close</button>
+      <button class="btn yellow" onclick="dmPrintReport()">🖨 Print</button>
+    </div>
+  </div>
+</div>
 <div class="modal-backdrop" id="loginPanel" style="display:none;" onclick="if(event.target===this)closeAdminLogin()">
   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
     <div class="panel-head" style="margin-bottom:10px;"><h3 id="loginTitle" style="font-size:13px;">Admin Login — Full Access</h3></div>
@@ -5074,12 +5097,70 @@ function renderDailyMovements(){
     const extra = [m.odometer?`${m.odometer} km`:"", m.fuel?`${fleetI18n.tr("Fuel")} ${m.fuel}`:""].filter(Boolean).join(" · ");
     return `<tr><td style="font-weight:700;white-space:nowrap;">${escHtml(m.plate)}${extra?`<div style="font-size:10.5px;color:var(--ink-soft);font-weight:500;">${escHtml(extra)}</div>`:""}</td>
       <td>${escHtml(m.driver)}${m.phone?`<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(m.phone)}</div>`:""}</td>
-      <td class="mono-cell">${escHtml(m.branch||"—")}</td><td style="font-size:12px;">${mv}</td><td>${chk}</td>
+      <td class="mono-cell">${escHtml(m.branch||"—")}</td><td style="font-size:12px;">${mv}</td><td class="dm-chk-click" title="${escHtml(fleetI18n.tr("Click to view / print the checklist report"))}" onclick="dmOpenReport('${m.id}')">${chk}<div style="font-size:10px;color:var(--ink-soft);margin-top:2px;">📄 ${escHtml(fleetI18n.tr("View report"))}</div></td>
       <td style="font-size:10.5px;color:var(--ink-soft);white-space:nowrap;">${escHtml(m.updatedAt||"")}</td>
       <td class="admin-only" style="white-space:nowrap;"><button class="btn ghost" style="padding:4px 9px;font-size:11px;" onclick="dmEdit('${m.id}')">${escHtml(fleetI18n.tr("Edit"))}</button><button class="btn ghost" style="padding:4px 8px;font-size:11px;color:var(--danger);margin-left:4px;" onclick="dmDelete('${m.id}')">✕</button></td></tr>`;
   }).join("") || `<tr><td colspan="7" style="color:var(--faint);text-align:center;">${escHtml(fleetI18n.tr("No daily movement submitted for this date yet"))}</td></tr>`;
   const probs = rows.filter(m=>(m.problems||[]).length).length;
   document.getElementById("dm_summary").textContent = fleetI18n.tr(`${rows.length} vehicle(s) · ${probs} with checklist problems`);
+}
+/* Vehicle checklist report for one submission — shown in a popup, printable. */
+let dmReportId = null;
+function dmReportHtml(m){
+  const tr = x => escHtml(fleetI18n.tr(x));
+  const reg = complianceData.find(v=>utilPlateKey(v.plate)===utilPlateKey(m.plate)) || {};
+  const rows = DM_CHECK_ITEMS.map(([k,label],i)=>{
+    const v = (m.checklist||{})[k];
+    const res = v==="ok" ? `<span class="ok">✓ OK</span>` : v==="bad" ? `<span class="bad">✕ ${tr("Problem")}</span>` : "—";
+    return `<tr><td style="width:36px;">${i+1}</td><td>${tr(label)}</td><td>${res}</td></tr>`;
+  }).join("");
+  const probs = (m.problems||[]).length;
+  const moves = (m.movements||[]).map((x,i)=>`<tr><td style="width:36px;">${i+1}</td><td>${escHtml(x.place)}</td></tr>`).join("") || `<tr><td colspan="2">—</td></tr>`;
+  return `<div class="dmr">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:3px solid #FDB913;padding-bottom:8px;">
+      <div><h2>FLEET SWIS GROUP</h2><div class="sub">${tr("Daily Movement & Vehicle Checklist Report")}</div></div>
+      <div style="text-align:right;font-size:12px;"><b>${escHtml(dmDateLabel(m.date))}</b><div class="sub">${tr("Submitted")}: ${escHtml(m.updatedAt||"—")}</div></div>
+    </div>
+    <div class="grid">
+      <div><b>${tr("Vehicle")}</b>${escHtml(m.plate)}${reg.category?" — "+escHtml(reg.category):""}</div>
+      <div><b>${tr("Company")}</b>${escHtml(reg.company||"—")}</div>
+      <div><b>${tr("Driver Name")}</b>${escHtml(m.driver||"—")}</div>
+      <div><b>${tr("Phone No.")}</b>${escHtml(m.phone||"—")}</div>
+      <div><b>${tr("Branch")}</b>${escHtml(m.branch||"—")}</div>
+      <div><b>${tr("Odometer (km)")} / ${tr("Fuel")}</b>${escHtml(m.odometer||"—")} km · ${escHtml(m.fuel ? fleetI18n.tr(m.fuel) : "—")}</div>
+    </div>
+    <h4>${tr("Vehicle Checklist")} — ${probs ? `<span class="bad">${escHtml(fleetI18n.tr(`${probs} problem(s)`))}</span>` : `<span class="ok">${tr("All OK")}</span>`}</h4>
+    <table><thead><tr><th>#</th><th>${tr("Item")}</th><th>${tr("Result")}</th></tr></thead><tbody>${rows}</tbody></table>
+    ${m.checkNote ? `<div style="font-size:12px;margin-top:6px;"><b>${tr("Note")}:</b> ${escHtml(m.checkNote)}</div>` : ""}
+    <h4>${tr("Daily Movement")}</h4>
+    <table><thead><tr><th>#</th><th>${tr("Location / Job")}</th></tr></thead><tbody>${moves}</tbody></table>
+    <div class="sign"><div>${tr("Driver signature")}</div><div>${tr("Checked by (Supervisor / Admin)")}</div></div>
+  </div>`;
+}
+function dmOpenReport(id){
+  const m = dailyMovements.find(x=>x.id===id);
+  if(!m) return;
+  dmReportId = id;
+  document.getElementById("dmReportBody").innerHTML = dmReportHtml(m);
+  document.getElementById("dmReportModal").style.display = "block";
+}
+function dmCloseReport(){ document.getElementById("dmReportModal").style.display = "none"; dmReportId = null; }
+function dmPrintReport(){
+  const m = dailyMovements.find(x=>x.id===dmReportId);
+  if(!m) return;
+  const css = `body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}
+  :root{--line:#999;--panel-2:#f1f1f1;--ink-soft:#555;}
+  .dmr h2{margin:0;font-size:18px;letter-spacing:.04em;} .dmr .sub{font-size:12px;color:#555;}
+  .dmr table{width:100%;border-collapse:collapse;margin-top:6px;} .dmr th,.dmr td{border:1px solid #999;padding:6px 8px;font-size:12px;text-align:left;}
+  .dmr th{background:#f1f1f1;font-size:10.5px;text-transform:uppercase;} .dmr .grid{display:grid;grid-template-columns:1fr 1fr;margin-top:10px;}
+  .dmr .grid div{border:1px solid #999;padding:6px 8px;font-size:12px;} .dmr .grid b{display:block;font-size:10px;color:#555;text-transform:uppercase;}
+  .dmr .ok{color:#2e7d4f;font-weight:700;} .dmr .bad{color:#c1443c;font-weight:700;} .dmr h4{margin:16px 0 2px;font-size:12px;text-transform:uppercase;}
+  .dmr .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;font-size:11px;} .dmr .sign div{border-top:1px solid #333;padding-top:4px;}
+  @page{size:A4;margin:14mm;}`;
+  const w = window.open("", "_blank");
+  if(!w){ A(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Checklist ${escHtml(m.plate)} ${escHtml(m.date)}</title><style>${css}</style></head><body>${dmReportHtml(m)}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
 }
 function dmReportText(){
   const rows = dmViewRows();
