@@ -575,6 +575,7 @@
   ];
 
   const TEMPLATES = [
+    ["Showing {a} of {b} tickets","Paparan {a} daripada {b} tiket"],
     ["No phone number for {a} — fill in the driver's phone to send WhatsApp.","Tiada no telefon untuk {a} — isi no telefon pemandu untuk hantar WhatsApp."],
     ["Checklist not complete — {a} item(s) not ticked yet.","Checklist belum lengkap — {a} item belum ditanda."],
     ["✓ Updated — {a}, {b}.","✓ Dikemas kini — {a}, {b}."],

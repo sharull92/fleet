@@ -812,16 +812,13 @@ body:not(.is-admin) .admin-only{display:none !important;}
             </div>
           </div>
 
-          <div class="form-row" style="grid-template-columns:1fr 1fr auto;align-items:end;margin-bottom:12px;">
-            <div><label>Filter by Month</label><select id="tk_filterMonth" onchange="renderTickets()"></select></div>
-            <div><label>Filter by Year</label><select id="tk_filterYear" onchange="renderTickets()"></select></div>
-            <button class="btn ghost" onclick="document.getElementById('tk_filterMonth').value='';document.getElementById('tk_filterYear').value='';renderTickets();">Clear</button>
-          </div>
-
+          <div style="overflow-x:auto;">
           <table>
-            <thead><tr><th>Ticket</th><th>Vehicle</th><th>Issue</th><th>Tarikh</th><th>Cost Awalan (RM)</th><th>Cost Final (RM)</th><th>Selisih (RM)</th><th>Tarikh Siap</th><th>Vendor / Foreman</th><th>Jenis Repair</th><th>Status</th><th></th><th></th></tr></thead>
+            <thead><tr id="ticketHeadRow"></tr></thead>
             <tbody id="ticketBody"></tbody>
           </table>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="ticketCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="ticketClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('tickets')">✕ Clear all filters</button></div>
         </div>
 
         <div class="panel">
@@ -2698,16 +2695,32 @@ function renderRepair(){
   populateFrequencyFilters();
   renderRepairFrequency();
 }
+const tkDmy = v => v ? String(v).replace(/\./g,"/") : "";
+xlRegister("tickets", {
+  data: ()=>tickets,
+  render: ()=>renderTickets(),
+  cols: [
+    {key:"id", label:"Ticket"},
+    {key:"vehicle", label:"Vehicle"},
+    {key:"issue", label:"Issue", get:t=> Array.isArray(t.work)&&t.work.length ? t.work.map(w=>w.label).join(", ") : t.issue},
+    {key:"opened", label:"Date", date:true, get:t=>tkDmy(t.opened)},
+    {key:"costAwal", label:"Estimated Cost (RM)", num:true},
+    {key:"costFinal", label:"Final Cost (RM)", num:true},
+    {key:"variance", label:"Variance (RM)", num:true, get:t=> t.costFinal!=null ? t.costFinal-(t.costAwal||0) : null},
+    {key:"completedDate", label:"Completion Date", date:true, get:t=>tkDmy(t.completedDate)},
+    {key:"location", label:"Vendor / Foreman"},
+    {key:"repairBy", label:"Repair Type"},
+    {key:"status", label:"Status"},
+  ],
+});
 function renderTickets(){
-  const fm = document.getElementById("tk_filterMonth").value;
-  const fy = document.getElementById("tk_filterYear").value;
-  const filtered = tickets.filter(t=>{
-    if(!fm && !fy) return true;
-    const d = parseOpenedDate(t.opened);
-    if(fm && d.month !== Number(fm)) return false;
-    if(fy && d.year !== Number(fy)) return false;
-    return true;
-  });
+  const head = document.getElementById("ticketHeadRow");
+  if(head) head.innerHTML = xlHeaderHtml("tickets") + "<th></th><th></th>";
+  const filtered = xlRows("tickets");
+  const cnt = document.getElementById("ticketCount");
+  if(cnt) cnt.textContent = fleetI18n.tr(`Showing ${filtered.length} of ${tickets.length} tickets`);
+  const clr = document.getElementById("ticketClearAllBtn");
+  if(clr) clr.style.display = xlAnyActive("tickets") ? "inline-block" : "none";
   document.getElementById("ticketBody").innerHTML = filtered.map(t=>{
     const cls = t.status==="Completed"?"good":t.status==="In Progress"?"warn":"danger";
     const diff = t.costFinal!=null ? (t.costFinal - t.costAwal) : null;
@@ -2717,7 +2730,7 @@ function renderTickets(){
     const issueCell = Array.isArray(t.work) && t.work.length
       ? t.work.map(w=>`<div style="margin-bottom:4px;">${escHtml(w.label)}<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(w.vendor||T("Belum di-assign"))}${w.repairBy?" · "+escHtml(w.repairBy):""} · ${escHtml(fleetI18n.tr(w.status))}</div></div>`).join("")
       : escHtml(t.issue);
-    return `<tr><td class="mono-cell">${t.id}</td><td>${t.vehicle}</td><td>${issueCell}</td><td class="mono-cell">${t.opened}</td>
+    return `<tr><td class="mono-cell">${t.id}</td><td style="white-space:nowrap;">${t.vehicle}</td><td style="min-width:240px;">${issueCell}</td><td class="mono-cell">${t.opened}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
     <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
@@ -2945,16 +2958,7 @@ function parseOpenedDate(str){
   return {day:d, month:m, year:y};
 }
 const MONTH_NAMES = ["Jan","Feb","Mac","Apr","Mei","Jun","Jul","Ogos","Sep","Okt","Nov","Dis"];
-function populateTicketFilters(){
-  const years = [...new Set(tickets.map(t=>parseOpenedDate(t.opened).year))].sort((a,b)=>b-a);
-  const monthSel = document.getElementById("tk_filterMonth");
-  const yearSel = document.getElementById("tk_filterYear");
-  const prevMonth = monthSel.value, prevYear = yearSel.value;
-  monthSel.innerHTML = `<option value="">All Months</option>` + MONTH_NAMES.map((m,i)=>`<option value="${i+1}">${T(m)}</option>`).join("");
-  yearSel.innerHTML = `<option value="">All Years</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join("");
-  if(MONTH_NAMES[Number(prevMonth)-1]) monthSel.value = prevMonth;
-  if(years.includes(Number(prevYear))) yearSel.value = prevYear;
-}
+function populateTicketFilters(){}   // ticket list now uses Excel-style column filters
 function populateFrequencyFilters(){
   const years = [...new Set(tickets.map(t=>parseOpenedDate(t.opened).year))].sort((a,b)=>b-a);
   const monthSel = document.getElementById("rf_month");
