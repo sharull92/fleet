@@ -593,7 +593,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
               <input type="date" id="dm_viewDate" onchange="renderDailyMovements()" style="width:auto;padding:5px 8px;">
               <select id="dm_viewBranch" onchange="renderDailyMovements()" style="width:auto;padding:5px 8px;"></select>
               <span id="dm_summary" style="font-size:11px;color:var(--ink-soft);"></span>
-              <button type="button" class="btn yellow admin-only" style="margin-left:auto;padding:5px 12px;font-size:11.5px;" onclick="dmCopyReport()">📋 Copy report for WhatsApp</button>
+              <button type="button" class="btn ghost admin-only" style="margin-left:auto;padding:5px 12px;font-size:11.5px;" onclick="dmPrintAll()">🖨 Print all reports</button>
+              <button type="button" class="btn yellow admin-only" style="padding:5px 12px;font-size:11.5px;" onclick="dmCopyReport()">📋 Copy report for WhatsApp</button>
             </div>
             <div style="overflow-x:auto;">
             <table>
@@ -5158,6 +5159,18 @@ function dmCloseReport(){ document.getElementById("dmReportModal").style.display
 function dmPrintReport(){
   const m = dailyMovements.find(x=>x.id===dmReportId);
   if(!m) return;
+  dmPrintWindow(`Checklist ${m.plate} ${m.date}`, [m]);
+}
+/* All vehicles shown in the Movement Log (selected date + branch), one report per A4 page. */
+function dmPrintAll(){
+  if(currentRole!=="admin") return;
+  const rows = dmViewRows().sort((a,b)=>dmTime(b)-dmTime(a));
+  if(!rows.length){ A(fleetI18n.tr("No daily movement submitted for this date yet")); return; }
+  const date = document.getElementById("dm_viewDate").value || APP_TODAY_ISO;
+  const br = document.getElementById("dm_viewBranch").value;
+  dmPrintWindow(`Checklist ${date}${br?" "+br:""} (${rows.length})`, rows);
+}
+function dmPrintWindow(title, list){
   const css = `body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}
   :root{--line:#999;--panel-2:#f1f1f1;--ink-soft:#555;}
   .dmr h2{margin:0;font-size:18px;letter-spacing:.04em;} .dmr .sub{font-size:12px;color:#555;}
@@ -5166,10 +5179,12 @@ function dmPrintReport(){
   .dmr .grid div{border:1px solid #999;padding:6px 8px;font-size:12px;} .dmr .grid b{display:block;font-size:10px;color:#555;text-transform:uppercase;}
   .dmr .ok{color:#2e7d4f;font-weight:700;} .dmr .bad{color:#c1443c;font-weight:700;} .dmr h4{margin:16px 0 2px;font-size:12px;text-transform:uppercase;}
   .dmr .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:60px;font-size:11px;} .dmr .sign div{border-top:1px solid #333;padding-top:4px;}
-  @page{size:A4;margin:14mm;}`;
+  @page{size:A4;margin:14mm;}
+  .page{page-break-after:always;break-after:page;} .page:last-child{page-break-after:auto;break-after:auto;}
+  @media screen{.page{border-bottom:2px dashed #ccc;padding-bottom:24px;margin-bottom:24px;}}`;
   const w = window.open("", "_blank");
   if(!w){ A(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Checklist ${escHtml(m.plate)} ${escHtml(m.date)}</title><style>${css}</style></head><body>${dmReportHtml(m)}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>${css}</style></head><body>${list.map(m=>`<div class="page">${dmReportHtml(m)}</div>`).join("")}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   w.document.close();
 }
 function dmReportText(){

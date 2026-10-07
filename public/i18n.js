@@ -422,6 +422,7 @@
     ["Checked by Fleet Department","Disemak oleh Jabatan Fleet"],
     ["Please allow pop-ups to print the report.","Sila benarkan pop-up untuk cetak laporan."],
     ["🖨 Print","🖨 Cetak"],
+    ["🖨 Print all reports","🖨 Cetak semua laporan"],
     ["WhatsApp driver","WhatsApp pemandu"],
     ["No driver phone number for this unit.","Tiada no telefon pemandu untuk unit ini."],
     ["📲 Supervisor","📲 Penyelia"],
