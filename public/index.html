@@ -1225,7 +1225,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="section-plate"><span class="rivet"></span><h2>New / Dispose</h2><span class="sub">Company vehicle acquisition &amp; disposal pipeline</span></div>
 
         <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
-          <div class="kpi"><div class="label">New — In Pipeline</div><div class="value" id="ndNewCount">—</div><div class="foot">New vehicles: in progress + delivered</div></div>
+          <div class="kpi"><div class="label">New — In Pipeline</div><div class="value" id="ndNewCount">—</div><div class="foot" id="ndNewFoot">In progress + delivered</div></div>
           <div class="kpi alert"><div class="label">Flagged for Disposal</div><div class="value" id="ndDisposeCount">—</div><div class="foot bad">Disposal requested + approved</div></div>
           <div class="kpi"><div class="label">Net Fleet Change (YTD)</div><div class="value" id="ndNetChange">—</div><div class="foot">New vehicles minus disposed</div></div>
           <div class="kpi"><div class="label">Disposal Recovery (Sold)</div><div class="value mono" id="ndRecovery">—</div><div class="foot" id="ndRecoveryFoot">Total sold value of disposed units</div></div>
@@ -2684,6 +2684,8 @@ async function deleteComplianceVehicle(id){
   const today = APP_TODAY_ISO.split("-").reverse().join("/");
   disposePipeline.disposed.unshift({ veh:`${rec.company} — ${rec.plate}`, meta:`${rec.category||""} · ${rec.location||""} · ${fleetI18n.tr("Removed")} ${today}${reason.trim()?" · "+reason.trim():""}`,
     plate:rec.plate, removedAt:today, reason:reason.trim(), rec });
+  // a New entry pointing at this register row keeps a snapshot from now on
+  NEW_STAGES.forEach(k=>disposePipeline[k].forEach(n=>{ if(n.cid===rec.id){ n.rec = {...rec}; n.cid = null; } }));
   await persistDisposePipeline();
   renderDispose();
   populateComplianceFilters();
@@ -2711,8 +2713,9 @@ async function addComplianceVehicle(){
     return;
   }
 
+  const newId = complianceNextId++;
   complianceData.push({
-    id: complianceNextId++,
+    id: newId,
     company, category: category || "—", plate, location: location || "—",
     roadTax, roadTaxStatus: calcComplianceStatus(roadTax),
     inspection, inspectionStatus: calcComplianceStatus(inspection), inspectionAmt: null,
@@ -2731,6 +2734,10 @@ async function addComplianceVehicle(){
   document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
   await persistComplianceRegister();
+  // New vehicle also lands in New / Dispose → "New — Delivered"; admin keys in price, purchase date etc. there.
+  disposePipeline.delivered.unshift({ kind:"new", cid:newId, plate, addedAt: APP_TODAY_ISO.split("-").reverse().join("/") });
+  await persistDisposePipeline();
+  renderDispose();
 }
 
 /* ---- Language / theme switch: charts are canvas, so rebuild them in the new
@@ -5153,6 +5160,8 @@ function renderDisposeKpis(){
   document.getElementById("ndDisposeCount").textContent = disposePipeline.requested.length + disposePipeline.approved.length;
   const net = newCount - disposePipeline.disposed.length;
   document.getElementById("ndNetChange").textContent = (net>0?"+":"") + net;
+  const bought = [...disposePipeline.inProgress, ...disposePipeline.delivered].reduce((t,i)=>t+(Number(i.price)>0?Number(i.price):0),0);
+  document.getElementById("ndNewFoot").textContent = fleetI18n.tr(`In progress + delivered · purchases ${rm(bought)}`);
   const sold = disposePipeline.disposed.filter(i=>Number(i.soldValue)>0);
   document.getElementById("ndRecovery").textContent = rm(sold.reduce((t,i)=>t+Number(i.soldValue),0));
   document.getElementById("ndRecoveryFoot").textContent = fleetI18n.tr(`${sold.length} of ${disposePipeline.disposed.length} disposed units sold`);
@@ -5164,84 +5173,106 @@ const DISPOSE_STAGES = [
   ["requested","Disposal Requested"], ["approved","Disposal Approved"],
   ["inProgress","New — In Progress"], ["delivered","New — Delivered"], ["disposed","Disposed"],
 ];
+const NEW_STAGES = ["inProgress","delivered"];
 let disposeStage = "", disposeEditRef = "";
+/* New vehicles point at their live register record (cid) so edits to plate / branch show here;
+   once removed from the register they keep a snapshot (rec). */
+function dispRec(i){ return (i.cid!=null && complianceData.find(d=>d.id===i.cid)) || i.rec || {}; }
+/* One set of columns for both directions: price / purchase date / supplier for new vehicles,
+   sold value / date sold / buyer for disposed ones. */
+function dispMoney(i, stageKey){
+  const isNew = NEW_STAGES.includes(stageKey);
+  const amt = Number(isNew ? i.price : i.soldValue);
+  return { isNew, amt: amt>0 ? amt : null, date: (isNew ? i.purchaseDate : i.soldDate) || "", party: String((isNew ? i.supplier : i.buyer) || "").toUpperCase() };
+}
 function disposeRows(){
   return DISPOSE_STAGES.flatMap(([key,label])=>disposePipeline[key].map((i,idx)=>({i, idx, stageKey:key, stage:label})));
 }
 const isoToDmy = v => v ? String(v).split("-").reverse().join("/") : "";
+const dispReasonText = i => String(i.reason!=null ? i.reason : (i.rec || i.cid!=null ? "" : i.meta||"")).toUpperCase();
 xlRegister("dispose", {
   data: ()=>disposeRows().filter(r=>!disposeStage || r.stageKey===disposeStage),
   render: ()=>renderDisposeTable(),
   cols: [
     {key:"stage", label:"Stage", get:r=>fleetI18n.tr(r.stage)},
-    {key:"plate", label:"Plate", get:r=>r.i.plate || (r.i.rec&&r.i.rec.plate) || r.i.veh},
-    {key:"company", label:"Company", get:r=>r.i.rec ? r.i.rec.company : ""},
-    {key:"category", label:"Category", get:r=>r.i.rec ? r.i.rec.category : ""},
-    {key:"branch", label:"Branch", get:r=>r.i.rec ? r.i.rec.location : ""},
-    {key:"removedAt", label:"Date", date:true, get:r=>r.i.removedAt || ""},
-    {key:"reason", label:"Reason / Remark", get:r=>String(r.i.reason!=null ? r.i.reason : (r.i.rec ? "" : r.i.meta||"")).toUpperCase()},
-    {key:"soldValue", label:"Sold (RM)", num:true, get:r=>Number(r.i.soldValue)>0 ? Number(r.i.soldValue) : ""},
-    {key:"soldDate", label:"Date Sold", date:true, get:r=>isoToDmy(r.i.soldDate)},
-    {key:"buyer", label:"Buyer", get:r=>String(r.i.buyer||"").toUpperCase()},
+    {key:"plate", label:"Plate", get:r=>dispRec(r.i).plate || r.i.plate || r.i.veh},
+    {key:"company", label:"Company", get:r=>dispRec(r.i).company || ""},
+    {key:"category", label:"Category", get:r=>dispRec(r.i).category || ""},
+    {key:"branch", label:"Branch", get:r=>dispRec(r.i).location || ""},
+    {key:"removedAt", label:"Date", date:true, get:r=>r.i.addedAt || r.i.removedAt || ""},
+    {key:"reason", label:"Reason / Remark", get:r=>dispReasonText(r.i)},
+    {key:"amt", label:"Price / Sold (RM)", num:true, get:r=>{ const m = dispMoney(r.i, r.stageKey); return m.amt!=null ? m.amt : ""; }},
+    {key:"amtDate", label:"Purchase / Sold Date", date:true, get:r=>isoToDmy(dispMoney(r.i, r.stageKey).date)},
+    {key:"party", label:"Supplier / Buyer", get:r=>dispMoney(r.i, r.stageKey).party},
   ],
 });
 function setDisposeStage(k){ disposeStage = disposeStage===k ? "" : k; renderDisposeTable(); }
 function renderDisposeTable(){
   const all = disposeRows();
-  const chip = (k,label,n)=>`<button type="button" class="stage-chip${disposeStage===k?" on":""}${k==="disposed"||k.startsWith("requested")||k==="approved"?" dsp":""}" onclick="setDisposeStage('${k}')">${escHtml(fleetI18n.tr(label))} <b>${n}</b></button>`;
+  const chip = (k,label,n)=>`<button type="button" class="stage-chip${disposeStage===k?" on":""}" onclick="setDisposeStage('${k}')">${escHtml(fleetI18n.tr(label))} <b>${n}</b></button>`;
   document.getElementById("disposeStageChips").innerHTML = chip("","All",all.length) +
     DISPOSE_STAGES.map(([k,l])=>chip(k,l,disposePipeline[k].length)).join("");
   document.getElementById("disposeHeadRow").innerHTML = xlHeaderHtml("dispose") + `<th class="admin-only"></th>`;
   const rows = xlRows("dispose");
   const btn = "padding:3px 8px;font-size:10.5px;";
   document.getElementById("disposeBody").innerHTML = rows.map(r=>{
-    const i = r.i, ref = r.stageKey+":"+r.idx, rec = i.rec || {};
-    const v = Number(i.soldValue)>0 ? Number(i.soldValue) : null;
+    const i = r.i, ref = r.stageKey+":"+r.idx, rec = dispRec(i), m = dispMoney(i, r.stageKey);
     const editing = disposeEditRef===ref && currentRole==="admin";
-    const reasonText = String(i.reason!=null ? i.reason : (i.rec ? "" : i.meta||"")).toUpperCase();
     const auto = `onchange="autoSaveDisposed('${r.stageKey}',${r.idx})" onkeydown="if(event.key==='Enter'){this.blur();}"`;
+    const reasonText = dispReasonText(i);
+    const stageCell = editing && m.isNew
+      ? `<select id="dspStage" style="font-size:11px;padding:3px 4px;min-width:110px;" onchange="moveNewVehicleStage('${r.stageKey}',${r.idx},this.value)">${NEW_STAGES.map(k=>`<option value="${k}"${k===r.stageKey?" selected":""}>${escHtml(fleetI18n.tr(k==="inProgress"?"New — In Progress":"New — Delivered").replace(/^.*— /,""))}</option>`).join("")}</select>`
+      : `<span class="badge ${m.isNew?"good":"danger"}">${escHtml(fleetI18n.tr(r.stage))}</span>`;
     const reasonCell = editing
       ? `<td><input type="text" id="dspReason" class="dsp-up" value="${escHtml(reasonText)}" ${auto} style="width:100%;min-width:140px;"></td>`
       : `<td>${escHtml(reasonText)||"—"}</td>`;
-    const soldCells = editing
-      ? `<td><input type="number" min="0" step="0.01" id="dspVal" value="${v!=null?v:""}" placeholder="0" ${auto} style="width:90px;"></td>
-         <td><input type="date" id="dspDate" value="${escHtml(i.soldDate||"")}" ${auto}></td>
-         <td><input type="text" id="dspBuyer" class="dsp-up" value="${escHtml(String(i.buyer||"").toUpperCase())}" placeholder="${escHtml(fleetI18n.tr("Buyer (optional)"))}" ${auto} style="width:100%;min-width:120px;"></td>`
-      : `<td class="mono-cell" style="${v!=null?"color:var(--good);font-weight:600;":"color:var(--faint);"}">${v!=null?v.toLocaleString("en-MY"):"—"}</td>
-         <td class="mono-cell">${escHtml(isoToDmy(i.soldDate))||"—"}</td><td>${escHtml(String(i.buyer||"").toUpperCase())||"—"}</td>`;
+    const moneyCells = editing
+      ? `<td><input type="number" min="0" step="0.01" id="dspVal" value="${m.amt!=null?m.amt:""}" placeholder="0" ${auto} style="width:90px;"></td>
+         <td><input type="date" id="dspDate" value="${escHtml(m.date)}" ${auto} onblur="autoSaveDisposed('${r.stageKey}',${r.idx})"></td>
+         <td><input type="text" id="dspBuyer" class="dsp-up" value="${escHtml(m.party)}" placeholder="${escHtml(fleetI18n.tr(m.isNew?"Supplier (optional)":"Buyer (optional)"))}" ${auto} style="width:100%;min-width:120px;"></td>`
+      : `<td class="mono-cell" style="${m.amt==null?"color:var(--faint);":m.isNew?"font-weight:600;":"color:var(--good);font-weight:600;"}">${m.amt!=null?m.amt.toLocaleString("en-MY"):"—"}</td>
+         <td class="mono-cell">${escHtml(isoToDmy(m.date))||"—"}</td><td>${escHtml(m.party)||"—"}</td>`;
     const actions = editing
       ? `<span id="dspSaved" style="font-size:10.5px;color:var(--good);margin-right:6px;"></span><button type="button" class="btn" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✓ <span>${escHtml(fleetI18n.tr("Done"))}</span></button>`
-      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}`;
-    return `<tr><td><span class="badge ${r.stageKey==="inProgress"||r.stageKey==="delivered"?"good":"danger"}">${escHtml(fleetI18n.tr(r.stage))}</span></td>
-      <td style="font-weight:600;">${escHtml(i.plate || rec.plate || i.veh)}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
-      <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.removedAt||"—")}</td>
-      ${reasonCell}${soldCells}
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}`;
+    return `<tr><td>${stageCell}</td>
+      <td style="font-weight:600;">${escHtml(rec.plate || i.plate || i.veh || "")}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
+      <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.addedAt || i.removedAt || "—")}</td>
+      ${reasonCell}${moneyCells}
       <td class="admin-only" style="white-space:nowrap;">${actions}</td></tr>`;
   }).join("") || `<tr><td colspan="11" style="color:var(--faint);text-align:center;padding:18px;">${escHtml(fleetI18n.tr("No items"))}</td></tr>`;
   document.getElementById("disposeCount").textContent = fleetI18n.tr(`Showing ${rows.length} of ${all.length} vehicles`);
   document.getElementById("disposeClearAllBtn").style.display = xlAnyActive("dispose") ? "inline-block" : "none";
   if(disposeEditRef){ const el = document.getElementById("dspVal"); if(el && !el.value) el.focus(); }
 }
-/* Edit row saves itself on every change (no Save button); text is stored in UPPERCASE. */
+/* Edit row saves itself on every change (no Save button); text is stored in UPPERCASE.
+   Nothing is re-rendered or cleared while typing, so the date box can be keyed in dd/mm/yyyy freely. */
 async function autoSaveDisposed(stageKey, idx){
   if(currentRole!=="admin") return;
   const item = (disposePipeline[stageKey]||[])[idx]; if(!item) return;
+  const isNew = NEW_STAGES.includes(stageKey);
   const valEl = document.getElementById("dspVal"), dateEl = document.getElementById("dspDate");
   const raw = valEl.value.trim();
   const val = raw==="" ? null : Number(raw);
   if(val!=null && !(val>=0)){ alert(fleetI18n.tr("Please enter a valid amount.")); valEl.focus(); return; }
-  if(val!=null && !dateEl.value) dateEl.value = APP_TODAY_ISO;
-  if(val==null) dateEl.value = "";
   ["dspReason","dspBuyer"].forEach(id=>{ const el = document.getElementById(id); el.value = el.value.trim().toUpperCase(); });
-  item.soldValue = val;
-  item.soldDate = dateEl.value;
-  item.buyer = document.getElementById("dspBuyer").value;
+  const party = document.getElementById("dspBuyer").value;
+  if(isNew){ item.price = val; item.purchaseDate = dateEl.value; item.supplier = party; }
+  else { item.soldValue = val; item.soldDate = dateEl.value; item.buyer = party; }
   item.reason = document.getElementById("dspReason").value;
   const saved = document.getElementById("dspSaved");
   if(saved) saved.textContent = fleetI18n.tr("Saving…");
   await persistDisposePipeline();
   if(saved) saved.textContent = "✓ " + fleetI18n.tr("Saved");
   renderDisposeKpis();
+}
+async function moveNewVehicleStage(fromKey, idx, toKey){
+  if(currentRole!=="admin" || fromKey===toKey) return;
+  const [item] = disposePipeline[fromKey].splice(idx,1); if(!item) return;
+  disposePipeline[toKey].unshift(item);
+  disposeEditRef = toKey + ":0";
+  await persistDisposePipeline();
+  renderDispose();
 }
 
 async function restoreDisposedVehicle(idx){

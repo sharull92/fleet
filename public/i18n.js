@@ -423,6 +423,12 @@
     ["Disposal requested + approved","Pelupusan dimohon + diluluskan"],
     ["New vehicles minus disposed","Kenderaan baharu tolak yang dilupus"],
     ["Stage","Peringkat"],
+    ["Price / Sold (RM)","Harga / Jualan (RM)"],
+    ["Purchase / Sold Date","Tarikh Beli / Jual"],
+    ["Supplier / Buyer","Pembekal / Pembeli"],
+    ["Supplier (optional)","Pembekal (pilihan)"],
+    ["Enter purchase details","Masukkan butiran pembelian"],
+    ["In progress + delivered","Dalam proses + diterima"],
     ["Done","Selesai"],
     ["Saved","Disimpan"],
     ["Disposal Requested","Permohonan Pelupusan"],
@@ -689,6 +695,7 @@
   ];
 
   const TEMPLATES = [
+    ["In progress + delivered · purchases {a}","Dalam proses + diterima · pembelian {a}"],
     ["{a} of {b} disposed units sold","{a} daripada {b} unit dilupus telah dijual"],
     ["Remove {a} ({b}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):","Keluarkan {a} ({b}) dari daftar dan pindah ke Baharu / Pelupusan → Telah Dilupus?\n\nSebab (pilihan):"],
     ["Restore {a} to the Compliance Register?","Pulihkan {a} ke Daftar Pematuhan?"],
