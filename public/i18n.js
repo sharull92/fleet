@@ -20,6 +20,12 @@
     // ---- Shell / navigation ----
     ["Dashboard","Papan Pemuka"],
     ["Driver & Requester","Pemandu & Pemohon"],
+    ["Requester — Job Request","Pemohon — Permohonan Kerja"],
+    ["Request a vehicle / machine for a job","Mohon kenderaan / jentera untuk kerja"],
+    ["Request a vehicle / machine for a job — for supervisors & requesters","Mohon kenderaan / jentera untuk kerja — untuk penyelia & pemohon"],
+    ["Daily movement, vehicle checklist & workshop repair ticket","Pergerakan harian, checklist kenderaan & tiket repair bengkel"],
+    ["Daily movement, vehicle checklist & workshop repair ticket — for drivers","Pergerakan harian, checklist kenderaan & tiket repair bengkel — untuk pemandu"],
+    ["Driver submits via the Driver page → Admin replies with location/vendor & status here","Pemandu hantar melalui halaman Pemandu → Admin balas dengan lokasi/vendor & status di sini"],
     ["Repair & Maintenance","Pembaikan & Penyelenggaraan"],
     ["Compliance Register","Daftar Pematuhan"],
     ["Insurance","Insurans"],

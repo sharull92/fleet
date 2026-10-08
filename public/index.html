@@ -456,15 +456,16 @@ body:not(.is-admin) .admin-only{display:none !important;}
     </div>
     <nav>
       <button class="nav-btn admin-only" data-view="overview"><span class="num">00</span>Dashboard</button>
-      <button class="nav-btn active" data-view="external"><span class="num">01</span>Driver &amp; Requester</button>
-      <button class="nav-btn admin-only" data-view="compliance"><span class="num">02</span>Compliance Register</button>
-      <button class="nav-btn admin-only" data-view="insurance"><span class="num">03</span>Insurance</button>
-      <button class="nav-btn admin-only" data-view="repair"><span class="num">04</span>Repair &amp; Maintenance</button>
-      <button class="nav-btn admin-only" data-view="costing"><span class="num">05</span>Costing</button>
-      <button class="nav-btn admin-only" data-view="hiring"><span class="num">06</span>Hiring Management</button>
-      <button class="nav-btn admin-only" data-view="utilization"><span class="num">07</span>Utilization</button>
-      <button class="nav-btn admin-only" data-view="dispose"><span class="num">08</span>New / Dispose</button>
-      <button class="nav-btn admin-only" data-view="settings"><span class="num">09</span>Settings — WhatsApp</button>
+      <button class="nav-btn active" data-view="external"><span class="num">01</span>Driver</button>
+      <button class="nav-btn" data-view="requester"><span class="num">02</span>Requester — Job Request</button>
+      <button class="nav-btn admin-only" data-view="compliance"><span class="num">03</span>Compliance Register</button>
+      <button class="nav-btn admin-only" data-view="insurance"><span class="num">04</span>Insurance</button>
+      <button class="nav-btn admin-only" data-view="repair"><span class="num">05</span>Repair &amp; Maintenance</button>
+      <button class="nav-btn admin-only" data-view="costing"><span class="num">06</span>Costing</button>
+      <button class="nav-btn admin-only" data-view="hiring"><span class="num">07</span>Hiring Management</button>
+      <button class="nav-btn admin-only" data-view="utilization"><span class="num">08</span>Utilization</button>
+      <button class="nav-btn admin-only" data-view="dispose"><span class="num">09</span>New / Dispose</button>
+      <button class="nav-btn admin-only" data-view="settings"><span class="num">10</span>Settings — WhatsApp</button>
     </nav>
     <div class="sidebar-admin">
       <button type="button" class="admin-login-btn" id="cr_loginBtn" onclick="openAdminLogin()">🔒 Admin Login</button>
@@ -481,8 +482,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
       <div>
         <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
         <div>
-        <h1 id="pageTitle">Driver &amp; Requester</h1>
-        <div class="meta" id="pageMeta">Submit a workshop repair ticket or log a new job request</div>
+        <h1 id="pageTitle">Driver</h1>
+        <div class="meta" id="pageMeta">Daily movement, vehicle checklist &amp; workshop repair ticket</div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -547,7 +548,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
       <!-- ============ EXTERNAL — DRIVER & REQUESTER ============ -->
       <section class="view active" id="view-external">
-        <div class="section-plate"><span class="rivet"></span><h2>Driver &amp; Requester</h2><span class="sub">Submit a workshop repair ticket or log a new job request — for drivers &amp; requesters</span></div>
+        <div class="section-plate"><span class="rivet"></span><h2>Driver</h2><span class="sub">Daily movement, vehicle checklist &amp; workshop repair ticket — for drivers</span></div>
 
         <div class="panel" id="dmPanel">
           <div class="panel-head">
@@ -644,6 +645,12 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <button class="btn ghost" onclick="document.getElementById('ticketNotifyPanel').style.display='none';">Tutup</button>
           </div>
         </div>
+
+      </section>
+
+      <!-- ============ REQUESTER — JOB REQUEST ============ -->
+      <section class="view" id="view-requester">
+        <div class="section-plate"><span class="rivet"></span><h2>Requester — Job Request</h2><span class="sub">Request a vehicle / machine for a job — for supervisors &amp; requesters</span></div>
 
         <div class="panel" id="hireRequestPanel">
           <div class="panel-head">
@@ -816,7 +823,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="panel">
           <div class="panel-head">
             <h3>Workshop Repair Tickets</h3>
-            <span class="sub" style="font-size:11px;color:var(--ink-soft);">Driver / requester submits via the Driver &amp; Requester page → Admin replies with location/vendor &amp; status here</span>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);">Driver submits via the Driver page → Admin replies with location/vendor &amp; status here</span>
           </div>
 
           <div class="panel" id="adminReplyForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);">
@@ -2465,7 +2472,8 @@ if(window.Chart){
 /* ===================== NAV ===================== */
 const titles = {
   overview:["Fleet Dashboard","Company-owned fleet — overview across all modules"],
-  external:["Driver & Requester","Submit a workshop repair ticket or log a new job request"],
+  external:["Driver","Daily movement, vehicle checklist & workshop repair ticket"],
+  requester:["Requester — Job Request","Request a vehicle / machine for a job"],
   compliance:["Compliance Register","Road tax, inspection, insurance, JKKP & APAD expiry for every vehicle"],
   insurance:["Insurance","Insurer, policy, cover, premium & expiry for every vehicle"],
   repair:["Repair & Maintenance","Workshop tickets & repair spend"],
