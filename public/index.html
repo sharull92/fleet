@@ -5457,7 +5457,9 @@ async function printPurchaseRequest(stageKey, idx, mode){
   const blank = n => Array.from({length:n},()=>`<div class="ln">&nbsp;</div>`).join("");
   const css = `
   *{box-sizing:border-box;} body{font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#000;margin:0;}
-  .page{width:190mm;margin:0 auto;padding:6mm 4mm;page-break-after:always;} .page:last-child{page-break-after:auto;}
+  .page{width:190mm;height:276mm;margin:0 auto;padding:6mm 4mm 12mm;page-break-after:always;position:relative;overflow:hidden;} .page:last-child{page-break-after:auto;}
+  .pgno{position:absolute;bottom:3mm;left:0;right:0;text-align:center;font-size:10.5px;}
+  @media screen{ .page{border-bottom:1px dashed #bbb;} }
   h1{font-size:14px;text-align:center;text-decoration:underline;margin:0 0 2px;line-height:1.5;}
   .siri{text-align:right;margin:4px 0 10px;} .siri b{display:inline-block;min-width:38mm;border-bottom:1px solid #000;text-align:left;padding-left:4px;}
   table{width:100%;border-collapse:collapse;} td{vertical-align:bottom;padding:5px 2px;}
@@ -5515,7 +5517,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
   if(!w){ alert(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
   const title = `${e(i.serial)} — Permohonan Pembelian Kenderaan`;
   if(mode==="form"){
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${page1}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${page1}<script>document.querySelectorAll(".page").forEach(function(p){var d=document.createElement("div");d.className="pgno";d.textContent="Muka 1";p.appendChild(d);});window.onload=function(){window.print();}<\/script></body></html>`);
     w.document.close();
     return;
   }
@@ -5533,6 +5535,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
   }
   const photos = [];
   for(const f of (i.photos||[])){ try{ photos.push(...await purchaseFileToImages(f)); }catch(err){ console.warn(err); } }
+  const totalPages = 1 + 1 + quotePages.reduce((t,qp)=>t+Math.max(qp.imgs.length,1),0) + (photos.length>4?1:0) + 1;
   let pageNo = 2;
   const startPage = quotePages.map(qp=>{ const at = ++pageNo; pageNo += Math.max(qp.imgs.length,1) - 1; return at; });
   const summary = `<div class="page">
@@ -5540,7 +5543,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
     <div class="siri">No. Siri : <b>${e(i.serial)}</b></div>
     <table>${line("Syarikat", e(i.company))}${line("Jenis / Model Dipohon", e(i.model))}${line("Jenis Pembelian", e(i.purchaseType==="TRADE IN" ? `TRADE IN (${i.oldPlate||"-"})` : "BARU"))}${line("Nama Pemohon", e(i.requestedBy))}${line("Tarikh Permohonan", e(dmy(i.date)))}</table>
     <table class="q"><tr><th style="width:9mm;">Bil</th><th>Vendor / Syarikat Penjual</th><th>Jenama / Model</th><th style="width:30mm;">Harga (RM)</th><th>Catatan</th><th style="width:16mm;">Muka</th></tr>
-      ${quotes.map((q,n)=>`<tr><td>${n+1}</td><td><b>${e(q.vendor)}</b>${Number(q.price)>0 && Number(q.price)===low?'<span class="tag">TERENDAH</span>':""}${q.recommended?'<span class="tag">★ DISYORKAN</span>':""}</td><td>${e(q.model)}</td><td style="text-align:right;font-weight:700;">${money(q.price)}</td><td>${e(q.remark)}</td><td>${q.file?startPage[n]:"—"}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center;">Tiada sebut harga</td></tr>`}
+      ${quotes.map((q,n)=>`<tr><td>${n+1}</td><td><b>${e(q.vendor)}</b>${Number(q.price)>0 && Number(q.price)===low?'<span class="tag">TERENDAH</span>':""}${q.recommended?'<span class="tag">★ DISYORKAN</span>':""}</td><td>${e(q.model)}</td><td style="text-align:right;font-weight:700;">${money(q.price)}</td><td>${e(q.remark)}</td><td>${startPage[n]}/${totalPages}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center;">Tiada sebut harga</td></tr>`}
     </table>
     ${photos.length ? `<div class="sec">Gambar Kenderaan</div><div class="photos">${photos.slice(0,4).map(src=>`<img src="${src}">`).join("")}</div>` : ""}
   </div>`;
@@ -5549,7 +5552,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
     ${src ? `<img class="qimg" src="${src}">` : `<p style="margin-top:30mm;text-align:center;color:#555;">${q.file ? "Fail sebut harga tidak dapat dibuka." : "Tiada fail sebut harga dimuat naik."}</p>`}
   </div>`).join("")).join("");
   w.document.open();
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${summary}${qHtml}${photos.length>4?`<div class="page"><div class="sec">Gambar Kenderaan (sambungan)</div><div class="photos">${photos.slice(4).map(src=>`<img src="${src}">`).join("")}</div></div>`:""}${page2}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${summary}${qHtml}${photos.length>4?`<div class="page"><div class="sec">Gambar Kenderaan (sambungan)</div><div class="photos">${photos.slice(4).map(src=>`<img src="${src}">`).join("")}</div></div>`:""}${page2}<script>document.querySelectorAll(".page").forEach(function(p,k){var d=document.createElement("div");d.className="pgno";d.textContent="Muka "+(k+2)+" / ${totalPages}";p.appendChild(d);});window.onload=function(){window.print();}<\/script></body></html>`);
   w.document.close();
 }
 /* Turn an uploaded quotation / photo into printable images (data URLs). */
