@@ -416,6 +416,13 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["📥 Import policy PDFs","📥 Import PDF polisi"],
+    ["View PDF","Lihat PDF"],
+    ["Upload PDF","Muat naik PDF"],
+    ["Replace","Ganti"],
+    ["Upload the policy PDF for this vehicle","Muat naik PDF polisi untuk kenderaan ini"],
+    ["No matching vehicle (rename the file to start with the plate, or upload it on the row):","Tiada kenderaan sepadan (namakan fail bermula dengan no. plat, atau muat naik pada baris kenderaan):"],
+    ["Failed:","Gagal:"],
     ["Click to view / print the checklist report","Klik untuk lihat / cetak laporan checklist"],
     ["View report","Lihat laporan"],
     ["Daily Movement & Vehicle Checklist Report","Laporan Pergerakan Harian & Checklist Kenderaan"],
@@ -594,6 +601,9 @@
   ];
 
   const TEMPLATES = [
+    ["{a} is larger than 4 MB.","{a} lebih besar dari 4 MB."],
+    ["Uploading {a} file(s)…","Memuat naik {a} fail…"],
+    ["✓ {a} PDF(s) linked to vehicles.","✓ {a} PDF dipautkan kepada kenderaan."],
     ["Showing {a} of {b} tickets","Paparan {a} daripada {b} tiket"],
     ["No phone number for {a} — fill in the driver's phone to send WhatsApp.","Tiada no telefon untuk {a} — isi no telefon pemandu untuk hantar WhatsApp."],
     ["Checklist not complete — {a} item(s) not ticked yet.","Checklist belum lengkap — {a} item belum ditanda."],

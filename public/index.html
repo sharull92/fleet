@@ -799,7 +799,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="panel-head">
             <h3>Insurance Register</h3>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Expiry date is shared with the Compliance Register — change it in either place</span>
+            <label class="btn yellow admin-only" style="cursor:pointer;margin:0;display:inline-flex;align-items:center;text-transform:none;letter-spacing:0;">📥 Import policy PDFs<input type="file" accept="application/pdf,.pdf" multiple hidden onchange="importInsurancePdfs(this)"></label>
           </div>
+          <div id="insPdfStatus" style="display:none;font-size:11.5px;margin:-6px 0 10px;white-space:pre-line;"></div>
           <div style="max-height:600px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
           <table>
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;"><tr id="insHeadRow"></tr></thead>
@@ -2192,7 +2194,10 @@ function renderInsurance(){
   document.getElementById("insBody").innerHTML = rows.map(d=> isAdmin ? `<tr>
       <td style="font-weight:600;">${escHtml(d.company)}</td><td class="mono-cell">${escHtml(d.plate)}</td><td>${escHtml(d.category)}</td><td>${escHtml(d.location)}</td>
       <td>${inp(d,"insurer",130,'placeholder="e.g. Etiqa"')}</td>
-      <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}</td>
+      <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+        ${d.insurancePolicyFile ? `<a class="map-link" href="/api/files/${encodeURIComponent(d.insurancePolicyFile)}" target="_blank" rel="noopener">📄 ${escHtml(fleetI18n.tr("View PDF"))}</a>` : ""}
+        <label class="btn ghost" style="cursor:pointer;margin:0;padding:2px 8px;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;white-space:nowrap;" title="${escHtml(fleetI18n.tr("Upload the policy PDF for this vehicle"))}">📎 ${escHtml(fleetI18n.tr(d.insurancePolicyFile ? "Replace" : "Upload PDF"))}<input type="file" accept="application/pdf,.pdf" hidden onchange="uploadInsurancePdf(${d.id}, this)"></label>
+      </div></td>
       <td>${cover(d)}</td>
       <td>${num(d,"insSumInsured")}</td>
       <td>${num(d,"insPremium")}</td>
@@ -2205,6 +2210,60 @@ function renderInsurance(){
       <td class="mono-cell">${d.insStart||"—"}</td><td class="mono-cell">${d.insurance||"—"}</td><td>${statusCell(d)}</td></tr>`).join("");
   document.getElementById("insCount").textContent = `Showing ${rows.length} of ${complianceData.length} vehicles`;
   document.getElementById("insClearAllBtn").style.display = xlAnyActive("insurance") ? "inline-block" : "none";
+}
+/* ---- Insurance policy PDFs: stored on the server (/api/files), linked per vehicle ---- */
+const INS_PDF_MAX = 4 * 1024 * 1024;   // hosting limit per upload
+async function putInsurancePdf(rec, file){
+  if(file.size > INS_PDF_MAX) throw new Error(fleetI18n.tr(`${file.name} is larger than 4 MB.`));
+  const id = `ins-${utilPlateKey(rec.plate)}-${Date.now().toString(36)}.pdf`;
+  const r = await fetch("/api/files/" + encodeURIComponent(id), { method:"PUT", credentials:"same-origin",
+    headers:{ "Content-Type":"application/pdf", "X-Requested-With":"fleet-app" }, body:file });
+  if(!r.ok){ let msg = "HTTP " + r.status; try{ msg = (await r.json()).error || msg; }catch(e){} throw new Error(`${file.name}: ${msg}`); }
+  rec.insurancePolicyFile = id;
+  if(!rec.insurancePolicy) rec.insurancePolicy = file.name;
+}
+async function uploadInsurancePdf(id, input){
+  if(currentRole!=="admin") return;
+  const rec = complianceData.find(d=>d.id===id), file = input.files && input.files[0];
+  input.value = "";
+  if(!rec || !file) return;
+  try{ await putInsurancePdf(rec, file); await persistComplianceRegister(); renderInsurance(); }
+  catch(e){ A(e.message); }
+}
+/* Bulk import: each PDF is matched to a vehicle by its file name — the same name already in
+   Policy No. (e.g. "WB7392V - AUG 25-26.pdf"), else the plate at the start of the file name. */
+function matchInsurancePdf(fileName){
+  const base = fileName.replace(/\.pdf$/i, "");
+  const key = utilPlateKey(base);
+  const byName = complianceData.find(d=>d.insurancePolicy && utilPlateKey(String(d.insurancePolicy).replace(/\.pdf$/i,""))===key);
+  if(byName) return byName;
+  const cands = complianceData.filter(d=>{
+    const pk = utilPlateKey(d.plate);
+    return pk && key.startsWith(pk) && !/[0-9]/.test(key.charAt(pk.length));
+  }).sort((a,b)=>utilPlateKey(b.plate).length - utilPlateKey(a.plate).length);
+  return cands[0] || null;
+}
+async function importInsurancePdfs(input){
+  if(currentRole!=="admin") return;
+  const files = [...(input.files||[])];
+  input.value = "";
+  if(!files.length) return;
+  const st = document.getElementById("insPdfStatus");
+  st.style.display = "block"; st.style.color = "var(--ink-soft)";
+  st.textContent = fleetI18n.tr(`Uploading ${files.length} file(s)…`);
+  const done = [], unmatched = [], failed = [];
+  for(const file of files){
+    const rec = matchInsurancePdf(file.name);
+    if(!rec){ unmatched.push(file.name); continue; }
+    try{ await putInsurancePdf(rec, file); done.push(`${rec.plate} ← ${file.name}`); }
+    catch(e){ failed.push(e.message); }
+  }
+  if(done.length) await persistComplianceRegister();
+  renderInsurance();
+  st.style.color = failed.length || unmatched.length ? "var(--warn)" : "var(--good)";
+  st.textContent = fleetI18n.tr(`✓ ${done.length} PDF(s) linked to vehicles.`)
+    + (unmatched.length ? "\n" + fleetI18n.tr("No matching vehicle (rename the file to start with the plate, or upload it on the row):") + " " + unmatched.join(", ") : "")
+    + (failed.length ? "\n" + fleetI18n.tr("Failed:") + " " + failed.join("; ") : "");
 }
 async function updateInsuranceField(id, field, value, el){
   if(currentRole!=="admin") return;

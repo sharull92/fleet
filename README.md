@@ -37,6 +37,11 @@ Kebakaran & Kecurian / Pihak Ketiga), Nilai Dilindungi, Premium, Tarikh Mula, Ta
 penapis gaya Excel yang sama. Kotak ringkasan: kenderaan berinsurans, tamat, tamat ≤ 30 hari, jumlah premium.
 **Tarikh Tamat ialah ruangan Insurans yang sama dalam Daftar Pematuhan** — tukar di mana-mana satu, kedua-duanya ikut.
 
+**PDF polisi:** setiap baris ada **📎 Muat naik PDF** / **📄 Lihat PDF**. Butang **📥 Import PDF polisi** terima banyak
+fail sekaligus dan padankan setiap fail ikut nama fail — sama dengan No. Polisi sedia ada (cth. `WB7392V - AUG 25-26.pdf`)
+atau bermula dengan no. plat. Fail disimpan di server (Supabase Storage, bucket peribadi `fleet-files` yang dicipta
+automatik; atau SQLite bila run sendiri), maksimum 4 MB setiap fail, admin sahaja boleh muat naik / buka.
+
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 
 Di **02 Pemohon — Kenderaan Sendiri / Sewa → Log Permintaan Kerja**, tekan
@@ -148,6 +153,7 @@ iPhone: Safari → Share → **Add to Home Screen**.
 | `POST` | `/api/login` / `/api/logout` | Login / logout admin |
 | `GET` | `/api/session` | Role semasa |
 | `GET` | `/api/export` | Backup semua data (admin) |
+| `GET` / `PUT` | `/api/files/:id` | Baca / muat naik PDF polisi (admin) |
 | `GET` | `/api/health` | Status konfigurasi server & storage |
 
 Request yang ubah data mesti hantar header `X-Requested-With: fleet-app` (perlindungan CSRF).
