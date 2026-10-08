@@ -434,6 +434,8 @@
     ["Reason / Purpose of Purchase","Sebab / Tujuan Pembelian"],
     ["e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN","cth. KEPERLUAN OPERASI PROJEK LUAR BANDAR"],
     ["Type / Model","Jenis / Model"],
+    ["Type / Model Requested","Jenis / Model Dipohon"],
+    ["e.g. BACKHOE (KOMATSU / CASE)","cth. BACKHOE (KOMATSU / CASE)"],
     ["Year of Manufacture","Tahun Buatan"],
     ["Market Price (RM)","Harga Pasaran (RM)"],
     ["Offered Price (RM)","Harga Ditawarkan (RM)"],

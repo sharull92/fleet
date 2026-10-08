@@ -1241,24 +1241,16 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div><label>Department</label><input id="pr_dept" class="dsp-up" value="FLEET"></div>
           </div>
           <div style="font-weight:700;font-size:11.5px;margin:6px 0 8px;text-decoration:underline;">A - For Vehicle Purchase</div>
-          <div class="form-row" style="grid-template-columns:2fr 1fr 1.5fr;">
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
             <div><label>Company</label><input id="pr_company" class="dsp-up" placeholder="e.g. TBA"></div>
+            <div><label>Type / Model Requested</label><input id="pr_model" class="dsp-up" placeholder="e.g. BACKHOE (KOMATSU / CASE)"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
             <div><label>Purchase Type</label><select id="pr_type" onchange="document.getElementById('pr_oldWrap').style.visibility=this.value==='TRADE IN'?'visible':'hidden'"><option value="BARU">New</option><option value="TRADE IN">Trade In</option></select></div>
             <div id="pr_oldWrap" style="visibility:hidden;"><label>Old Vehicle No. (trade in)</label><input id="pr_oldPlate" class="dsp-up" placeholder="e.g. ABC 1234"></div>
           </div>
           <div class="form-row" style="grid-template-columns:1fr;">
             <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
-          </div>
-          <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 1fr;">
-            <div><label>Type / Model</label><input id="pr_model" class="dsp-up" placeholder="e.g. FE 335B / MITSUBISHI"></div>
-            <div><label>Year of Manufacture</label><input id="pr_year" type="number" min="1950" max="2100" placeholder="e.g. 2024"></div>
-            <div><label>Market Price (RM)</label><input id="pr_market" type="number" min="0" step="0.01" placeholder="0"></div>
-            <div><label>Offered Price (RM)</label><input id="pr_price" type="number" min="0" step="0.01" placeholder="0"></div>
-          </div>
-          <div class="form-row" style="grid-template-columns:2fr 1fr 1fr;">
-            <div><label>Seller Company Name &amp; Address</label><textarea id="pr_seller" class="dsp-up" rows="2" placeholder="e.g. ABC SDN BHD, LOT 1, JALAN ..."></textarea></div>
-            <div><label>Financing Type</label><select id="pr_finance" onchange="document.getElementById('pr_pctWrap').style.visibility=this.value==='BANK'?'visible':'hidden'"><option value="TUNAI">Cash</option><option value="BANK">Bank Financing</option></select></div>
-            <div id="pr_pctWrap" style="visibility:hidden;"><label>Financing Amount (%)</label><input id="pr_financePct" type="number" min="0" max="100" placeholder="e.g. 70"></div>
           </div>
           <div class="form-actions">
             <button class="btn ghost" onclick="togglePurchaseRequestForm()">Cancel</button>
@@ -5306,7 +5298,7 @@ async function autoSaveDisposed(stageKey, idx){
   renderDisposeKpis();
 }
 /* ---- New vehicle purchase request (green KPI box) ---- */
-const PR_FIELDS = ["pr_by","pr_position","pr_company","pr_oldPlate","pr_reason","pr_model","pr_year","pr_market","pr_price","pr_seller","pr_financePct"];
+const PR_FIELDS = ["pr_by","pr_position","pr_company","pr_oldPlate","pr_reason","pr_model"];
 function togglePurchaseRequestForm(){
   const f = document.getElementById("purchaseRequestForm");
   const open = f.style.display==="none";
@@ -5316,7 +5308,6 @@ function togglePurchaseRequestForm(){
     document.getElementById("pr_date").value = APP_TODAY_ISO;
     document.getElementById("pr_dept").value = "FLEET";
     document.getElementById("pr_type").value = "BARU"; document.getElementById("pr_oldWrap").style.visibility = "hidden";
-    document.getElementById("pr_finance").value = "TUNAI"; document.getElementById("pr_pctWrap").style.visibility = "hidden";
     document.getElementById("pr_by").focus();
   }
 }
@@ -5330,15 +5321,12 @@ async function submitPurchaseRequest(){
   if(currentRole!=="admin") return;
   const v = id => document.getElementById(id).value.trim();
   const up = id => v(id).toUpperCase();
-  const num = id => v(id)==="" ? null : Number(v(id));
   if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
   const date = v("pr_date") || APP_TODAY_ISO;
   const item = { kind:"request", serial: nextPurchaseSerial(date.slice(0,4)), date,
     requestedBy:up("pr_by"), position:up("pr_position"), dept:up("pr_dept"),
     company:up("pr_company"), purchaseType:v("pr_type"), oldPlate: v("pr_type")==="TRADE IN" ? up("pr_oldPlate") : "",
-    reason:up("pr_reason"), model:up("pr_model"), year:v("pr_year"), marketPrice:num("pr_market"), price:num("pr_price"),
-    seller:up("pr_seller"), supplier: up("pr_seller").split(/[,\n]/)[0].trim(),
-    finance:v("pr_finance"), financePct: v("pr_finance")==="BANK" ? v("pr_financePct") : "",
+    reason:up("pr_reason"), model:up("pr_model"),
     addedAt: date.split("-").reverse().join("/") };
   disposePipeline.requested.unshift(item);
   togglePurchaseRequestForm();
@@ -5352,13 +5340,10 @@ function printPurchaseRequest(stageKey, idx){
   const i = (disposePipeline[stageKey]||[])[idx]; if(!i) return;
   const e = x => escHtml(x==null ? "" : String(x));
   const dmy = iso => iso ? iso.split("-").reverse().join("/") : "";
-  const money = n => n!=null && n!=="" ? Number(n).toLocaleString("en-MY",{minimumFractionDigits:2, maximumFractionDigits:2}) : "";
   const pick = (val, a, b) => `<span class="${val===a[0]?"":"strike"}">${a[1]}</span> / <span class="${val===b[0]?"":"strike"}">${b[1]}</span>`;
   const line = (label, value, extra="") => `<tr><td class="lb">${label}</td><td class="c">:</td><td class="val" ${extra}>${value||"&nbsp;"}</td></tr>`;
   const reasonLines = String(i.reason||"").split(/\n/).filter(Boolean);
   while(reasonLines.length < 4) reasonLines.push("");
-  const sellerLines = String(i.seller||"").split(/\n/);
-  while(sellerLines.length < 2) sellerLines.push("");
   const blank = n => Array.from({length:n},()=>`<div class="ln">&nbsp;</div>`).join("");
   const css = `
   *{box-sizing:border-box;} body{font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#000;margin:0;}
@@ -5381,16 +5366,9 @@ function printPurchaseRequest(stageKey, idx){
     <div class="sec">A - Bagi Pembelian Kenderaan</div>
     <table>
       ${line("1) Syarikat", e(i.company))}
-      ${line("2) Jenis Pembelian", `${pick(i.purchaseType,["BARU","Baru"],["TRADE IN","Trade In"])} ( nyatakan no. kenderaan lama : <u>&nbsp;${e(i.oldPlate)||"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
-      <tr><td class="lb" style="vertical-align:top;">3) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${reasonLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
-    </table>
-    <div class="two" style="margin-top:6px;">
-      <table>${line("4) Jenis / Model", e(i.model))}${line("6) Harga Pasaran", i.marketPrice!=null?"RM "+money(i.marketPrice):"")}</table>
-      <table>${line("5) Tahun Buatan", e(i.year))}${line("7) Harga Ditawarkan", i.price!=null?"RM "+money(i.price):"")}</table>
-    </div>
-    <table>
-      <tr><td class="lb" style="vertical-align:top;">8) Nama &amp; Alamat<br>&nbsp;&nbsp;&nbsp;&nbsp;Syarikat Penjual</td><td class="c" style="vertical-align:top;">:</td><td>${sellerLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
-      ${line("9) Jenis Pembiayaan", `${pick(i.finance,["TUNAI","Tunai"],["BANK","Pembiayaan Bank**"])} ( jumlah pembiayaan : <u>&nbsp;${i.financePct?e(i.financePct)+"%":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
+      ${line("2) Jenis / Model", e(i.model))}
+      ${line("3) Jenis Pembelian", `${pick(i.purchaseType,["BARU","Baru"],["TRADE IN","Trade In"])} ( nyatakan no. kenderaan lama : <u>&nbsp;${e(i.oldPlate)||"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
+      <tr><td class="lb" style="vertical-align:top;">4) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${reasonLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
     </table>
     <div class="sig">
       <div><div class="s"></div>Tandatangan Pemohon<div class="r"><span>Nama :</span><span>${e(i.requestedBy)}</span></div><div class="r"><span>Tarikh :</span><span>${e(dmy(i.date))}</span></div></div>
