@@ -2872,6 +2872,7 @@ xlRegister("tickets", {
   cols: [
     {key:"id", label:"Ticket"},
     {key:"vehicle", label:"Vehicle"},
+    {key:"branch", label:"Branch"},
     {key:"issue", label:"Issue", get:t=> Array.isArray(t.work)&&t.work.length ? t.work.map(w=>w.label).join(", ") : t.issue},
     {key:"opened", label:"Date", date:true, get:t=>tkDmy(t.opened)},
     {key:"costAwal", label:"Estimated Cost (RM)", num:true},
@@ -2900,7 +2901,7 @@ function renderTickets(){
     const issueCell = Array.isArray(t.work) && t.work.length
       ? t.work.map(w=>`<div style="margin-bottom:4px;">${escHtml(w.label)}<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(w.vendor||T("Belum di-assign"))}${w.repairBy?" · "+escHtml(w.repairBy):""} · ${escHtml(fleetI18n.tr(w.status))}</div></div>`).join("")
       : escHtml(t.issue);
-    return `<tr><td class="mono-cell">${t.id}</td><td style="white-space:nowrap;">${t.vehicle}</td><td style="min-width:240px;">${issueCell}</td><td class="mono-cell">${t.opened}</td>
+    return `<tr><td class="mono-cell">${t.id}</td><td style="white-space:nowrap;">${escHtml(t.vehicle)}</td><td class="mono-cell" style="white-space:nowrap;">${escHtml(t.branch||"—")}</td><td style="min-width:240px;">${issueCell}</td><td class="mono-cell">${t.opened}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
     <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
