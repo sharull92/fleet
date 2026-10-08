@@ -419,6 +419,14 @@
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
     ["Removed","Dikeluarkan"],
+    ["Disposal Recovery (Sold)","Pulangan Pelupusan (Dijual)"],
+    ["Total sold value of disposed units","Jumlah nilai jualan unit yang dilupus"],
+    ["Sold","Dijual"],
+    ["Please enter a valid amount.","Sila masukkan jumlah yang sah."],
+    ["Sold value not entered","Nilai jualan belum dimasukkan"],
+    ["Sold value (RM)","Nilai jualan (RM)"],
+    ["Date sold","Tarikh dijual"],
+    ["Buyer (optional)","Pembeli (pilihan)"],
     ["Restore to register","Pulihkan ke daftar"],
     ["Remove from register → New / Dispose (Disposed)","Keluarkan dari daftar → Baharu / Pelupusan (Telah Dilupus)"],
     ["Mark as not applicable","Tanda sebagai tidak berkaitan (N/A)"],
@@ -665,6 +673,7 @@
   ];
 
   const TEMPLATES = [
+    ["{a} of {b} disposed units sold","{a} daripada {b} unit dilupus telah dijual"],
     ["Remove {a} ({b}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):","Keluarkan {a} ({b}) dari daftar dan pindah ke Baharu / Pelupusan → Telah Dilupus?\n\nSebab (pilihan):"],
     ["Restore {a} to the Compliance Register?","Pulihkan {a} ke Daftar Pematuhan?"],
     ["Tick at least one branch for: {a}","Tanda sekurang-kurangnya satu branch untuk: {a}"],
