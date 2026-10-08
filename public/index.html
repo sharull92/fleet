@@ -309,6 +309,8 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .stage-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
 .stage-chip{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;}
 .stage-chip b{margin-left:4px;}
+.dsp-up{text-transform:uppercase;}
+#disposeBody input{font-size:11.5px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--ink);}
 .stage-chip.on{background:var(--yellow);border-color:var(--yellow);color:#1C1E1F;}
 .pipe-card .sold-line{font-size:11.5px;margin-top:6px;color:var(--good);}
 .pipe-card .sold-form{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
@@ -2674,8 +2676,9 @@ async function deleteComplianceVehicle(id){
   if(currentRole!=="admin") return; // admin only
   const rec = complianceData.find(d=>d.id===id);
   if(!rec) return;
-  const reason = prompt(fleetI18n.tr(`Remove ${rec.plate} (${rec.company}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):`), "");
+  let reason = prompt(fleetI18n.tr(`Remove ${rec.plate} (${rec.company}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):`), "");
   if(reason===null) return;
+  reason = reason.toUpperCase();
   const idx = complianceData.findIndex(d=>d.id===id);
   complianceData.splice(idx,1);
   const today = APP_TODAY_ISO.split("-").reverse().join("/");
@@ -5143,7 +5146,8 @@ function renderUtilization(){
 }
 
 /* ===================== 5. NEW / DISPOSE ===================== */
-function renderDispose(){
+function renderDispose(){ renderDisposeKpis(); renderDisposeTable(); }
+function renderDisposeKpis(){
   const newCount = disposePipeline.inProgress.length + disposePipeline.delivered.length;
   document.getElementById("ndNewCount").textContent = newCount;
   document.getElementById("ndDisposeCount").textContent = disposePipeline.requested.length + disposePipeline.approved.length;
@@ -5152,8 +5156,6 @@ function renderDispose(){
   const sold = disposePipeline.disposed.filter(i=>Number(i.soldValue)>0);
   document.getElementById("ndRecovery").textContent = rm(sold.reduce((t,i)=>t+Number(i.soldValue),0));
   document.getElementById("ndRecoveryFoot").textContent = fleetI18n.tr(`${sold.length} of ${disposePipeline.disposed.length} disposed units sold`);
-
-  renderDisposeTable();
 }
 
 /* Pipeline as one compact table: stage chips on top (click to filter), Excel-style filters on
@@ -5177,10 +5179,10 @@ xlRegister("dispose", {
     {key:"category", label:"Category", get:r=>r.i.rec ? r.i.rec.category : ""},
     {key:"branch", label:"Branch", get:r=>r.i.rec ? r.i.rec.location : ""},
     {key:"removedAt", label:"Date", date:true, get:r=>r.i.removedAt || ""},
-    {key:"reason", label:"Reason / Remark", get:r=>r.i.reason!=null ? r.i.reason : (r.i.rec ? "" : r.i.meta)},
+    {key:"reason", label:"Reason / Remark", get:r=>String(r.i.reason!=null ? r.i.reason : (r.i.rec ? "" : r.i.meta||"")).toUpperCase()},
     {key:"soldValue", label:"Sold (RM)", num:true, get:r=>Number(r.i.soldValue)>0 ? Number(r.i.soldValue) : ""},
     {key:"soldDate", label:"Date Sold", date:true, get:r=>isoToDmy(r.i.soldDate)},
-    {key:"buyer", label:"Buyer", get:r=>r.i.buyer || ""},
+    {key:"buyer", label:"Buyer", get:r=>String(r.i.buyer||"").toUpperCase()},
   ],
 });
 function setDisposeStage(k){ disposeStage = disposeStage===k ? "" : k; renderDisposeTable(); }
@@ -5196,37 +5198,50 @@ function renderDisposeTable(){
     const i = r.i, ref = r.stageKey+":"+r.idx, rec = i.rec || {};
     const v = Number(i.soldValue)>0 ? Number(i.soldValue) : null;
     const editing = disposeEditRef===ref && currentRole==="admin";
+    const reasonText = String(i.reason!=null ? i.reason : (i.rec ? "" : i.meta||"")).toUpperCase();
+    const auto = `onchange="autoSaveDisposed('${r.stageKey}',${r.idx})" onkeydown="if(event.key==='Enter'){this.blur();}"`;
+    const reasonCell = editing
+      ? `<td><input type="text" id="dspReason" class="dsp-up" value="${escHtml(reasonText)}" ${auto} style="width:100%;min-width:140px;"></td>`
+      : `<td>${escHtml(reasonText)||"—"}</td>`;
     const soldCells = editing
-      ? `<td><input type="number" min="0" step="0.01" id="dspVal" value="${v!=null?v:""}" placeholder="0" style="width:90px;"></td>
-         <td><input type="date" id="dspDate" value="${escHtml(i.soldDate||"")}"></td>
-         <td><input type="text" id="dspBuyer" value="${escHtml(i.buyer||"")}" placeholder="${escHtml(fleetI18n.tr("Buyer (optional)"))}" style="width:130px;"></td>`
+      ? `<td><input type="number" min="0" step="0.01" id="dspVal" value="${v!=null?v:""}" placeholder="0" ${auto} style="width:90px;"></td>
+         <td><input type="date" id="dspDate" value="${escHtml(i.soldDate||"")}" ${auto}></td>
+         <td><input type="text" id="dspBuyer" class="dsp-up" value="${escHtml(String(i.buyer||"").toUpperCase())}" placeholder="${escHtml(fleetI18n.tr("Buyer (optional)"))}" ${auto} style="width:100%;min-width:120px;"></td>`
       : `<td class="mono-cell" style="${v!=null?"color:var(--good);font-weight:600;":"color:var(--faint);"}">${v!=null?v.toLocaleString("en-MY"):"—"}</td>
-         <td class="mono-cell">${escHtml(isoToDmy(i.soldDate))||"—"}</td><td>${escHtml(i.buyer||"")||"—"}</td>`;
+         <td class="mono-cell">${escHtml(isoToDmy(i.soldDate))||"—"}</td><td>${escHtml(String(i.buyer||"").toUpperCase())||"—"}</td>`;
     const actions = editing
-      ? `<button type="button" class="btn" style="${btn}" onclick="saveDisposedSold('${r.stageKey}',${r.idx})">${escHtml(fleetI18n.tr("Save"))}</button> <button type="button" class="btn ghost" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✕</button>`
-      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Sold"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}`;
+      ? `<span id="dspSaved" style="font-size:10.5px;color:var(--good);margin-right:6px;"></span><button type="button" class="btn" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✓ <span>${escHtml(fleetI18n.tr("Done"))}</span></button>`
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}`;
     return `<tr><td><span class="badge ${r.stageKey==="inProgress"||r.stageKey==="delivered"?"good":"danger"}">${escHtml(fleetI18n.tr(r.stage))}</span></td>
       <td style="font-weight:600;">${escHtml(i.plate || rec.plate || i.veh)}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
       <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.removedAt||"—")}</td>
-      <td>${escHtml(i.reason!=null ? i.reason : (i.rec ? "" : i.meta||""))||"—"}</td>${soldCells}
+      ${reasonCell}${soldCells}
       <td class="admin-only" style="white-space:nowrap;">${actions}</td></tr>`;
   }).join("") || `<tr><td colspan="11" style="color:var(--faint);text-align:center;padding:18px;">${escHtml(fleetI18n.tr("No items"))}</td></tr>`;
   document.getElementById("disposeCount").textContent = fleetI18n.tr(`Showing ${rows.length} of ${all.length} vehicles`);
   document.getElementById("disposeClearAllBtn").style.display = xlAnyActive("dispose") ? "inline-block" : "none";
-  if(disposeEditRef){ const el = document.getElementById("dspVal"); if(el) el.focus(); }
+  if(disposeEditRef){ const el = document.getElementById("dspVal"); if(el && !el.value) el.focus(); }
 }
-async function saveDisposedSold(stageKey, idx){
+/* Edit row saves itself on every change (no Save button); text is stored in UPPERCASE. */
+async function autoSaveDisposed(stageKey, idx){
   if(currentRole!=="admin") return;
   const item = (disposePipeline[stageKey]||[])[idx]; if(!item) return;
-  const raw = document.getElementById("dspVal").value.trim();
+  const valEl = document.getElementById("dspVal"), dateEl = document.getElementById("dspDate");
+  const raw = valEl.value.trim();
   const val = raw==="" ? null : Number(raw);
-  if(val!=null && !(val>=0)){ alert(fleetI18n.tr("Please enter a valid amount.")); return; }
+  if(val!=null && !(val>=0)){ alert(fleetI18n.tr("Please enter a valid amount.")); valEl.focus(); return; }
+  if(val!=null && !dateEl.value) dateEl.value = APP_TODAY_ISO;
+  if(val==null) dateEl.value = "";
+  ["dspReason","dspBuyer"].forEach(id=>{ const el = document.getElementById(id); el.value = el.value.trim().toUpperCase(); });
   item.soldValue = val;
-  item.soldDate = val==null ? "" : (document.getElementById("dspDate").value || APP_TODAY_ISO);
-  item.buyer = document.getElementById("dspBuyer").value.trim();
-  disposeEditRef = "";
+  item.soldDate = dateEl.value;
+  item.buyer = document.getElementById("dspBuyer").value;
+  item.reason = document.getElementById("dspReason").value;
+  const saved = document.getElementById("dspSaved");
+  if(saved) saved.textContent = fleetI18n.tr("Saving…");
   await persistDisposePipeline();
-  renderDispose();
+  if(saved) saved.textContent = "✓ " + fleetI18n.tr("Saved");
+  renderDisposeKpis();
 }
 
 async function restoreDisposedVehicle(idx){

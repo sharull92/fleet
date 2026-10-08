@@ -423,6 +423,8 @@
     ["Disposal requested + approved","Pelupusan dimohon + diluluskan"],
     ["New vehicles minus disposed","Kenderaan baharu tolak yang dilupus"],
     ["Stage","Peringkat"],
+    ["Done","Selesai"],
+    ["Saved","Disimpan"],
     ["Disposal Requested","Permohonan Pelupusan"],
     ["Disposal Approved","Pelupusan Diluluskan"],
     ["New — In Progress","Baharu — Dalam Proses"],
