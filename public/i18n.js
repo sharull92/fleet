@@ -423,6 +423,9 @@
     ["Disposal requested + approved","Pelupusan dimohon + diluluskan"],
     ["New vehicles minus disposed","Kenderaan baharu tolak yang dilupus"],
     ["Stage","Peringkat"],
+    ["Request to buy a new vehicle — the form is printed for signature","Mohon pembelian kenderaan baharu — borang akan dicetak untuk tandatangan"],
+    ["New Request","Permohonan Baharu"],
+    ["Could not send the request — please check your connection and try again.","Permohonan tidak dapat dihantar — sila semak sambungan internet dan cuba lagi."],
     ["Quotations (3 – 5 vendors)","Sebut Harga (3 – 5 vendor)"],
     ["Upload each vendor's quotation (PDF or photo). Tick ★ for the recommended vendor.","Muat naik sebut harga setiap vendor (PDF atau gambar). Tanda ★ untuk vendor yang disyorkan."],
     ["+ Add quotation","+ Tambah sebut harga"],
@@ -765,6 +768,7 @@
   ];
 
   const TEMPLATES = [
+    ["Request sent — {a}. The printed form needs the head of department's signature.","Permohonan dihantar — {a}. Borang yang dicetak perlu ditandatangan oleh ketua jabatan."],
     ["In progress + delivered · purchases {a}","Dalam proses + diterima · pembelian {a}"],
     ["{a} of {b} disposed units sold","{a} daripada {b} unit dilupus telah dijual"],
     ["Remove {a} ({b}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):","Keluarkan {a} ({b}) dari daftar dan pindah ke Baharu / Pelupusan → Telah Dilupus?\n\nSebab (pilihan):"],

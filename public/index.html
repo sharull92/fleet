@@ -783,6 +783,52 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <button class="btn ghost" onclick="document.getElementById('hireNotifyPanel').style.display='none';">Tutup</button>
           </div>
         </div>
+
+        <div class="panel" id="prRequesterPanel">
+          <div class="panel-head">
+            <h3>New Vehicle Purchase Request</h3>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Request to buy a new vehicle — the form is printed for signature</span>
+            <button type="button" class="btn yellow" onclick="togglePurchaseRequestForm(null,'requester')">+ <span>New Request</span></button>
+          </div>
+          <div id="prRequesterMsg" style="font-size:12px;"></div>
+          <div id="prSlotRequester">
+        <div class="panel" id="purchaseRequestForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin:10px 0 0;">
+          <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">New Vehicle Purchase Request</h3><span class="sub" style="font-size:11px;color:var(--ink-soft);">Fill in the details below — the request form is printed for approval</span></div>
+          <div class="form-row" style="grid-template-columns:1fr 2fr 1.5fr 1fr;">
+            <div><label>Date</label><input id="pr_date" type="date"></div>
+            <div><label>Applicant Name</label><input id="pr_by" class="dsp-up" placeholder="e.g. ABC"></div>
+            <div><label>Position</label><input id="pr_position" class="dsp-up" placeholder="e.g. SR EXECUTIVE"></div>
+            <div><label>Department</label><input id="pr_dept" class="dsp-up" value="FLEET"></div>
+          </div>
+          <div style="font-weight:700;font-size:11.5px;margin:6px 0 8px;text-decoration:underline;">A - For Vehicle Purchase</div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div><label>Company</label><input id="pr_company" class="dsp-up" placeholder="e.g. TBA"></div>
+            <div><label>Type / Model Requested</label><input id="pr_model" class="dsp-up" placeholder="e.g. BACKHOE (KOMATSU / CASE)"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div><label>Purchase Type</label><select id="pr_type" onchange="document.getElementById('pr_oldWrap').style.visibility=this.value==='TRADE IN'?'visible':'hidden'"><option value="BARU">New</option><option value="TRADE IN">Trade In</option></select></div>
+            <div id="pr_oldWrap" style="visibility:hidden;"><label>Old Vehicle No. (trade in)</label><input id="pr_oldPlate" class="dsp-up" placeholder="e.g. ABC 1234"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr;">
+            <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
+          </div>
+          <div id="pr_quoteSection" style="display:none;">
+            <div style="font-weight:700;font-size:11.5px;margin:10px 0 4px;text-decoration:underline;">Quotations (3 – 5 vendors)</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Upload each vendor's quotation (PDF or photo). Tick ★ for the recommended vendor.</div>
+            <div id="pr_quotes"></div>
+            <button type="button" class="btn ghost" id="pr_addQuote" style="padding:4px 10px;font-size:11px;" onclick="addPurchaseQuote()">+ Add quotation</button>
+            <div style="font-weight:700;font-size:11.5px;margin:14px 0 4px;text-decoration:underline;">Vehicle Photos (optional)</div>
+            <div id="pr_photos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
+          </div>
+          <div class="form-actions">
+            <span id="pr_uploadMsg" style="font-size:11px;color:var(--ink-soft);margin-right:auto;"></span>
+            <button class="btn ghost" onclick="togglePurchaseRequestForm()">Cancel</button>
+            <button class="btn yellow" id="pr_submitBtn" onclick="submitPurchaseRequest()">🖨 Submit &amp; Print</button>
+          </div>
+        </div>
+
+          </div>
+        </div>
       </section>
 
       <!-- ============ COMPLIANCE REGISTER ============ -->
@@ -1233,46 +1279,13 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="section-plate"><span class="rivet"></span><h2>New / Dispose</h2><span class="sub">Company vehicle acquisition &amp; disposal pipeline</span></div>
 
         <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
-          <div class="kpi"><div class="label">New Vehicle Requests</div><div class="value" id="ndDisposeCount">—</div><div class="foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><span>Requested + approved</span><button type="button" class="btn yellow" style="padding:3px 9px;font-size:10.5px;" onclick="togglePurchaseRequestForm()">+ <span>Request</span></button></div></div>
+          <div class="kpi"><div class="label">New Vehicle Requests</div><div class="value" id="ndDisposeCount">—</div><div class="foot" style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><span>Requested + approved</span><button type="button" class="btn yellow" style="padding:3px 9px;font-size:10.5px;" onclick="togglePurchaseRequestForm(null,'dispose')">+ <span>Request</span></button></div></div>
           <div class="kpi"><div class="label">Total Vehicles Purchased</div><div class="value" id="ndNewCount">—</div><div class="foot" id="ndNewFoot">In progress + delivered</div></div>
           <div class="kpi"><div class="label">Total Vehicles Sold</div><div class="value" id="ndNetChange">—</div><div class="foot" id="ndSoldFoot">Disposed units with a sold value</div></div>
           <div class="kpi"><div class="label">Disposal Recovery (Sold)</div><div class="value mono" id="ndRecovery">—</div><div class="foot" id="ndRecoveryFoot">Total sold value of disposed units</div></div>
         </div>
 
-        <div class="panel" id="purchaseRequestForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
-          <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">New Vehicle Purchase Request</h3><span class="sub" style="font-size:11px;color:var(--ink-soft);">Fill in the details below — the request form is printed for approval</span></div>
-          <div class="form-row" style="grid-template-columns:1fr 2fr 1.5fr 1fr;">
-            <div><label>Date</label><input id="pr_date" type="date"></div>
-            <div><label>Applicant Name</label><input id="pr_by" class="dsp-up" placeholder="e.g. ABC"></div>
-            <div><label>Position</label><input id="pr_position" class="dsp-up" placeholder="e.g. SR EXECUTIVE"></div>
-            <div><label>Department</label><input id="pr_dept" class="dsp-up" value="FLEET"></div>
-          </div>
-          <div style="font-weight:700;font-size:11.5px;margin:6px 0 8px;text-decoration:underline;">A - For Vehicle Purchase</div>
-          <div class="form-row" style="grid-template-columns:1fr 1fr;">
-            <div><label>Company</label><input id="pr_company" class="dsp-up" placeholder="e.g. TBA"></div>
-            <div><label>Type / Model Requested</label><input id="pr_model" class="dsp-up" placeholder="e.g. BACKHOE (KOMATSU / CASE)"></div>
-          </div>
-          <div class="form-row" style="grid-template-columns:1fr 1fr;">
-            <div><label>Purchase Type</label><select id="pr_type" onchange="document.getElementById('pr_oldWrap').style.visibility=this.value==='TRADE IN'?'visible':'hidden'"><option value="BARU">New</option><option value="TRADE IN">Trade In</option></select></div>
-            <div id="pr_oldWrap" style="visibility:hidden;"><label>Old Vehicle No. (trade in)</label><input id="pr_oldPlate" class="dsp-up" placeholder="e.g. ABC 1234"></div>
-          </div>
-          <div class="form-row" style="grid-template-columns:1fr;">
-            <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
-          </div>
-          <div id="pr_quoteSection" style="display:none;">
-            <div style="font-weight:700;font-size:11.5px;margin:10px 0 4px;text-decoration:underline;">Quotations (3 – 5 vendors)</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Upload each vendor's quotation (PDF or photo). Tick ★ for the recommended vendor.</div>
-            <div id="pr_quotes"></div>
-            <button type="button" class="btn ghost" id="pr_addQuote" style="padding:4px 10px;font-size:11px;" onclick="addPurchaseQuote()">+ Add quotation</button>
-            <div style="font-weight:700;font-size:11.5px;margin:14px 0 4px;text-decoration:underline;">Vehicle Photos (optional)</div>
-            <div id="pr_photos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
-          </div>
-          <div class="form-actions">
-            <span id="pr_uploadMsg" style="font-size:11px;color:var(--ink-soft);margin-right:auto;"></span>
-            <button class="btn ghost" onclick="togglePurchaseRequestForm()">Cancel</button>
-            <button class="btn yellow" id="pr_submitBtn" onclick="submitPurchaseRequest()">🖨 Submit &amp; Print</button>
-          </div>
-        </div>
+        <div id="prSlotDispose"></div>
 
         <div class="panel">
           <div class="panel-head"><h3>Pipeline</h3></div>
@@ -2826,6 +2839,7 @@ document.querySelectorAll(".nav-btn").forEach(btn=>{
     document.getElementById("pageMeta").textContent = T(titles[v][1]);
     if(v==="settings") renderSettings();
     if(v==="insurance") renderInsurance();
+    if(v==="dispose") importPurchaseInbox().then(renderDispose);
     document.body.classList.remove("nav-open");
   });
 });
@@ -5316,9 +5330,13 @@ async function autoSaveDisposed(stageKey, idx){
 /* ---- New vehicle purchase request (green KPI box) ---- */
 const PR_FIELDS = ["pr_by","pr_position","pr_company","pr_oldPlate","pr_reason","pr_model"];
 let prEditRef = null, prQuotes = [], prPhotos = [], prRemovedFiles = [];
-function togglePurchaseRequestForm(editRef){
+function togglePurchaseRequestForm(editRef, slot){
   const f = document.getElementById("purchaseRequestForm");
-  const open = typeof editRef==="string" || f.style.display==="none";
+  // one form, shown on the Requester page (new requests) or New / Dispose (admin, edit + quotations)
+  const target = document.getElementById(typeof editRef==="string" || slot==="dispose" ? "prSlotDispose" : slot==="requester" ? "prSlotRequester" : f.parentElement.id);
+  const moved = target && f.parentElement!==target;
+  if(moved) target.appendChild(f);
+  const open = typeof editRef==="string" || moved || f.style.display==="none";
   f.style.display = open ? "block" : "none";
   if(!open){ prEditRef = null; return; }
   const [sk, si] = typeof editRef==="string" ? editRef.split(":") : [];
@@ -5327,7 +5345,8 @@ function togglePurchaseRequestForm(editRef){
   const set = (id,v) => { document.getElementById(id).value = v==null ? "" : v; };
   PR_FIELDS.forEach(id=>set(id,""));
   set("pr_date", item ? item.date : APP_TODAY_ISO);
-  set("pr_dept", item ? item.dept : "FLEET");
+  set("pr_dept", item ? item.dept : (f.parentElement.id==="prSlotDispose" ? "FLEET" : ""));
+  document.getElementById("prRequesterMsg").innerHTML = "";
   if(item){ set("pr_by",item.requestedBy); set("pr_position",item.position); set("pr_company",item.company); set("pr_model",item.model); set("pr_reason",item.reason); set("pr_oldPlate",item.oldPlate); }
   set("pr_type", item && item.purchaseType==="TRADE IN" ? "TRADE IN" : "BARU");
   document.getElementById("pr_oldWrap").style.visibility = document.getElementById("pr_type").value==="TRADE IN" ? "visible" : "hidden";
@@ -5403,16 +5422,15 @@ async function prUploadPhotos(files){
   renderPurchaseQuotes();
 }
 /* Serial no. NV/<year>/<nnn>, running per year across every stage. */
-function nextPurchaseSerial(year){
+function nextPurchaseSerial(year, extra){
   const re = new RegExp(`^NV/${year}/(\\d+)$`);
-  const max = Object.values(disposePipeline).flat().reduce((m,i)=>{ const x = re.exec(i.serial||""); return x ? Math.max(m, +x[1]) : m; }, 0);
+  const max = [...Object.values(disposePipeline).flat(), ...(extra||[])].reduce((m,i)=>{ const x = re.exec(i.serial||""); return x ? Math.max(m, +x[1]) : m; }, 0);
   return `NV/${year}/${String(max+1).padStart(3,"0")}`;
 }
 async function submitPurchaseRequest(){
-  if(currentRole!=="admin") return;
   const v = id => document.getElementById(id).value.trim();
   const up = id => v(id).toUpperCase();
-  if(prEditRef){
+  if(prEditRef && currentRole==="admin"){
     const [sk, si] = prEditRef.split(":"); const item = (disposePipeline[sk]||[])[+si];
     if(!item) return;
     if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
@@ -5430,23 +5448,58 @@ async function submitPurchaseRequest(){
   }
   if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
   const date = v("pr_date") || APP_TODAY_ISO;
-  const item = { kind:"request", serial: nextPurchaseSerial(date.slice(0,4)), date,
+  const w = window.open("", "_blank");   // open now (still inside the click) so the print window is not blocked
+  // Serial runs across New / Dispose and requests still waiting in the inbox.
+  let inbox = [];
+  try{ const r = await window.storage.get(PR_INBOX_KEY, true); inbox = (r && JSON.parse(r.value)) || []; }catch(e){}
+  if(currentRole!=="admin"){ try{ await loadDisposePipeline(); }catch(e){} }
+  const item = { kind:"request", uid: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    serial: nextPurchaseSerial(date.slice(0,4), inbox), date,
     requestedBy:up("pr_by"), position:up("pr_position"), dept:up("pr_dept"),
     company:up("pr_company"), purchaseType:v("pr_type"), oldPlate: v("pr_type")==="TRADE IN" ? up("pr_oldPlate") : "",
     reason:up("pr_reason"), model:up("pr_model"),
     addedAt: date.split("-").reverse().join("/") };
-  disposePipeline.requested.unshift(item);
+  try{
+    if(currentRole==="admin"){
+      disposePipeline.requested.unshift(item);
+      await persistDisposePipeline();
+      renderDispose();
+    }else{
+      inbox.push(item);
+      await window.storage.set(PR_INBOX_KEY, JSON.stringify(inbox), true);
+    }
+  }catch(err){ if(w) w.close(); alert(fleetI18n.tr("Could not send the request — please check your connection and try again.")); return; }
+  const fromRequester = document.getElementById("purchaseRequestForm").parentElement.id==="prSlotRequester";
   togglePurchaseRequestForm();
-  await persistDisposePipeline();
-  renderDispose();
-  printPurchaseRequest("requested", 0, "form");
+  if(fromRequester) document.getElementById("prRequesterMsg").innerHTML =
+    `<div style="background:var(--good-bg);color:var(--good);border-radius:var(--radius);padding:10px 12px;margin-top:6px;">✓ ${escHtml(fleetI18n.tr(`Request sent — ${item.serial}. The printed form needs the head of department's signature.`))}</div>`;
+  printPurchaseRequest(item, null, "form", w);
+}
+/* Requests sent from the Requester page wait in a small inbox; when an admin opens the app
+   (or the New / Dispose page) they are moved into the pipeline as "Purchase Requested". */
+const PR_INBOX_KEY = "fleetPurchaseInbox_v1";
+async function importPurchaseInbox(){
+  if(currentRole!=="admin") return;
+  let inbox = [];
+  try{ const r = await window.storage.get(PR_INBOX_KEY, true); inbox = (r && JSON.parse(r.value)) || []; }catch(e){ return; }
+  if(!Array.isArray(inbox) || !inbox.length) return;
+  const have = new Set(Object.values(disposePipeline).flat().map(i=>i.uid).filter(Boolean));
+  const fresh = inbox.filter(i=>i && i.uid && !have.has(i.uid));
+  fresh.sort((a,b)=>String(a.serial).localeCompare(String(b.serial))).forEach(i=>disposePipeline.requested.unshift(i));
+  if(fresh.length) await persistDisposePipeline();
+  // re-read just before clearing so a request sent in the meantime is not lost
+  try{
+    const r = await window.storage.get(PR_INBOX_KEY, true); const now = (r && JSON.parse(r.value)) || [];
+    const done = new Set(inbox.map(i=>i && i.uid));
+    await window.storage.set(PR_INBOX_KEY, JSON.stringify(now.filter(i=>i && !done.has(i.uid))), true);
+  }catch(e){}
 }
 /* Printable request, in two steps (BM, like the company's paper form):
    mode "form" → page 1 only (request form, for the applicant's head of department to sign);
    mode "full" → quotation summary + every uploaded quotation + vehicle photos + the
    administration / management approval page (goes behind the signed page 1). */
-async function printPurchaseRequest(stageKey, idx, mode){
-  const i = (disposePipeline[stageKey]||[])[idx]; if(!i) return;
+async function printPurchaseRequest(stageKey, idx, mode, win){
+  const i = typeof stageKey==="object" ? stageKey : (disposePipeline[stageKey]||[])[idx]; if(!i){ if(win) win.close(); return; }
   mode = mode || "form";
   const e = x => escHtml(x==null ? "" : String(x));
   const dmy = iso => iso ? iso.split("-").reverse().join("/") : "";
@@ -5514,7 +5567,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
     </div>
     <div class="note" style="margin-top:16px;">**Potong yang tidak berkenaan</div>
   </div>`;
-  const w = window.open("", "_blank");
+  const w = win || window.open("", "_blank");
   if(!w){ alert(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
   const title = `${e(i.serial)} — Permohonan Pembelian Kenderaan`;
   if(mode==="form"){
@@ -6212,6 +6265,7 @@ function printComplianceCalendar(){
   await loadFleetContacts();
   await loadHolidays();
   await loadDisposePipeline();
+  await importPurchaseInbox();
   await loadTickets();
   await loadHiringRecords();
   await loadDailyMovements();
