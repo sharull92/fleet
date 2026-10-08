@@ -306,6 +306,10 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .pipe-card.dispose{border-left-color:var(--danger);}
 .pipe-card .veh{font-weight:600;}
 .pipe-card .meta{color:var(--ink-soft);font-size:11px;margin-top:3px;}
+.stage-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.stage-chip{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;}
+.stage-chip b{margin-left:4px;}
+.stage-chip.on{background:var(--yellow);border-color:var(--yellow);color:#1C1E1F;}
 .pipe-card .sold-line{font-size:11.5px;margin-top:6px;color:var(--good);}
 .pipe-card .sold-form{display:flex;flex-direction:column;gap:4px;margin-top:6px;}
 .pipe-card .sold-form input{font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--ink);min-width:0;}
@@ -1219,15 +1223,22 @@ body:not(.is-admin) .admin-only{display:none !important;}
         <div class="section-plate"><span class="rivet"></span><h2>New / Dispose</h2><span class="sub">Company vehicle acquisition &amp; disposal pipeline</span></div>
 
         <div class="kpi-row" style="grid-template-columns:repeat(4,1fr);">
-          <div class="kpi"><div class="label">New — In Pipeline</div><div class="value" id="ndNewCount">—</div><div class="foot">Requested through delivered</div></div>
-          <div class="kpi alert"><div class="label">Flagged for Disposal</div><div class="value" id="ndDisposeCount">—</div><div class="foot bad">Age / cost threshold exceeded</div></div>
-          <div class="kpi"><div class="label">Net Fleet Change (YTD)</div><div class="value" id="ndNetChange">—</div><div class="foot">New minus disposed</div></div>
+          <div class="kpi"><div class="label">New — In Pipeline</div><div class="value" id="ndNewCount">—</div><div class="foot">New vehicles: in progress + delivered</div></div>
+          <div class="kpi alert"><div class="label">Flagged for Disposal</div><div class="value" id="ndDisposeCount">—</div><div class="foot bad">Disposal requested + approved</div></div>
+          <div class="kpi"><div class="label">Net Fleet Change (YTD)</div><div class="value" id="ndNetChange">—</div><div class="foot">New vehicles minus disposed</div></div>
           <div class="kpi"><div class="label">Disposal Recovery (Sold)</div><div class="value mono" id="ndRecovery">—</div><div class="foot" id="ndRecoveryFoot">Total sold value of disposed units</div></div>
         </div>
 
         <div class="panel">
           <div class="panel-head"><h3>Pipeline</h3></div>
-          <div class="pipeline" id="pipelineWrap"></div>
+          <div class="stage-chips" id="disposeStageChips"></div>
+          <div class="fit-table" style="max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
+          <table>
+            <thead style="position:sticky;top:0;background:var(--panel);z-index:1;"><tr id="disposeHeadRow"></tr></thead>
+            <tbody id="disposeBody"></tbody>
+          </table>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="disposeCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="disposeClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('dispose')">✕ Clear all filters</button></div>
         </div>
       </section>
 
@@ -5142,40 +5153,78 @@ function renderDispose(){
   document.getElementById("ndRecovery").textContent = rm(sold.reduce((t,i)=>t+Number(i.soldValue),0));
   document.getElementById("ndRecoveryFoot").textContent = fleetI18n.tr(`${sold.length} of ${disposePipeline.disposed.length} disposed units sold`);
 
-  const cols = [
-    ["Disposal Requested",disposePipeline.requested,"dispose"],
-    ["Disposal Approved",disposePipeline.approved,"dispose"],
-    ["New — In Progress",disposePipeline.inProgress,""],
-    ["New — Delivered",disposePipeline.delivered,""],
-    ["Disposed",disposePipeline.disposed,"dispose"],
-  ];
-  document.getElementById("pipelineWrap").innerHTML = cols.map(([title,items,cls])=>`
-    <div class="pipe-col"><h4>${title} (${items.length})</h4>
-      ${items.map((i,idx)=>`<div class="pipe-card ${cls}"><div class="veh">${escHtml(i.veh)}</div><div class="meta">${escHtml(i.meta)}</div>${items===disposePipeline.disposed ? disposedSoldHtml(i, idx) : ""}${i.rec && items===disposePipeline.disposed ? `<button type="button" class="btn ghost admin-only" style="margin-top:6px;padding:3px 8px;font-size:10.5px;" onclick="restoreDisposedVehicle(${idx})">↩ ${escHtml(fleetI18n.tr("Restore to register"))}</button>` : ""}</div>`).join("") || `<div class="meta" style="color:var(--faint);">No items</div>`}
-    </div>`).join("");
+  renderDisposeTable();
 }
 
-/* Sold value of a disposed unit: everyone sees it, only admin can enter or change it. */
-function disposedSoldHtml(i, idx){
-  const v = Number(i.soldValue)>0 ? Number(i.soldValue) : null;
-  const shown = v!=null ? `<div class="sold-line">${escHtml(fleetI18n.tr("Sold"))}: <b>${rm(v)}</b>${i.soldDate?` · ${escHtml(i.soldDate.split("-").reverse().join("/"))}`:""}${i.buyer?` · ${escHtml(i.buyer)}`:""}</div>` : `<div class="sold-line admin-only" style="color:var(--faint);">${escHtml(fleetI18n.tr("Sold value not entered"))}</div>`;
-  return `${shown}<div class="sold-form admin-only">
-    <input type="number" min="0" step="0.01" id="soldVal${idx}" value="${v!=null?v:""}" placeholder="${escHtml(fleetI18n.tr("Sold value (RM)"))}">
-    <input type="date" id="soldDate${idx}" value="${escHtml(i.soldDate||"")}" title="${escHtml(fleetI18n.tr("Date sold"))}">
-    <input type="text" id="soldBuyer${idx}" value="${escHtml(i.buyer||"")}" placeholder="${escHtml(fleetI18n.tr("Buyer (optional)"))}">
-    <button type="button" class="btn" onclick="saveDisposedSold(${idx})">${escHtml(fleetI18n.tr("Save"))}</button>
-  </div>`;
+/* Pipeline as one compact table: stage chips on top (click to filter), Excel-style filters on
+   every column, sold value / date / buyer edited inline per row (admin). */
+const DISPOSE_STAGES = [
+  ["requested","Disposal Requested"], ["approved","Disposal Approved"],
+  ["inProgress","New — In Progress"], ["delivered","New — Delivered"], ["disposed","Disposed"],
+];
+let disposeStage = "", disposeEditRef = "";
+function disposeRows(){
+  return DISPOSE_STAGES.flatMap(([key,label])=>disposePipeline[key].map((i,idx)=>({i, idx, stageKey:key, stage:label})));
 }
-async function saveDisposedSold(idx){
+const isoToDmy = v => v ? String(v).split("-").reverse().join("/") : "";
+xlRegister("dispose", {
+  data: ()=>disposeRows().filter(r=>!disposeStage || r.stageKey===disposeStage),
+  render: ()=>renderDisposeTable(),
+  cols: [
+    {key:"stage", label:"Stage", get:r=>fleetI18n.tr(r.stage)},
+    {key:"plate", label:"Plate", get:r=>r.i.plate || (r.i.rec&&r.i.rec.plate) || r.i.veh},
+    {key:"company", label:"Company", get:r=>r.i.rec ? r.i.rec.company : ""},
+    {key:"category", label:"Category", get:r=>r.i.rec ? r.i.rec.category : ""},
+    {key:"branch", label:"Branch", get:r=>r.i.rec ? r.i.rec.location : ""},
+    {key:"removedAt", label:"Date", date:true, get:r=>r.i.removedAt || ""},
+    {key:"reason", label:"Reason / Remark", get:r=>r.i.reason!=null ? r.i.reason : (r.i.rec ? "" : r.i.meta)},
+    {key:"soldValue", label:"Sold (RM)", num:true, get:r=>Number(r.i.soldValue)>0 ? Number(r.i.soldValue) : ""},
+    {key:"soldDate", label:"Date Sold", date:true, get:r=>isoToDmy(r.i.soldDate)},
+    {key:"buyer", label:"Buyer", get:r=>r.i.buyer || ""},
+  ],
+});
+function setDisposeStage(k){ disposeStage = disposeStage===k ? "" : k; renderDisposeTable(); }
+function renderDisposeTable(){
+  const all = disposeRows();
+  const chip = (k,label,n)=>`<button type="button" class="stage-chip${disposeStage===k?" on":""}${k==="disposed"||k.startsWith("requested")||k==="approved"?" dsp":""}" onclick="setDisposeStage('${k}')">${escHtml(fleetI18n.tr(label))} <b>${n}</b></button>`;
+  document.getElementById("disposeStageChips").innerHTML = chip("","All",all.length) +
+    DISPOSE_STAGES.map(([k,l])=>chip(k,l,disposePipeline[k].length)).join("");
+  document.getElementById("disposeHeadRow").innerHTML = xlHeaderHtml("dispose") + `<th class="admin-only"></th>`;
+  const rows = xlRows("dispose");
+  const btn = "padding:3px 8px;font-size:10.5px;";
+  document.getElementById("disposeBody").innerHTML = rows.map(r=>{
+    const i = r.i, ref = r.stageKey+":"+r.idx, rec = i.rec || {};
+    const v = Number(i.soldValue)>0 ? Number(i.soldValue) : null;
+    const editing = disposeEditRef===ref && currentRole==="admin";
+    const soldCells = editing
+      ? `<td><input type="number" min="0" step="0.01" id="dspVal" value="${v!=null?v:""}" placeholder="0" style="width:90px;"></td>
+         <td><input type="date" id="dspDate" value="${escHtml(i.soldDate||"")}"></td>
+         <td><input type="text" id="dspBuyer" value="${escHtml(i.buyer||"")}" placeholder="${escHtml(fleetI18n.tr("Buyer (optional)"))}" style="width:130px;"></td>`
+      : `<td class="mono-cell" style="${v!=null?"color:var(--good);font-weight:600;":"color:var(--faint);"}">${v!=null?v.toLocaleString("en-MY"):"—"}</td>
+         <td class="mono-cell">${escHtml(isoToDmy(i.soldDate))||"—"}</td><td>${escHtml(i.buyer||"")||"—"}</td>`;
+    const actions = editing
+      ? `<button type="button" class="btn" style="${btn}" onclick="saveDisposedSold('${r.stageKey}',${r.idx})">${escHtml(fleetI18n.tr("Save"))}</button> <button type="button" class="btn ghost" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✕</button>`
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Sold"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}`;
+    return `<tr><td><span class="badge ${r.stageKey==="inProgress"||r.stageKey==="delivered"?"good":"danger"}">${escHtml(fleetI18n.tr(r.stage))}</span></td>
+      <td style="font-weight:600;">${escHtml(i.plate || rec.plate || i.veh)}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
+      <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.removedAt||"—")}</td>
+      <td>${escHtml(i.reason!=null ? i.reason : (i.rec ? "" : i.meta||""))||"—"}</td>${soldCells}
+      <td class="admin-only" style="white-space:nowrap;">${actions}</td></tr>`;
+  }).join("") || `<tr><td colspan="11" style="color:var(--faint);text-align:center;padding:18px;">${escHtml(fleetI18n.tr("No items"))}</td></tr>`;
+  document.getElementById("disposeCount").textContent = fleetI18n.tr(`Showing ${rows.length} of ${all.length} vehicles`);
+  document.getElementById("disposeClearAllBtn").style.display = xlAnyActive("dispose") ? "inline-block" : "none";
+  if(disposeEditRef){ const el = document.getElementById("dspVal"); if(el) el.focus(); }
+}
+async function saveDisposedSold(stageKey, idx){
   if(currentRole!=="admin") return;
-  const item = disposePipeline.disposed[idx]; if(!item) return;
-  const raw = document.getElementById("soldVal"+idx).value.trim();
+  const item = (disposePipeline[stageKey]||[])[idx]; if(!item) return;
+  const raw = document.getElementById("dspVal").value.trim();
   const val = raw==="" ? null : Number(raw);
   if(val!=null && !(val>=0)){ alert(fleetI18n.tr("Please enter a valid amount.")); return; }
   item.soldValue = val;
-  item.soldDate = document.getElementById("soldDate"+idx).value || (val!=null ? APP_TODAY_ISO : "");
-  item.buyer = document.getElementById("soldBuyer"+idx).value.trim();
-  if(val==null){ item.soldDate = ""; }
+  item.soldDate = val==null ? "" : (document.getElementById("dspDate").value || APP_TODAY_ISO);
+  item.buyer = document.getElementById("dspBuyer").value.trim();
+  disposeEditRef = "";
   await persistDisposePipeline();
   renderDispose();
 }
