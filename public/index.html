@@ -5447,6 +5447,7 @@ function dmCopyReport(){
 /* ---- Malaysian public holidays for the Renewal Calendar. Admin-editable (Settings);
    defaults below — Islamic / lunar dates are estimates until officially announced. ---- */
 const HOLIDAYS_KEY = "fleetHolidays_v1";
+const HOLIDAYS_DEFAULTS_VERSION = 2;   // bump when new default holidays are added below
 const BRANCH_STATE = { "OKLG":"Selangor", "OSJ":"Selangor", "HQ Shared":"Selangor", "OHDD":"Selangor", "OTN":"Selangor", "SUBCON":"Selangor",
   "OPJ":"WP", "OSBN":"Negeri Sembilan" };
 const HOLIDAYS_DEFAULT = [
@@ -5473,19 +5474,44 @@ const HOLIDAYS_DEFAULT = [
   ["2026-11-09","Deepavali (replacement)","ALL"],
   ["2026-12-11","Birthday of the Sultan of Selangor","Selangor"],
   ["2026-12-25","Christmas Day","ALL"],
+  // 2027 — fixed dates + estimates for Islamic / lunar holidays (check against the gazetted list)
   ["2027-01-01","New Year's Day","Selangor, WP, Negeri Sembilan"],
   ["2027-01-14","Birthday of Yang di-Pertuan Besar Negeri Sembilan","Negeri Sembilan"],
+  ["2027-01-22","Thaipusam","Selangor, WP, Negeri Sembilan"],
   ["2027-02-01","Federal Territory Day","WP"],
+  ["2027-02-06","Chinese New Year","ALL"],
+  ["2027-02-07","Chinese New Year (2nd day)","ALL"],
+  ["2027-02-08","Chinese New Year (replacement)","ALL"],
+  ["2027-02-24","Nuzul Al-Quran","Selangor, WP"],
+  ["2027-03-10","Hari Raya Aidilfitri","ALL"],
+  ["2027-03-11","Hari Raya Aidilfitri (2nd day)","ALL"],
   ["2027-05-01","Labour Day","ALL"],
+  ["2027-05-17","Hari Raya Haji","ALL"],
+  ["2027-05-20","Wesak Day","ALL"],
+  ["2027-06-06","Awal Muharram","ALL"],
+  ["2027-06-07","Agong's Birthday","ALL"],
+  ["2027-06-08","Awal Muharram (replacement)","ALL"],
+  ["2027-08-15","Maulidur Rasul","ALL"],
+  ["2027-08-16","Maulidur Rasul (replacement)","ALL"],
   ["2027-08-31","National Day","ALL"],
   ["2027-09-16","Malaysia Day","ALL"],
+  ["2027-10-29","Deepavali","ALL"],
   ["2027-12-11","Birthday of the Sultan of Selangor","Selangor"],
   ["2027-12-25","Christmas Day","ALL"],
 ].map(([date,name,states])=>({date,name,states}));
 let holidays = HOLIDAYS_DEFAULT.map(h=>({...h}));
 async function loadHolidays(){
-  try{ const r = await window.storage.get(HOLIDAYS_KEY, true); const v = r && JSON.parse(r.value); if(v && Array.isArray(v.data)) holidays = v.data; }
-  catch(e){ /* keep defaults */ }
+  try{
+    const r = await window.storage.get(HOLIDAYS_KEY, true); const v = r && JSON.parse(r.value);
+    if(v && Array.isArray(v.data)){
+      holidays = v.data;
+      // a list saved before newer defaults were shipped gets the missing ones added (once)
+      if((v.defaultsVersion||1) < HOLIDAYS_DEFAULTS_VERSION){
+        const have = new Set(holidays.map(h=>h.date+"|"+h.name));
+        HOLIDAYS_DEFAULT.filter(h=>!have.has(h.date+"|"+h.name)).forEach(h=>holidays.push({...h}));
+      }
+    }
+  }catch(e){ /* keep defaults */ }
 }
 function holidaysFor(branchSet){
   const states = branchSet ? new Set([...branchSet].map(b=>BRANCH_STATE[b]||"Selangor")) : null;
@@ -5511,7 +5537,7 @@ function addHolidayRow(){ holidays.unshift({date:"", name:"", states:"ALL"}); re
 async function saveHolidays(){
   if(currentRole!=="admin") return;
   holidays = holidays.filter(h=>h.date && String(h.name||"").trim());
-  try{ await window.storage.set(HOLIDAYS_KEY, JSON.stringify({data:holidays}), true); }
+  try{ await window.storage.set(HOLIDAYS_KEY, JSON.stringify({data:holidays, defaultsVersion:HOLIDAYS_DEFAULTS_VERSION}), true); }
   catch(e){ A(fleetI18n.tr("Could not save — check your connection and try again.")); return; }
   renderHolidays(); renderComplianceCalendar();
   const el = document.getElementById("holidaySaveConfirm"); el.style.display = "block"; setTimeout(()=>{ el.style.display = "none"; }, 3000);
