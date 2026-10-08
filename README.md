@@ -37,7 +37,7 @@ Insurans, JKKP & APAD — warna ikut status (merah tamat, oren ≤ 30 hari, hija
 tanda jenis & branch (cth. Cukai Jalan + OSJ & OPJ), dan **🖨 Cetak setahun** untuk 12 muka surat A4 landskap.
 Kalendar dibina terus dari data daftar, jadi berubah serta-merta bila tarikh dikemas kini.
 **Cuti umum Malaysia** dipaparkan dalam kalendar (hari cuti berwarna merah) — kebangsaan dan negeri ikut branch
-yang dipilih (OKLG/OSJ/HQ → Selangor, OPJ → WP, OSBN → Negeri Sembilan). Senarai boleh diedit oleh admin di
+yang dipilih. Setiap cuti ditanda branch yang terlibat (atau Semua branch) — boleh diedit oleh admin di
 **Settings → Cuti Umum (Kalendar)**; tarikh cuti Islam / lunar adalah anggaran sehingga diwartakan.
 
 ## 03 Insurans
