@@ -20,7 +20,7 @@
     // ---- Shell / navigation ----
     ["Dashboard","Papan Pemuka"],
     ["Driver & Requester","Pemandu & Pemohon"],
-    ["Requester — Vehicle / Hire Request","Pemohon — Permohonan Kenderaan / Sewa"],
+    ["Requester — Own / Hire Vehicle","Pemohon — Permohonan Kenderaan / Sewa"],
     ["Request a vehicle / machine for a job","Mohon kenderaan / jentera untuk kerja"],
     ["Request a vehicle / machine for a job — for supervisors & requesters","Mohon kenderaan / jentera untuk kerja — untuk penyelia & pemohon"],
     ["Daily movement, vehicle checklist & workshop repair ticket","Pergerakan harian, checklist kenderaan & tiket repair bengkel"],

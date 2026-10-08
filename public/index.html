@@ -457,7 +457,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
     <nav>
       <button class="nav-btn admin-only" data-view="overview"><span class="num">00</span>Dashboard</button>
       <button class="nav-btn active" data-view="external"><span class="num">01</span>Driver</button>
-      <button class="nav-btn" data-view="requester"><span class="num">02</span>Requester — Vehicle / Hire Request</button>
+      <button class="nav-btn" data-view="requester"><span class="num">02</span>Requester — Own / Hire Vehicle</button>
       <button class="nav-btn admin-only" data-view="compliance"><span class="num">03</span>Compliance Register</button>
       <button class="nav-btn admin-only" data-view="insurance"><span class="num">04</span>Insurance</button>
       <button class="nav-btn admin-only" data-view="repair"><span class="num">05</span>Repair &amp; Maintenance</button>
@@ -650,7 +650,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
       <!-- ============ REQUESTER — JOB REQUEST ============ -->
       <section class="view" id="view-requester">
-        <div class="section-plate"><span class="rivet"></span><h2>Requester — Vehicle / Hire Request</h2><span class="sub">Request a vehicle / machine for a job — for supervisors &amp; requesters</span></div>
+        <div class="section-plate"><span class="rivet"></span><h2>Requester — Own / Hire Vehicle</h2><span class="sub">Request a vehicle / machine for a job — for supervisors &amp; requesters</span></div>
 
         <div class="panel" id="hireRequestPanel">
           <div class="panel-head">
@@ -2473,7 +2473,7 @@ if(window.Chart){
 const titles = {
   overview:["Fleet Dashboard","Company-owned fleet — overview across all modules"],
   external:["Driver","Daily movement, vehicle checklist & workshop repair ticket"],
-  requester:["Requester — Vehicle / Hire Request","Request a vehicle / machine for a job"],
+  requester:["Requester — Own / Hire Vehicle","Request a vehicle / machine for a job"],
   compliance:["Compliance Register","Road tax, inspection, insurance, JKKP & APAD expiry for every vehicle"],
   insurance:["Insurance","Insurer, policy, cover, premium & expiry for every vehicle"],
   repair:["Repair & Maintenance","Workshop tickets & repair spend"],
