@@ -2737,23 +2737,26 @@ function renderOverview(){
 
   // attention table — scoped to the same company/branch selection
   const rows = [];
-  const overdueCompliance = crScope.filter(d=>rowHasStatus(d,"overdue")).slice(0,6);
-  overdueCompliance.forEach(d=>{
-    const items = [];
-    if(d.roadTaxStatus==="overdue") items.push("Road tax "+d.roadTax);
-    if(d.inspectionStatus==="overdue") items.push("Inspection "+d.inspection);
-    if(d.insuranceStatus==="overdue") items.push("Insurance "+d.insurance);
-    if(d.jkkpStatus==="overdue") items.push("JKKP "+d.jkkp);
-    if(d.apadStatus==="overdue") items.push("APAD "+d.apad);
-    rows.push([d.company+" — "+d.plate,"Repair & Maint.",items.map(i=>`<span>${i}</span>`).join(", "),d.location,badge("Overdue","danger")]);
+  // [vehicle, module label, page to open, item, due / status, priority badge]
+  const earliest = dates => dates.slice().sort((x,y)=>dmyToIso(x).localeCompare(dmyToIso(y)))[0];
+  crScope.filter(d=>rowHasStatus(d,"overdue")).forEach(d=>{
+    const comp = [], ins = [];
+    if(d.roadTaxStatus==="overdue") comp.push(["Road tax", d.roadTax]);
+    if(d.inspectionStatus==="overdue") comp.push(["Inspection", d.inspection]);
+    if(d.jkkpStatus==="overdue") comp.push(["JKKP", d.jkkp]);
+    if(d.apadStatus==="overdue") comp.push(["APAD", d.apad]);
+    if(d.insuranceStatus==="overdue") ins.push(["Insurance", d.insurance]);
+    const veh = escHtml(d.company+" — "+d.plate);
+    if(comp.length) rows.push([veh, "Compliance Register", "compliance", comp.map(([k,v])=>`${fleetI18n.tr(k)} ${v}`).join(", "), fleetI18n.tr("Expired")+" "+earliest(comp.map(x=>x[1])), badge("Overdue","danger")]);
+    if(ins.length) rows.push([veh, "Insurance", "insurance", `${fleetI18n.tr("Insurance")} ${ins[0][1]}`, fleetI18n.tr("Expired")+" "+ins[0][1], badge("Overdue","danger")]);
   });
-  tickets.filter(t=>t.priority==="High" && t.status!=="Completed" && ticketInGlobalScope(t)).forEach(t=>rows.push([t.vehicle,"Repair & Maint.","Ticket: "+t.issue,t.status,badge("High","danger")]));
-  hiringRecords.filter(h=>h.status==="New" && inGlobalScopeHiring(h)).forEach(h=>rows.push([h.unit,"Hiring",T("Belum di-assign")+" — "+h.company,h.tarikh,badge("New","warn")]));
+  tickets.filter(t=>t.priority==="High" && t.status!=="Completed" && ticketInGlobalScope(t)).forEach(t=>rows.push([escHtml(t.vehicle), "Workshop Ticket", "repair", escHtml(`${t.id}: ${t.issue}`), escHtml(fleetI18n.tr(t.status)), badge("High","danger")]));
+  hiringRecords.filter(h=>h.status==="New" && inGlobalScopeHiring(h)).forEach(h=>rows.push([escHtml(h.unit), "Hiring", "hiring", escHtml(T("Belum di-assign")+" — "+h.company), escHtml(h.tarikh), badge("New","warn")]));
   dailyMovements.filter(m=>m.date===APP_TODAY_ISO && (m.problems||[]).length && (!GLOBAL_BRANCH || m.branch===GLOBAL_BRANCH)).forEach(m=>
-    rows.push([escHtml(m.plate)+" — "+escHtml(m.driver),"Daily Checklist",escHtml((m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1])).join(", ")+(m.checkNote?" — "+m.checkNote:"")),escHtml(m.branch||"—"),badge("Check","warn")]));
-  if(!scoped) disposePipeline.requested.forEach(d=>rows.push([d.veh,"Dispose","Disposal requested",d.meta,badge("Review","warn")]));
+    rows.push([escHtml(m.plate)+" — "+escHtml(m.driver), "Daily Checklist", "external", escHtml((m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1])).join(", ")+(m.checkNote?" — "+m.checkNote:"")), escHtml(m.branch||"—"), badge("Check","warn")]));
+  if(!scoped) disposePipeline.requested.forEach(d=>rows.push([d.veh, "Dispose", "dispose", "Disposal requested", d.meta, badge("Review","warn")]));
   document.getElementById("attentionBody").innerHTML = rows.length
-    ? rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td></tr>`).join("")
+    ? rows.map(r=>`<tr><td>${r[0]}</td><td><a href="#" class="map-link" onclick="event.preventDefault();document.querySelector('.nav-btn[data-view=${r[2]}]').click()">${escHtml(fleetI18n.tr(r[1]))}</a></td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td></tr>`).join("")
     : `<tr><td colspan="5" style="color:var(--faint);text-align:center;">Nothing needs attention in ${scopeLabel}</td></tr>`;
 }
 

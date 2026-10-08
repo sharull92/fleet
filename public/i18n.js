@@ -416,6 +416,8 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["Workshop Ticket","Tiket Bengkel"],
+    ["Road tax","Cukai jalan"],
     ["— Select your branch first —","— Pilih branch anda dahulu —"],
     ["No vehicles registered for this branch","Tiada kenderaan berdaftar untuk branch ini"],
     ["📥 Import policy PDFs","📥 Import PDF polisi"],
