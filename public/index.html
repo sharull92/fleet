@@ -343,6 +343,14 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
 /* ---- Excel-style column filter ---- */
 .xl-th{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+/* Wide registers: fit the panel width instead of scrolling sideways (phones still scroll). */
+.fit-table th,.fit-table td{padding-left:5px;padding-right:5px;font-size:11.5px;overflow-wrap:break-word;}
+.fit-table .btn{white-space:normal;line-height:1.25;}
+.fit-table th{font-size:9.5px;letter-spacing:.03em;}
+.fit-table .xl-th{white-space:normal;gap:3px;flex-wrap:wrap;}
+.fit-table td input,.fit-table td select{width:100% !important;min-width:0;box-sizing:border-box;font-size:11px !important;padding:3px 4px !important;}
+.fit-table td input[type=date]{min-width:104px;}
+.fit-table .btn{padding:4px 7px !important;font-size:10.5px !important;}
 .xl-btn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:3px;width:20px;height:18px;
   font-size:10px;line-height:1;padding:0;cursor:pointer;}
 .xl-btn:hover{border-color:var(--ink-soft);color:var(--ink);}
@@ -804,7 +812,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
           <div id="insPdfStatus" style="display:none;font-size:11.5px;margin:-6px 0 10px;white-space:pre-line;"></div>
           <div style="max-height:600px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
-          <table>
+          <table class="fit-table">
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;"><tr id="insHeadRow"></tr></thead>
             <tbody id="insBody"></tbody>
           </table>
@@ -847,7 +855,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
 
           <div style="overflow-x:auto;">
-          <table>
+          <table class="fit-table">
             <thead><tr id="ticketHeadRow"></tr></thead>
             <tbody id="ticketBody"></tbody>
           </table>
@@ -2198,7 +2206,7 @@ function renderInsurance(){
   document.getElementById("insBody").innerHTML = rows.map(d=> isAdmin ? `<tr>
       <td style="font-weight:600;">${escHtml(d.company)}</td><td class="mono-cell">${escHtml(d.plate)}</td><td>${escHtml(d.category)}</td><td>${escHtml(d.location)}</td>
       <td>${inp(d,"insurer",130,'placeholder="e.g. Etiqa"')}</td>
-      <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
+      <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}<div style="display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;margin-top:4px;">
         ${d.insurancePolicyFile ? `<a class="map-link" href="/api/files/${encodeURIComponent(d.insurancePolicyFile)}" target="_blank" rel="noopener">📄 ${escHtml(fleetI18n.tr("View PDF"))}</a><button type="button" class="btn ghost" style="padding:2px 8px;font-size:10.5px;color:var(--danger);" title="${escHtml(fleetI18n.tr("Delete this PDF"))}" onclick="deleteInsurancePdf(${d.id})">✕</button>` : ""}
         <label class="btn ghost" style="cursor:pointer;margin:0;padding:2px 8px;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;white-space:nowrap;" title="${escHtml(fleetI18n.tr("Upload the policy PDF for this vehicle"))}">📎 ${escHtml(fleetI18n.tr(d.insurancePolicyFile ? "Replace" : "Upload PDF"))}<input type="file" accept="application/pdf,.pdf" hidden onchange="uploadInsurancePdf(${d.id}, this)"></label>
       </div></td>
@@ -2904,7 +2912,7 @@ function renderTickets(){
     const issueCell = Array.isArray(t.work) && t.work.length
       ? t.work.map(w=>`<div style="margin-bottom:4px;">${escHtml(w.label)}<div style="font-size:10.5px;color:var(--ink-soft);">${escHtml(w.vendor||T("Belum di-assign"))}${w.repairBy?" · "+escHtml(w.repairBy):""} · ${escHtml(fleetI18n.tr(w.status))}</div></div>`).join("")
       : escHtml(t.issue);
-    return `<tr><td class="mono-cell">${t.id}</td><td style="white-space:nowrap;">${escHtml(t.vehicle)}</td><td class="mono-cell" style="white-space:nowrap;">${escHtml(t.branch||"—")}</td><td style="min-width:240px;">${issueCell}</td><td class="mono-cell">${t.opened}</td>
+    return `<tr><td class="mono-cell">${t.id}</td><td>${escHtml(t.vehicle)}</td><td class="mono-cell">${escHtml(t.branch||"—")}</td><td style="min-width:150px;">${issueCell}</td><td class="mono-cell">${t.opened}</td>
     <td class="mono-cell">${t.costAwal.toLocaleString()}</td>
     <td class="mono-cell">${t.costFinal!=null ? t.costFinal.toLocaleString() : `<span style="color:var(--faint);">—</span>`}</td>
     <td>${diffCell}</td>
