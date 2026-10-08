@@ -300,9 +300,9 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .ubar-fill.high{background:var(--good);}
 
 .pipeline{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px;}
-.pipe-col{flex:1;min-width:220px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px;}
+.pipe-col{flex:1;min-width:150px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px;}
 .pipe-col h4{font-family:'Oswald',sans-serif;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;color:var(--ink-soft);}
-.pipe-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);border-radius:2px;padding:10px;margin-bottom:8px;font-size:12.5px;}
+.pipe-card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--yellow);border-radius:2px;padding:10px;margin-bottom:8px;font-size:12.5px;overflow-wrap:break-word;}
 .pipe-card.dispose{border-left-color:var(--danger);}
 .pipe-card .veh{font-weight:600;}
 .pipe-card .meta{color:var(--ink-soft);font-size:11px;margin-top:3px;}
@@ -1968,6 +1968,19 @@ const disposePipeline = {
   delivered:[],
   disposed:[],
 };
+/* Saved New / Dispose pipeline. Vehicles removed from the Compliance Register land in
+   "Disposed" (with a copy of their register record, so they can be restored). */
+const DISPOSE_KEY = "fleetDisposePipeline_v1";
+async function loadDisposePipeline(){
+  try{
+    const r = await window.storage.get(DISPOSE_KEY, true); const v = r && JSON.parse(r.value);
+    if(v) Object.keys(disposePipeline).forEach(k=>{ if(Array.isArray(v[k])) disposePipeline[k] = v[k]; });
+  }catch(e){ /* nothing saved yet */ }
+}
+async function persistDisposePipeline(){
+  try{ await window.storage.set(DISPOSE_KEY, JSON.stringify(disposePipeline), true); }
+  catch(e){ console.warn("Tak dapat simpan New / Dispose:", e); }
+}
 
 /* Vehicles belonging to a branch (from the register location), for the driver forms. */
 function branchVehicles(branch){
@@ -2510,7 +2523,7 @@ function renderComplianceTable(){
       <td class="mono-cell">${dateInput(d,"insurance","insuranceStatus")}</td>
       <td class="mono-cell">${dateInput(d,"jkkp","jkkpStatus")}</td>
       <td class="mono-cell">${dateInput(d,"apad","apadStatus")}</td>
-      <td><button class="btn ghost" style="padding:4px 9px;font-size:10.5px;color:#C1443C;" onclick="deleteComplianceVehicle(${d.id})">✕ Remove</button></td></tr>`;
+      <td><button class="btn ghost" style="padding:4px 9px;font-size:10.5px;color:#C1443C;" title="${escHtml(fleetI18n.tr("Remove from register → New / Dispose (Disposed)"))}" onclick="deleteComplianceVehicle(${d.id})">✕ Remove</button></td></tr>`;
     }
     if(isOwnBranch){
       return `<tr style="background:var(--row-hl);">
@@ -2646,9 +2659,15 @@ async function deleteComplianceVehicle(id){
   if(currentRole!=="admin") return; // admin only
   const rec = complianceData.find(d=>d.id===id);
   if(!rec) return;
-  if(!confirm(`Padam ${rec.plate} (${rec.company}) dari compliance register?`)) return;
+  const reason = prompt(fleetI18n.tr(`Remove ${rec.plate} (${rec.company}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):`), "");
+  if(reason===null) return;
   const idx = complianceData.findIndex(d=>d.id===id);
   complianceData.splice(idx,1);
+  const today = APP_TODAY_ISO.split("-").reverse().join("/");
+  disposePipeline.disposed.unshift({ veh:`${rec.company} — ${rec.plate}`, meta:`${rec.category||""} · ${rec.location||""} · ${fleetI18n.tr("Removed")} ${today}${reason.trim()?" · "+reason.trim():""}`,
+    plate:rec.plate, removedAt:today, reason:reason.trim(), rec });
+  await persistDisposePipeline();
+  renderDispose();
   populateComplianceFilters();
   renderComplianceTable();
   renderInsurance();
@@ -5113,7 +5132,8 @@ function renderDispose(){
   const newCount = disposePipeline.inProgress.length + disposePipeline.delivered.length;
   document.getElementById("ndNewCount").textContent = newCount;
   document.getElementById("ndDisposeCount").textContent = disposePipeline.requested.length + disposePipeline.approved.length;
-  document.getElementById("ndNetChange").textContent = "+" + (newCount - disposePipeline.disposed.length);
+  const net = newCount - disposePipeline.disposed.length;
+  document.getElementById("ndNetChange").textContent = (net>0?"+":"") + net;
   const recovery = fleet.filter(v=>["WF 3321 R","WL 8873 W"].includes(v.plate)).reduce((s,v)=>s+v.bookValue,0);
   document.getElementById("ndRecovery").textContent = rm(recovery);
 
@@ -5126,8 +5146,24 @@ function renderDispose(){
   ];
   document.getElementById("pipelineWrap").innerHTML = cols.map(([title,items,cls])=>`
     <div class="pipe-col"><h4>${title} (${items.length})</h4>
-      ${items.map(i=>`<div class="pipe-card ${cls}"><div class="veh">${i.veh}</div><div class="meta">${i.meta}</div></div>`).join("") || `<div class="meta" style="color:var(--faint);">No items</div>`}
+      ${items.map((i,idx)=>`<div class="pipe-card ${cls}"><div class="veh">${escHtml(i.veh)}</div><div class="meta">${escHtml(i.meta)}</div>${i.rec && items===disposePipeline.disposed ? `<button type="button" class="btn ghost admin-only" style="margin-top:6px;padding:3px 8px;font-size:10.5px;" onclick="restoreDisposedVehicle(${idx})">↩ ${escHtml(fleetI18n.tr("Restore to register"))}</button>` : ""}</div>`).join("") || `<div class="meta" style="color:var(--faint);">No items</div>`}
     </div>`).join("");
+}
+
+async function restoreDisposedVehicle(idx){
+  if(currentRole!=="admin") return;
+  const item = disposePipeline.disposed[idx];
+  if(!item || !item.rec) return;
+  if(!confirm(fleetI18n.tr(`Restore ${item.plate} to the Compliance Register?`))) return;
+  const rec = {...item.rec};
+  if(complianceData.some(d=>d.id===rec.id)) rec.id = complianceNextId++;
+  complianceData.push(rec);
+  disposePipeline.disposed.splice(idx,1);
+  recomputeComplianceStatuses();
+  await persistComplianceRegister();
+  await persistDisposePipeline();
+  populateComplianceFilters(); renderComplianceTable(); renderInsurance(); renderDispose();
+  document.getElementById("rmTotalCount").textContent = complianceData.length;
 }
 
 /* ===================== DAILY MOVEMENT & VEHICLE CHECKLIST =====================
@@ -5728,6 +5764,7 @@ function printComplianceCalendar(){
   await loadUtilOverrides();
   await loadFleetContacts();
   await loadHolidays();
+  await loadDisposePipeline();
   await loadTickets();
   await loadHiringRecords();
   await loadDailyMovements();

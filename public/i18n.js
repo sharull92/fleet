@@ -418,6 +418,9 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["Removed","Dikeluarkan"],
+    ["Restore to register","Pulihkan ke daftar"],
+    ["Remove from register → New / Dispose (Disposed)","Keluarkan dari daftar → Baharu / Pelupusan (Telah Dilupus)"],
     ["Mark as not applicable","Tanda sebagai tidak berkaitan (N/A)"],
     ["Undo N/A","Batal N/A"],
     ["📅 Renewal Calendar","📅 Kalendar Pembaharuan"],
@@ -662,6 +665,8 @@
   ];
 
   const TEMPLATES = [
+    ["Remove {a} ({b}) from the register and move it to New / Dispose → Disposed?\n\nReason (optional):","Keluarkan {a} ({b}) dari daftar dan pindah ke Baharu / Pelupusan → Telah Dilupus?\n\nSebab (pilihan):"],
+    ["Restore {a} to the Compliance Register?","Pulihkan {a} ke Daftar Pematuhan?"],
     ["Tick at least one branch for: {a}","Tanda sekurang-kurangnya satu branch untuk: {a}"],
     ["{a} renewal(s) this month · {b} in {c}","{a} pembaharuan bulan ini · {b} dalam {c}"],
     ["Delete the policy PDF for {a}?","Padam PDF polisi untuk {a}?"],
