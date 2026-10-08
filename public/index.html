@@ -343,6 +343,9 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
 /* ---- Excel-style column filter ---- */
 .xl-th{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.na-cell{display:inline-flex;align-items:center;gap:4px;}
+.na-btn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:4px;padding:2px 5px;font-size:9.5px;font-weight:700;cursor:pointer;}
+.na-btn:hover{border-color:var(--yellow-deep);color:var(--ink);}
 .cal-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;}
 .cal-bar select{width:auto;padding:5px 8px;}
 .cal-bar .btn{padding:5px 10px;font-size:11.5px;}
@@ -376,6 +379,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
 .fit-table .xl-th{white-space:normal;gap:3px;flex-wrap:wrap;}
 .fit-table td input,.fit-table td select{width:100% !important;min-width:0;box-sizing:border-box;font-size:11px !important;padding:3px 4px !important;}
 .fit-table td input[type=date]{min-width:104px;}
+.fit-table .na-cell{display:flex;flex-wrap:wrap;gap:3px;}
+.fit-table .na-cell input[type=date]{flex:1 1 104px;}
 .fit-table .btn{padding:4px 7px !important;font-size:10.5px !important;}
 .xl-btn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);border-radius:3px;width:20px;height:18px;
   font-size:10px;line-height:1;padding:0;cursor:pointer;}
@@ -550,7 +555,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div class="panel-head"><h3>Compliance Status</h3><span class="sub" style="font-size:11px;color:var(--ink-soft);">By government requirement / enforcement agency</span></div>
             <div style="position:relative;height:230px;"><canvas id="chartFleetStatus"></canvas></div>
             <div style="overflow-x:auto;"><table style="margin-top:12px;">
-              <thead><tr><th>Requirement</th><th>Agency</th><th style="text-align:right;">OK</th><th style="text-align:right;">Due ≤ 30 days</th><th style="text-align:right;">Overdue</th><th style="text-align:right;">No record</th></tr></thead>
+              <thead><tr><th>Requirement</th><th>Agency</th><th style="text-align:right;">OK</th><th style="text-align:right;">Due ≤ 30 days</th><th style="text-align:right;">Overdue</th><th style="text-align:right;">No record</th><th style="text-align:right;">N/A</th></tr></thead>
               <tbody id="ovComplianceBody"></tbody>
             </table></div>
           </div>
@@ -806,7 +811,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
 
           <div style="max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);">
-          <table>
+          <table class="fit-table">
             <thead style="position:sticky;top:0;background:var(--panel);z-index:1;">
               <tr id="complianceHeadRow"><th>Company</th><th>Category</th><th>Plate</th><th>Location</th><th>Road Tax</th><th>Inspection</th><th>Insurance</th><th>JKKP</th><th>APAD</th></tr>
             </thead>
@@ -1824,9 +1829,27 @@ async function persistComplianceRegister(){
 }
 /* Status (overdue / soon / ok) is always worked out from today's date, never trusted
    from storage — saved statuses may have been evaluated on an earlier day. */
+/* A requirement can be marked N/A for a vehicle (rec.na[field] = true) — the date itself is
+   kept untouched; the status becomes "na" so it is not counted as missing or overdue. */
+const isNA = (rec, field) => !!(rec && rec.na && rec.na[field]);
+function compStatus(rec, field){ return isNA(rec, field) ? "na" : (rec[field] ? calcComplianceStatus(rec[field]) : null); }
 function recomputeComplianceStatuses(){
   const F = [["roadTax","roadTaxStatus"],["inspection","inspectionStatus"],["insurance","insuranceStatus"],["jkkp","jkkpStatus"],["apad","apadStatus"]];
-  complianceData.forEach(d=>F.forEach(([f,st])=>{ d[st] = d[f] ? calcComplianceStatus(d[f]) : null; }));
+  complianceData.forEach(d=>F.forEach(([f,st])=>{ d[st] = compStatus(d, f); }));
+}
+async function toggleComplianceNA(id, field, statusField, on){
+  const rec = complianceData.find(d=>d.id===id);
+  if(!rec) return;
+  const allowed = currentRole==="admin" || (currentRole==="branch" && locationBranch(rec.location)===currentBranch);
+  if(!allowed) return;
+  rec.na = rec.na || {};
+  if(on) rec.na[field] = true; else delete rec.na[field];
+  rec[statusField] = compStatus(rec, field);
+  renderComplianceTable();
+  if(field==="insurance") renderInsurance();
+  document.getElementById("rmOverdueCount").textContent = complianceData.filter(d=>rowHasStatus(d,"overdue")).length;
+  document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
+  await persistComplianceRegister();
 }
 async function loadComplianceRegister(){
   try{
@@ -2025,6 +2048,7 @@ function populateComplianceFilters(){
    Due soon / OK / No date). Values offered in a column respect the filters set on the
    other columns. Each table registers its columns with xlRegister(). */
 const XL_BLANK = "(Blanks)";
+const XL_NA = "N/A";
 const XL_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const XL_TABLES = {};
 let xlOpenRef = null;   // "tableId:colKey" of the open dropdown
@@ -2033,6 +2057,7 @@ function xlRegister(id, cfg){ XL_TABLES[id] = Object.assign({values:{}, statuses
 function xlCol(t, key){ return t.cols.find(c=>c.key===key); }
 function xlRaw(col, d){ return col.get ? col.get(d) : d[col.key]; }
 function xlValueKey(col, d){
+  if(col.date && col.status && isNA(d, col.key)) return XL_NA;
   const v = xlRaw(col, d);
   if(v==null || String(v).trim()==="") return XL_BLANK;
   if(col.date){ const [, m, y] = String(v).split("/"); return y && m ? `${y}-${m.padStart(2,"0")}` : XL_BLANK; }
@@ -2094,7 +2119,7 @@ function xlOpen(tid, key, btn, ev){
   const sortZ = col.date ? "Sort Newest to Oldest" : col.num ? "Sort Largest to Smallest" : "Sort Z → A";
   const isSort = dir => t.sort && t.sort.key===key && t.sort.dir===dir ? "✓ " : "";
   const statusBlock = col.status ? `<div class="xl-sec">Filter by Status</div>
-    ${[["overdue","Overdue"],["soon","Due soon"],["ok","OK"],["blank","No date"]].map(([v,l])=>`<label class="xl-item"><input type="checkbox" data-st="${v}" ${!st||st.has(v)?"checked":""}> <span>${l}</span></label>`).join("")}
+    ${[["overdue","Overdue"],["soon","Due soon"],["ok","OK"],["blank","No date"],["na","N/A"]].map(([v,l])=>`<label class="xl-item"><input type="checkbox" data-st="${v}" ${!st||st.has(v)?"checked":""}> <span>${l}</span></label>`).join("")}
     <div class="xl-sep"></div>` : "";
   const fmt = v => col.num && v!==XL_BLANK ? Number(v).toLocaleString("en-MY") : v;
   box.innerHTML = `
@@ -2121,7 +2146,7 @@ function xlOpen(tid, key, btn, ev){
 /* Date columns: ⊞ year → months, like Excel's date grouping. Month keys are "yyyy-mm". */
 function xlDateTreeHtml(vals, counts, allowed){
   const years = new Map();
-  vals.filter(v=>v!==XL_BLANK).forEach(v=>{ const y = v.slice(0,4); if(!years.has(y)) years.set(y, []); years.get(y).push(v); });
+  vals.filter(v=>v!==XL_BLANK && v!==XL_NA).forEach(v=>{ const y = v.slice(0,4); if(!years.has(y)) years.set(y, []); years.get(y).push(v); });
   let html = [...years.entries()].map(([y, months])=>{
     months.sort();                                   // January → December inside a year
     const total = months.reduce((n,m)=>n+counts.get(m),0);
@@ -2134,6 +2159,7 @@ function xlDateTreeHtml(vals, counts, allowed){
       <label class="xl-item" data-v="${y}"><input type="checkbox" data-year="${y}" onchange="xlYearCheck('${y}', this.checked)"> <span>${y}</span><em>${total}</em></label></div>
       <div class="xl-months" style="display:none;">${mHtml}</div></div>`;
   }).join("");
+  if(counts.has(XL_NA)) html += `<label class="xl-item" data-v="n/a"><input type="checkbox" data-val="${XL_NA}" ${!allowed||allowed.has(XL_NA)?"checked":""} onchange="xlSyncAll()"> <span>N/A</span><em>${counts.get(XL_NA)}</em></label>`;
   if(counts.has(XL_BLANK)) html += `<label class="xl-item" data-v="(blanks)"><input type="checkbox" data-val="${XL_BLANK}" ${!allowed||allowed.has(XL_BLANK)?"checked":""} onchange="xlSyncAll()"> <span>${XL_BLANK}</span><em>${counts.get(XL_BLANK)}</em></label>`;
   return html;
 }
@@ -2231,7 +2257,7 @@ xlRegister("compliance", {
    "insurance" field, so both pages always agree. */
 const INS_COVERS = ["Comprehensive","Third Party, Fire & Theft","Third Party"];
 const INS_STATUS_LABEL = {overdue:"Expired", soon:"Expiring soon", ok:"Active"};
-function insStatusLabel(d){ return d.insurance ? INS_STATUS_LABEL[d.insuranceStatus] || "Active" : ""; }
+function insStatusLabel(d){ if(isNA(d,"insurance")) return "N/A"; return d.insurance ? INS_STATUS_LABEL[d.insuranceStatus] || "Active" : ""; }
 xlRegister("insurance", {
   data: ()=>complianceData,
   render: ()=>renderInsurance(),
@@ -2445,7 +2471,7 @@ async function updateInsuranceDate(id, field, isoValue, el){
   if(isoValue){ const y = +isoValue.slice(0,4); if(!(y>=1990 && y<=2100)) return; }   // wait for a complete year
   rec[field] = isoValue ? isoToDmySlash(isoValue) : null;
   if(field==="insurance"){
-    rec.insuranceStatus = rec.insurance ? calcComplianceStatus(rec.insurance) : null;
+    rec.insuranceStatus = compStatus(rec, "insurance");
     if(el) el.style.borderColor = complianceBorder(rec.insuranceStatus);
     const cell = document.getElementById("insSt-"+id);
     if(cell){ const l = insStatusLabel(rec); cell.innerHTML = l ? badge(l, rec.insuranceStatus==="overdue"?"danger":rec.insuranceStatus==="soon"?"warn":"good") : `<span style="color:var(--faint);">—</span>`; }
@@ -2465,7 +2491,9 @@ function renderComplianceTable(){
   const headRow = document.getElementById("complianceHeadRow");
   headRow.innerHTML = xlHeaderHtml("compliance") + (currentRole==="admin" ? `<th></th>` : ``);
 
-  const dateInput = (d,field,statusField) => `<input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${complianceBorder(d[statusField])};border-radius:4px;width:132px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value,this)">`;
+  const dateInput = (d,field,statusField) => isNA(d, field)
+    ? `<span class="na-cell"><span class="badge neutral">N/A</span><button type="button" class="na-btn" title="${escHtml(fleetI18n.tr("Undo N/A"))}" onclick="toggleComplianceNA(${d.id},'${field}','${statusField}',false)">✕</button></span>`
+    : `<span class="na-cell"><input type="date" min="1990-01-01" max="2100-12-31" value="${dmyToIso(d[field])}" style="font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 6px;border:1px solid ${complianceBorder(d[statusField])};border-radius:4px;width:118px;" onchange="updateComplianceDate(${d.id},'${field}','${statusField}',this.value,this)"><button type="button" class="na-btn" title="${escHtml(fleetI18n.tr("Mark as not applicable"))}" onclick="toggleComplianceNA(${d.id},'${field}','${statusField}',true)">N/A</button></span>`;
 
   document.getElementById("complianceBody").innerHTML = rows.map(d=>{
     const isAdmin = currentRole==="admin";
@@ -2494,11 +2522,11 @@ function renderComplianceTable(){
       <td class="mono-cell">${dateInput(d,"apad","apadStatus")}</td></tr>`;
     }
     return `<tr><td style="font-weight:600;">${d.company}</td><td>${d.category}</td><td class="mono-cell">${d.plate}</td><td>${d.location}</td>
-    <td class="mono-cell">${statusBadge(d.roadTaxStatus,d.roadTax)}</td>
-    <td class="mono-cell">${statusBadge(d.inspectionStatus,d.inspection)}</td>
-    <td class="mono-cell">${statusBadge(d.insuranceStatus,d.insurance)}</td>
-    <td class="mono-cell">${statusBadge(d.jkkpStatus,d.jkkp)}</td>
-    <td class="mono-cell">${statusBadge(d.apadStatus,d.apad)}</td></tr>`;
+    <td class="mono-cell">${isNA(d,"roadTax")?badge("N/A","neutral"):statusBadge(d.roadTaxStatus,d.roadTax)}</td>
+    <td class="mono-cell">${isNA(d,"inspection")?badge("N/A","neutral"):statusBadge(d.inspectionStatus,d.inspection)}</td>
+    <td class="mono-cell">${isNA(d,"insurance")?badge("N/A","neutral"):statusBadge(d.insuranceStatus,d.insurance)}</td>
+    <td class="mono-cell">${isNA(d,"jkkp")?badge("N/A","neutral"):statusBadge(d.jkkpStatus,d.jkkp)}</td>
+    <td class="mono-cell">${isNA(d,"apad")?badge("N/A","neutral"):statusBadge(d.apadStatus,d.apad)}</td></tr>`;
   }).join("");
   document.getElementById("complianceCount").textContent = `Showing ${rows.length} of ${complianceData.length} vehicles`;
   document.getElementById("crClearAllBtn").style.display = xlAnyActive("compliance") ? "inline-block" : "none";
@@ -2605,7 +2633,7 @@ async function updateComplianceDate(id, field, statusField, isoValue, inputEl){
   }
   const dmy = isoValue ? isoToDmySlash(isoValue) : null;
   rec[field] = dmy;
-  rec[statusField] = dmy ? calcComplianceStatus(dmy) : null;
+  rec[statusField] = compStatus(rec, field);
   if(inputEl) inputEl.style.borderColor = complianceBorder(rec[statusField]);
   else renderComplianceTable();
   if(field==="insurance") renderInsurance();
@@ -2781,7 +2809,7 @@ function renderOverview(){
   // compliance status — per government requirement / enforcement agency (scoped)
   const reqStats = COMPLIANCE_REQUIREMENTS.map(r=>{
     const st = crScope.map(d=>d[r.key+"Status"]);
-    return {...r, ok:st.filter(x=>x==="ok").length, soon:st.filter(x=>x==="soon").length, overdue:st.filter(x=>x==="overdue").length, none:st.filter(x=>!x).length};
+    return {...r, ok:st.filter(x=>x==="ok").length, soon:st.filter(x=>x==="soon").length, overdue:st.filter(x=>x==="overdue").length, none:st.filter(x=>!x).length, na:st.filter(x=>x==="na").length};
   });
   const reqLabels = reqStats.map(r=>`${fleetI18n.tr(r.label)} (${r.agency})`);
   if(fleetStatusChart) fleetStatusChart.destroy();
@@ -2798,7 +2826,7 @@ function renderOverview(){
   });
   const num = (n,cls)=> `<td class="mono-cell" style="text-align:right;${n&&cls?`color:${cls};font-weight:700;`:""}">${n}</td>`;
   document.getElementById("ovComplianceBody").innerHTML = reqStats.map(r=>
-    `<tr><td style="font-weight:600;">${T(r.label)}</td><td>${r.agencyFull}</td>${num(r.ok)}${num(r.soon,"#B9791A")}${num(r.overdue,"#C1443C")}${num(r.none)}</tr>`).join("");
+    `<tr><td style="font-weight:600;">${T(r.label)}</td><td>${r.agencyFull}</td>${num(r.ok)}${num(r.soon,"#B9791A")}${num(r.overdue,"#C1443C")}${num(r.none)}${num(r.na)}</tr>`).join("");
 
   renderOvUtilYear();
 
@@ -5587,7 +5615,7 @@ function calEvents(){
     const br = locationBranch(d.location);
     if(calBranchesOn && !calBranchesOn.has(br)) return;
     CAL_TYPES.forEach(([k,label,short])=>{
-      if(!calTypesOn.has(k) || !d[k]) return;
+      if(!calTypesOn.has(k) || !d[k] || isNA(d, k)) return;
       const iso = dmyToIso(d[k]);
       if(!iso) return;
       out.push({iso, plate:d.plate, company:d.company, branch:br, type:k, label, short, status:d[k+"Status"]||calcComplianceStatus(d[k])||"ok"});

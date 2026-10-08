@@ -416,6 +416,8 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["Mark as not applicable","Tanda sebagai tidak berkaitan (N/A)"],
+    ["Undo N/A","Batal N/A"],
     ["📅 Renewal Calendar","📅 Kalendar Pembaharuan"],
     ["🇲🇾 Public Holidays (Calendar)","🇲🇾 Cuti Umum (Kalendar)"],
     ["Shown on the Renewal Calendar — tick the branches each holiday applies to","Dipaparkan dalam Kalendar Pembaharuan — tanda branch yang terlibat untuk setiap cuti"],
