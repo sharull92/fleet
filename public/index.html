@@ -361,6 +361,11 @@ body:not(.is-admin) .admin-only{display:none !important;}
 .cal-chip.ok{background:rgba(63,125,92,.14);color:#3F7D5C;border-color:rgba(63,125,92,.35);}
 .cal-chip.soon{background:rgba(185,121,26,.15);color:#B9791A;border-color:rgba(185,121,26,.4);}
 .cal-chip.overdue{background:rgba(193,68,60,.14);color:#C1443C;border-color:rgba(193,68,60,.4);}
+.cal-table td.hol{background:rgba(193,68,60,.05);}
+.cal-table td.hol .cal-day{background:rgba(193,68,60,.18);color:#C1443C;}
+.cal-hol-tag{float:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.cal-hol{display:block;font-size:10px;font-weight:700;color:#C1443C;line-height:1.3;}
+.cal-hol i{font-weight:500;font-style:normal;opacity:.8;}
 .cal-legend{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:11px;color:var(--ink-soft);}
 @media (max-width:700px){ .cal-table td{height:70px;} .cal-chip{font-size:9px;} }
 /* Wide registers: fit the panel width instead of scrolling sideways (phones still scroll). */
@@ -829,7 +834,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
           <h4 id="cal_title" class="cal-title"></h4>
           <div id="cal_grid"></div>
-          <div class="cal-legend"><span class="cal-chip overdue">Overdue</span><span class="cal-chip soon">Due ≤ 30 days</span><span class="cal-chip ok">OK</span><span id="cal_count" style="margin-left:auto;"></span></div>
+          <div class="cal-legend"><span class="cal-hol" style="display:inline;">🇲🇾 Public holiday</span><span class="cal-chip overdue">Overdue</span><span class="cal-chip soon">Due ≤ 30 days</span><span class="cal-chip ok">OK</span><span id="cal_count" style="margin-left:auto;"></span></div>
         </div>
 
 </section>
@@ -1260,6 +1265,23 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
           <div class="panel">
             <div class="panel-head">
+              <h3>🇲🇾 Public Holidays (Calendar)</h3>
+              <span class="sub" style="font-size:11px;color:var(--ink-soft);">Shown on the Renewal Calendar. States: ALL, or e.g. Selangor, WP, Negeri Sembilan</span>
+              <button class="btn ghost" onclick="addHolidayRow()">+ Add Holiday</button>
+            </div>
+            <span class="sub" style="font-size:11px;color:var(--warn);display:block;margin:-6px 0 10px;">Islamic and lunar holiday dates are estimates until officially announced — please check against the gazetted list and adjust here.</span>
+            <div style="max-height:380px;overflow:auto;">
+            <table>
+              <thead><tr><th style="width:150px;">Date</th><th>Holiday</th><th style="width:240px;">States</th><th style="width:50px;"></th></tr></thead>
+              <tbody id="holidayBody"></tbody>
+            </table>
+            </div>
+            <div class="form-actions" style="margin-top:10px;"><button class="btn yellow" onclick="saveHolidays()">Save Holidays</button></div>
+            <div id="holidaySaveConfirm" style="font-size:11px;color:var(--good);margin-top:6px;display:none;text-align:right;">✓ Holidays saved</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
               <h3>PIC Setiap Branch</h3>
               <span class="sub" style="font-size:11px;color:var(--ink-soft);">Isi nama &amp; no WhatsApp PIC — kosong = guna Admin sebagai fallback</span>
             </div>
@@ -1664,6 +1686,7 @@ function renderSettings(){
     </tr>`).join("");
 
   renderDriverContacts();
+  renderHolidays();
   document.getElementById("branchContactsBody").innerHTML = BRANCH_CODES.map(b=>{
     const c = branchContacts[b] || {name:"",phone:""};
     return `<tr>
@@ -5421,6 +5444,79 @@ function dmCopyReport(){
   navigator.clipboard.writeText(text).then(done).catch(()=>{ window.prompt(fleetI18n.tr("Copy this report:"), text); });
 }
 
+/* ---- Malaysian public holidays for the Renewal Calendar. Admin-editable (Settings);
+   defaults below — Islamic / lunar dates are estimates until officially announced. ---- */
+const HOLIDAYS_KEY = "fleetHolidays_v1";
+const BRANCH_STATE = { "OKLG":"Selangor", "OSJ":"Selangor", "HQ Shared":"Selangor", "OHDD":"Selangor", "OTN":"Selangor", "SUBCON":"Selangor",
+  "OPJ":"WP", "OSBN":"Negeri Sembilan" };
+const HOLIDAYS_DEFAULT = [
+  ["2026-01-01","New Year's Day","Selangor, WP, Negeri Sembilan"],
+  ["2026-01-14","Birthday of Yang di-Pertuan Besar Negeri Sembilan","Negeri Sembilan"],
+  ["2026-02-01","Thaipusam","Selangor, WP, Negeri Sembilan"],
+  ["2026-02-01","Federal Territory Day","WP"],
+  ["2026-02-02","Thaipusam / Federal Territory Day (replacement)","Selangor, WP, Negeri Sembilan"],
+  ["2026-02-17","Chinese New Year","ALL"],
+  ["2026-02-18","Chinese New Year (2nd day)","ALL"],
+  ["2026-03-07","Nuzul Al-Quran","Selangor, WP"],
+  ["2026-03-20","Hari Raya Aidilfitri","ALL"],
+  ["2026-03-21","Hari Raya Aidilfitri (2nd day)","ALL"],
+  ["2026-05-01","Labour Day","ALL"],
+  ["2026-05-27","Hari Raya Haji","ALL"],
+  ["2026-05-31","Wesak Day","ALL"],
+  ["2026-06-01","Agong's Birthday","ALL"],
+  ["2026-06-02","Wesak Day (replacement)","ALL"],
+  ["2026-06-17","Awal Muharram","ALL"],
+  ["2026-08-25","Maulidur Rasul","ALL"],
+  ["2026-08-31","National Day","ALL"],
+  ["2026-09-16","Malaysia Day","ALL"],
+  ["2026-11-08","Deepavali","ALL"],
+  ["2026-11-09","Deepavali (replacement)","ALL"],
+  ["2026-12-11","Birthday of the Sultan of Selangor","Selangor"],
+  ["2026-12-25","Christmas Day","ALL"],
+  ["2027-01-01","New Year's Day","Selangor, WP, Negeri Sembilan"],
+  ["2027-01-14","Birthday of Yang di-Pertuan Besar Negeri Sembilan","Negeri Sembilan"],
+  ["2027-02-01","Federal Territory Day","WP"],
+  ["2027-05-01","Labour Day","ALL"],
+  ["2027-08-31","National Day","ALL"],
+  ["2027-09-16","Malaysia Day","ALL"],
+  ["2027-12-11","Birthday of the Sultan of Selangor","Selangor"],
+  ["2027-12-25","Christmas Day","ALL"],
+].map(([date,name,states])=>({date,name,states}));
+let holidays = HOLIDAYS_DEFAULT.map(h=>({...h}));
+async function loadHolidays(){
+  try{ const r = await window.storage.get(HOLIDAYS_KEY, true); const v = r && JSON.parse(r.value); if(v && Array.isArray(v.data)) holidays = v.data; }
+  catch(e){ /* keep defaults */ }
+}
+function holidaysFor(branchSet){
+  const states = branchSet ? new Set([...branchSet].map(b=>BRANCH_STATE[b]||"Selangor")) : null;
+  return holidays.filter(h=>{
+    if(!h.date) return false;
+    const st = String(h.states||"ALL").split(",").map(x=>x.trim().toUpperCase()).filter(Boolean);
+    if(!st.length || st.includes("ALL")) return true;
+    if(!states) return true;
+    return [...states].some(x=>st.includes(x.toUpperCase()));
+  });
+}
+function renderHolidays(){
+  const body = document.getElementById("holidayBody");
+  if(!body) return;
+  holidays.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  body.innerHTML = holidays.map((h,i)=>`<tr>
+    <td><input type="date" value="${escHtml(h.date||"")}" onchange="holidays[${i}].date=this.value" style="width:100%;"></td>
+    <td><input value="${escHtml(h.name||"")}" oninput="holidays[${i}].name=this.value" style="width:100%;"></td>
+    <td><input value="${escHtml(h.states||"ALL")}" oninput="holidays[${i}].states=this.value" style="width:100%;"></td>
+    <td><button class="btn ghost" onclick="holidays.splice(${i},1);renderHolidays()">✕</button></td></tr>`).join("");
+}
+function addHolidayRow(){ holidays.unshift({date:"", name:"", states:"ALL"}); renderHolidays(); const f = document.querySelector("#holidayBody input"); if(f) f.focus(); }
+async function saveHolidays(){
+  if(currentRole!=="admin") return;
+  holidays = holidays.filter(h=>h.date && String(h.name||"").trim());
+  try{ await window.storage.set(HOLIDAYS_KEY, JSON.stringify({data:holidays}), true); }
+  catch(e){ A(fleetI18n.tr("Could not save — check your connection and try again.")); return; }
+  renderHolidays(); renderComplianceCalendar();
+  const el = document.getElementById("holidaySaveConfirm"); el.style.display = "block"; setTimeout(()=>{ el.style.display = "none"; }, 3000);
+}
+
 /* ===================== COMPLIANCE RENEWAL CALENDAR =====================
    Month calendar of every expiry date in the Compliance Register (road tax, inspection,
    insurance, JKKP, APAD). Built live from complianceData, so it follows every edit. */
@@ -5486,13 +5582,17 @@ function calMonthHtml(m, y, events, forPrint){
   const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
   const byDay = {};
   events.forEach(e=>{ const [ey,em,ed] = e.iso.split("-").map(Number); if(ey===y && em===m+1) (byDay[ed] = byDay[ed] || []).push(e); });
+  const hol = {};
+  holidaysFor(calBranchesOn).forEach(h=>{ const [hy,hm,hd] = h.date.split("-").map(Number); if(hy===y && hm===m+1) (hol[hd] = hol[hd] || []).push(h); });
   const dows = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
   let html = `<table class="cal-table"><thead><tr>${dows.map(d=>`<th>${forPrint?d:escHtml(fleetI18n.tr(d))}</th>`).join("")}</tr></thead><tbody><tr>`;
   for(let i=0;i<first;i++) html += `<td class="out"></td>`;
   for(let d=1; d<=days; d++){
     const iso = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const list = (byDay[d]||[]).sort((a,b)=>a.plate.localeCompare(b.plate));
-    html += `<td class="${iso===APP_TODAY_ISO&&!forPrint?"today":""}"><div class="cal-day">${d}</div><div class="cal-items">${list.map(e=>
+    const hs = hol[d] || [];
+    const holHtml = hs.map(h=>{ const st = String(h.states||"ALL"); return `<span class="cal-hol" title="${escHtml(h.name+" — "+st)}">🇲🇾 ${escHtml(fleetI18n.tr(h.name))}${/^\s*all\s*$/i.test(st) ? "" : ` <i>(${escHtml(st)})</i>`}</span>`; }).join("");
+    html += `<td class="${iso===APP_TODAY_ISO&&!forPrint?"today":""}${hs.length?" hol":""}"><div class="cal-day">${hs.length?`<span class="cal-hol-tag">${escHtml(fleetI18n.tr("Holiday"))}</span>`:""}${d}</div><div class="cal-items">${holHtml}${list.map(e=>
       `<span class="cal-chip ${e.status}" title="${escHtml(`${e.company} — ${e.plate} · ${fleetI18n.tr(e.label)} · ${e.branch}`)}">${escHtml(e.plate)} · ${e.short}</span>`).join("")}</div></td>`;
     if((first+d)%7===0 && d<days) html += `</tr><tr>`;
   }
@@ -5522,6 +5622,7 @@ function printComplianceCalendar(){
   .cal-day{background:#bfbfbf;text-align:right;font-weight:700;font-size:12px;padding:1px 5px;border-bottom:1px solid #000;}
   .cal-items{padding:2px;display:flex;flex-direction:column;gap:1px;} .cal-chip{font-size:9.5px;font-weight:600;padding:0 3px;border:1px solid #999;border-radius:3px;}
   .cal-chip.overdue{color:#b00020;border-color:#b00020;} .cal-chip.soon{color:#8a5a00;border-color:#8a5a00;} .cal-chip.ok{color:#1d5c3a;}
+  .cal-table td.hol .cal-day{background:#f4b6b0;} .cal-hol{display:block;font-size:9.5px;font-weight:700;color:#b00020;} .cal-hol i{font-style:normal;font-weight:500;} .cal-hol-tag{float:left;font-size:8.5px;}
   @page{size:A4 landscape;margin:8mm;}`;
   const pages = Array.from({length:12},(_,m)=>`<div class="page"><h2>${escHtml(calTitle(m, y))}</h2>${calMonthHtml(m, y, events, true)}</div>`).join("");
   const w = window.open("", "_blank");
@@ -5543,6 +5644,7 @@ function printComplianceCalendar(){
   await loadFleetTarget();
   await loadUtilOverrides();
   await loadFleetContacts();
+  await loadHolidays();
   await loadTickets();
   await loadHiringRecords();
   await loadDailyMovements();
