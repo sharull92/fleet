@@ -310,6 +310,13 @@ label{font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:upperc
 .stage-chip{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:999px;padding:4px 11px;font-size:11.5px;cursor:pointer;font-family:inherit;}
 .stage-chip b{margin-left:4px;}
 .dsp-up{text-transform:uppercase;}
+.pr-quote{display:grid;grid-template-columns:22px 1.4fr 1.2fr .8fr 1.4fr auto minmax(140px,1.2fr) auto;gap:6px;align-items:center;margin-bottom:6px;}
+.pr-quote input:not([type=radio]){font-size:12px;padding:6px 8px;min-width:0;}
+.pr-qno{font-weight:700;text-align:center;} .pr-rec{display:flex;align-items:center;gap:2px;font-size:12px;cursor:pointer;white-space:nowrap;}
+.pr-file{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pr-photo{position:relative;display:inline-block;} .pr-photo img{width:90px;height:68px;object-fit:cover;border:1px solid var(--line);border-radius:3px;display:block;}
+.pr-photo button{position:absolute;top:2px;right:2px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:3px;font-size:10px;cursor:pointer;padding:1px 5px;}
+@media (max-width:760px){ .pr-quote{grid-template-columns:22px 1fr 1fr;} }
 #disposeBody input{font-size:11.5px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--ink);}
 .stage-chip.on{background:var(--yellow);border-color:var(--yellow);color:#1C1E1F;}
 .pipe-card .sold-line{font-size:11.5px;margin-top:6px;color:var(--good);}
@@ -1252,9 +1259,18 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="form-row" style="grid-template-columns:1fr;">
             <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
           </div>
+          <div id="pr_quoteSection" style="display:none;">
+            <div style="font-weight:700;font-size:11.5px;margin:10px 0 4px;text-decoration:underline;">Quotations (3 – 5 vendors)</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Upload each vendor's quotation (PDF or photo). Tick ★ for the recommended vendor.</div>
+            <div id="pr_quotes"></div>
+            <button type="button" class="btn ghost" id="pr_addQuote" style="padding:4px 10px;font-size:11px;" onclick="addPurchaseQuote()">+ Add quotation</button>
+            <div style="font-weight:700;font-size:11.5px;margin:14px 0 4px;text-decoration:underline;">Vehicle Photos (optional)</div>
+            <div id="pr_photos" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
+          </div>
           <div class="form-actions">
+            <span id="pr_uploadMsg" style="font-size:11px;color:var(--ink-soft);margin-right:auto;"></span>
             <button class="btn ghost" onclick="togglePurchaseRequestForm()">Cancel</button>
-            <button class="btn yellow" onclick="submitPurchaseRequest()">🖨 Submit &amp; Print</button>
+            <button class="btn yellow" id="pr_submitBtn" onclick="submitPurchaseRequest()">🖨 Submit &amp; Print</button>
           </div>
         </div>
 
@@ -5265,7 +5281,7 @@ function renderDisposeTable(){
          <td class="mono-cell">${escHtml(isoToDmy(m.date))||"—"}</td><td>${escHtml(m.party)||"—"}</td>`;
     const actions = editing
       ? `<span id="dspSaved" style="font-size:10.5px;color:var(--good);margin-right:6px;"></span><button type="button" class="btn" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✓ <span>${escHtml(fleetI18n.tr("Done"))}</span></button>`
-      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Print request form"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx})">🖨</button> <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Edit request / upload quotations"))}" onclick="togglePurchaseRequestForm('${ref}')">📎 <span>${escHtml(fleetI18n.tr("Quotation"))}</span>${(i.quotes||[]).length?` (${i.quotes.length})`:""}</button> <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Step 1 — print request form (page 1) for the head of department to sign"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'form')">🖨 1</button> <button type="button" class="btn ghost" style="${btn}" ${(i.quotes||[]).length?"":"disabled"} title="${escHtml(fleetI18n.tr("Step 3 — print quotation summary, quotations and the management approval page"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'full')">🖨 2</button> <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
     return `<tr><td>${stageCell}</td>
       <td style="font-weight:600;">${escHtml(rec.plate || i.plate || i.veh || "")||"—"}${i.requestedBy?`<div style="font-size:10px;font-weight:400;color:var(--ink-soft);">${escHtml(fleetI18n.tr("By"))} ${escHtml(i.requestedBy)}</div>`:""}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
       <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.addedAt || i.removedAt || "—")}</td>
@@ -5299,17 +5315,92 @@ async function autoSaveDisposed(stageKey, idx){
 }
 /* ---- New vehicle purchase request (green KPI box) ---- */
 const PR_FIELDS = ["pr_by","pr_position","pr_company","pr_oldPlate","pr_reason","pr_model"];
-function togglePurchaseRequestForm(){
+let prEditRef = null, prQuotes = [], prPhotos = [], prRemovedFiles = [];
+function togglePurchaseRequestForm(editRef){
   const f = document.getElementById("purchaseRequestForm");
-  const open = f.style.display==="none";
+  const open = typeof editRef==="string" || f.style.display==="none";
   f.style.display = open ? "block" : "none";
-  if(open){
-    PR_FIELDS.forEach(id=>document.getElementById(id).value="");
-    document.getElementById("pr_date").value = APP_TODAY_ISO;
-    document.getElementById("pr_dept").value = "FLEET";
-    document.getElementById("pr_type").value = "BARU"; document.getElementById("pr_oldWrap").style.visibility = "hidden";
-    document.getElementById("pr_by").focus();
-  }
+  if(!open){ prEditRef = null; return; }
+  const [sk, si] = typeof editRef==="string" ? editRef.split(":") : [];
+  const item = sk ? (disposePipeline[sk]||[])[+si] : null;
+  prEditRef = item ? editRef : null;
+  const set = (id,v) => { document.getElementById(id).value = v==null ? "" : v; };
+  PR_FIELDS.forEach(id=>set(id,""));
+  set("pr_date", item ? item.date : APP_TODAY_ISO);
+  set("pr_dept", item ? item.dept : "FLEET");
+  if(item){ set("pr_by",item.requestedBy); set("pr_position",item.position); set("pr_company",item.company); set("pr_model",item.model); set("pr_reason",item.reason); set("pr_oldPlate",item.oldPlate); }
+  set("pr_type", item && item.purchaseType==="TRADE IN" ? "TRADE IN" : "BARU");
+  document.getElementById("pr_oldWrap").style.visibility = document.getElementById("pr_type").value==="TRADE IN" ? "visible" : "hidden";
+  prQuotes = item ? JSON.parse(JSON.stringify(item.quotes||[])) : [];
+  prPhotos = item ? JSON.parse(JSON.stringify(item.photos||[])) : [];
+  prRemovedFiles = [];
+  if(item && !prQuotes.length) prQuotes = [{},{},{}];
+  document.getElementById("pr_quoteSection").style.display = item ? "block" : "none";
+  document.querySelector("#purchaseRequestForm h3").textContent = item ? `${fleetI18n.tr("Edit Purchase Request")} — ${item.serial}` : fleetI18n.tr("New Vehicle Purchase Request");
+  document.getElementById("pr_submitBtn").textContent = item ? "💾 " + fleetI18n.tr("Save") : fleetI18n.tr("🖨 Submit & Print");
+  document.getElementById("pr_uploadMsg").textContent = "";
+  renderPurchaseQuotes();
+  f.scrollIntoView({behavior:"smooth", block:"start"});
+  document.getElementById("pr_by").focus({preventScroll:true});
+}
+const PR_MAX_QUOTES = 5;
+function prFileLink(f){ return `<a class="map-link" href="/api/files/${encodeURIComponent(f.id)}" target="_blank" rel="noopener">${/pdf/.test(f.type)?"📄":"🖼"} ${escHtml(f.name||f.id)}</a>`; }
+function renderPurchaseQuotes(){
+  document.getElementById("pr_quotes").innerHTML = prQuotes.map((q,n)=>`
+    <div class="pr-quote">
+      <div class="pr-qno">${n+1}</div>
+      <input placeholder="${escHtml(fleetI18n.tr("Vendor name"))}" class="dsp-up" value="${escHtml(q.vendor||"")}" oninput="prQuotes[${n}].vendor=this.value.toUpperCase()">
+      <input placeholder="${escHtml(fleetI18n.tr("Brand / model"))}" class="dsp-up" value="${escHtml(q.model||"")}" oninput="prQuotes[${n}].model=this.value.toUpperCase()">
+      <input type="number" min="0" step="0.01" placeholder="${escHtml(fleetI18n.tr("Price (RM)"))}" value="${q.price!=null?q.price:""}" oninput="prQuotes[${n}].price=this.value===''?null:Number(this.value)">
+      <input placeholder="${escHtml(fleetI18n.tr("Remark (delivery, warranty …)"))}" class="dsp-up" value="${escHtml(q.remark||"")}" oninput="prQuotes[${n}].remark=this.value.toUpperCase()">
+      <label class="pr-rec" title="${escHtml(fleetI18n.tr("Recommended vendor"))}"><input type="radio" name="pr_rec" ${q.recommended?"checked":""} onchange="prQuotes.forEach((x,k)=>x.recommended=k===${n})"> ★</label>
+      <span class="pr-file">${q.file ? `${prFileLink(q.file)} <button type="button" class="btn ghost" style="padding:1px 6px;font-size:10px;color:var(--danger);" onclick="prRemoveQuoteFile(${n})">✕</button>`
+        : `<label class="btn ghost" style="padding:3px 8px;font-size:10.5px;cursor:pointer;">📎 ${escHtml(fleetI18n.tr("Upload quotation"))}<input type="file" accept="application/pdf,image/*" style="display:none" onchange="prUploadQuote(${n}, this.files[0]); this.value='';"></label>`}</span>
+      <button type="button" class="btn ghost" style="padding:2px 7px;font-size:10.5px;color:var(--danger);" title="${escHtml(fleetI18n.tr("Remove quotation"))}" onclick="prRemoveQuote(${n})">🗑</button>
+    </div>`).join("");
+  document.getElementById("pr_addQuote").style.display = prQuotes.length >= PR_MAX_QUOTES ? "none" : "inline-block";
+  document.getElementById("pr_photos").innerHTML = prPhotos.map((f,n)=>`<span class="pr-photo"><img src="/api/files/${encodeURIComponent(f.id)}" alt=""><button type="button" onclick="prRemovePhoto(${n})" title="${escHtml(fleetI18n.tr("Remove photo"))}">✕</button></span>`).join("")
+    + (prPhotos.length < 6 ? `<label class="btn ghost" style="padding:4px 10px;font-size:11px;cursor:pointer;">📷 ${escHtml(fleetI18n.tr("Add photo"))}<input type="file" accept="image/*" multiple style="display:none" onchange="prUploadPhotos(this.files); this.value='';"></label>` : "");
+}
+function addPurchaseQuote(){ if(prQuotes.length < PR_MAX_QUOTES){ prQuotes.push({}); renderPurchaseQuotes(); } }
+function prRemoveQuote(n){ const q = prQuotes[n]; if(q.file) prRemovedFiles.push(q.file.id); prQuotes.splice(n,1); renderPurchaseQuotes(); }
+function prRemoveQuoteFile(n){ prRemovedFiles.push(prQuotes[n].file.id); prQuotes[n].file = null; renderPurchaseQuotes(); }
+function prRemovePhoto(n){ prRemovedFiles.push(prPhotos[n].id); prPhotos.splice(n,1); renderPurchaseQuotes(); }
+/* Photos from a phone are shrunk to ≤1600px JPEG before upload (keeps files small for printing). */
+async function prShrinkImage(file){
+  if(!/^image\//.test(file.type) || (file.size < 600*1024 && /^image\/(jpeg|png|webp)$/.test(file.type))) return file;
+  const img = await new Promise((ok,ko)=>{ const im = new Image(); im.onload = ()=>ok(im); im.onerror = ko; im.src = URL.createObjectURL(file); });
+  const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  URL.revokeObjectURL(img.src);
+  const blob = await new Promise(ok=>c.toBlob(ok, "image/jpeg", 0.85));
+  return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", {type:"image/jpeg"});
+}
+async function prUploadFile(file, kind){
+  if(!file) return null;
+  const ok = /^(application\/pdf|image\/(jpeg|png|webp))$/.test(file.type) || /^image\//.test(file.type);
+  if(!ok){ alert(fleetI18n.tr("Only PDF or image files (JPG / PNG) are accepted.")); return null; }
+  try{ file = await prShrinkImage(file); }catch(e){ alert(fleetI18n.tr("Only PDF or image files (JPG / PNG) are accepted.")); return null; }
+  const type = file.type==="application/pdf" ? "application/pdf" : /png/.test(file.type) ? "image/png" : /webp/.test(file.type) ? "image/webp" : "image/jpeg";
+  if(!/^image\/(jpeg|png|webp)$|pdf/.test(file.type)){ alert(fleetI18n.tr("Only PDF or image files (JPG / PNG) are accepted.")); return null; }
+  if(file.size > 4*1024*1024){ alert(fleetI18n.tr("File is too large (max 4 MB). Please reduce the file size and try again.")); return null; }
+  const ext = {"application/pdf":".pdf","image/png":".png","image/webp":".webp","image/jpeg":".jpg"}[type];
+  const id = `nv-${kind}-${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}${ext}`;
+  const msg = document.getElementById("pr_uploadMsg");
+  msg.textContent = fleetI18n.tr("Uploading…");
+  try{
+    const r = await fetch("/api/files/" + encodeURIComponent(id), { method:"PUT", credentials:"same-origin",
+      headers:{ "Content-Type":type, "X-Requested-With":"fleet-app" }, body:file });
+    if(!r.ok){ let m = "HTTP " + r.status; try{ m = (await r.json()).error || m; }catch(e){} throw new Error(m); }
+    msg.textContent = "✓ " + fleetI18n.tr("Uploaded — click Save to keep it");
+    return { id, type, name:file.name };
+  }catch(err){ msg.textContent = ""; alert(`${file.name}: ${err.message}`); return null; }
+}
+async function prUploadQuote(n, file){ const f = await prUploadFile(file, "q"); if(f){ prQuotes[n].file = f; renderPurchaseQuotes(); } }
+async function prUploadPhotos(files){
+  for(const file of [...files].slice(0, 6 - prPhotos.length)){ const f = await prUploadFile(file, "p"); if(f) prPhotos.push(f); }
+  renderPurchaseQuotes();
 }
 /* Serial no. NV/<year>/<nnn>, running per year across every stage. */
 function nextPurchaseSerial(year){
@@ -5321,6 +5412,22 @@ async function submitPurchaseRequest(){
   if(currentRole!=="admin") return;
   const v = id => document.getElementById(id).value.trim();
   const up = id => v(id).toUpperCase();
+  if(prEditRef){
+    const [sk, si] = prEditRef.split(":"); const item = (disposePipeline[sk]||[])[+si];
+    if(!item) return;
+    if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
+    Object.assign(item, { date: v("pr_date") || item.date, requestedBy:up("pr_by"), position:up("pr_position"), dept:up("pr_dept"),
+      company:up("pr_company"), model:up("pr_model"), reason:up("pr_reason"), purchaseType:v("pr_type"),
+      oldPlate: v("pr_type")==="TRADE IN" ? up("pr_oldPlate") : "",
+      quotes: prQuotes.filter(q=>q.vendor || q.price!=null || q.file || q.model), photos: prPhotos });
+    item.addedAt = item.date.split("-").reverse().join("/");
+    const removed = prRemovedFiles.slice();
+    togglePurchaseRequestForm();
+    await persistDisposePipeline();
+    removed.forEach(id=>fetch("/api/files/" + encodeURIComponent(id), { method:"DELETE", credentials:"same-origin", headers:{ "X-Requested-With":"fleet-app" } }).catch(()=>{}));
+    renderDispose();
+    return;
+  }
   if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
   const date = v("pr_date") || APP_TODAY_ISO;
   const item = { kind:"request", serial: nextPurchaseSerial(date.slice(0,4)), date,
@@ -5332,12 +5439,15 @@ async function submitPurchaseRequest(){
   togglePurchaseRequestForm();
   await persistDisposePipeline();
   renderDispose();
-  printPurchaseRequest("requested", 0);
+  printPurchaseRequest("requested", 0, "form");
 }
-/* Printable request form, laid out like the company's paper form (BM). The applicant part is
-   filled from the request; the approval parts stay blank for signatures. */
-function printPurchaseRequest(stageKey, idx){
+/* Printable request, in two steps (BM, like the company's paper form):
+   mode "form" → page 1 only (request form, for the applicant's head of department to sign);
+   mode "full" → quotation summary + every uploaded quotation + vehicle photos + the
+   administration / management approval page (goes behind the signed page 1). */
+async function printPurchaseRequest(stageKey, idx, mode){
   const i = (disposePipeline[stageKey]||[])[idx]; if(!i) return;
+  mode = mode || "form";
   const e = x => escHtml(x==null ? "" : String(x));
   const dmy = iso => iso ? iso.split("-").reverse().join("/") : "";
   const pick = (val, a, b) => `<span class="${val===a[0]?"":"strike"}">${a[1]}</span> / <span class="${val===b[0]?"":"strike"}">${b[1]}</span>`;
@@ -5356,7 +5466,13 @@ function printPurchaseRequest(stageKey, idx){
   .ln{border-bottom:1px solid #000;height:20px;font-weight:600;padding-top:3px;}
   .sig{display:flex;justify-content:space-between;gap:8mm;margin-top:26px;} .sig>div{flex:1;font-size:11.5px;}
   .sig .s{border-bottom:1px dotted #000;height:46px;margin-bottom:4px;} .sig .r{display:flex;gap:4px;margin-top:5px;} .sig .r span:last-child{flex:1;border-bottom:1px solid #000;font-weight:600;min-height:15px;}
-  .note{font-size:10.5px;margin-top:18px;} .two{display:grid;grid-template-columns:1.55fr 1fr;column-gap:6mm;} .two>table:last-child td.lb{width:32mm;}
+  .note{font-size:10.5px;margin-top:18px;}
+  table.q{border:1px solid #000;margin-top:10px;} table.q th,table.q td{border:1px solid #000;padding:6px 5px;vertical-align:top;font-size:11.5px;}
+  table.q th{background:#e6e6e6;text-align:left;} .tag{display:inline-block;border:1px solid #000;border-radius:3px;padding:0 4px;font-size:9.5px;font-weight:700;margin-left:4px;}
+  .qhead{font-weight:700;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px;display:flex;justify-content:space-between;}
+  .qimg{display:block;max-width:100%;max-height:255mm;margin:0 auto;object-fit:contain;}
+  .photos{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:8px;} .photos img{width:100%;height:62mm;object-fit:cover;border:1px solid #999;}
+  .two{display:grid;grid-template-columns:1.55fr 1fr;column-gap:6mm;} .two>table:last-child td.lb{width:32mm;}
   @page{size:A4 portrait;margin:10mm;}`;
   const page1 = `<div class="page">
     <h1>BORANG PERMOHONAN PEMBELIAN KENDERAAN / PERALATAN<br>KERJA / ASET PEJABAT BERNILAI MELEBIHI RM 10,000.00 SEUNIT**</h1>
@@ -5391,14 +5507,73 @@ function printPurchaseRequest(stageKey, idx){
   </div>`;
   const w = window.open("", "_blank");
   if(!w){ alert(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${e(i.serial)} — Permohonan Pembelian Kenderaan</title><style>${css}</style></head><body>${page1}${page2}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  const title = `${e(i.serial)} — Permohonan Pembelian Kenderaan`;
+  if(mode==="form"){
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${page1}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+    w.document.close();
+    return;
+  }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body style="font-family:Arial;padding:30px;">Menyediakan sebut harga untuk dicetak…</body></html>`);
+  const quotes = (i.quotes||[]).filter(q=>q.vendor || q.price!=null || q.file);
+  const prices = quotes.map(q=>Number(q.price)).filter(n=>n>0);
+  const low = prices.length ? Math.min(...prices) : null;
+  const money = n => n!=null && n!=="" ? "RM " + Number(n).toLocaleString("en-MY",{minimumFractionDigits:2, maximumFractionDigits:2}) : "—";
+  // Each quotation file becomes one or more page images (PDF pages are rendered with pdf.js).
+  const quotePages = [];
+  for(let n=0; n<quotes.length; n++){
+    const q = quotes[n], imgs = [];
+    try{ if(q.file) imgs.push(...await purchaseFileToImages(q.file)); }catch(err){ console.warn(err); imgs.push(null); }
+    quotePages.push({q, n, imgs});
+  }
+  const photos = [];
+  for(const f of (i.photos||[])){ try{ photos.push(...await purchaseFileToImages(f)); }catch(err){ console.warn(err); } }
+  let pageNo = 2;
+  const startPage = quotePages.map(qp=>{ const at = ++pageNo; pageNo += Math.max(qp.imgs.length,1) - 1; return at; });
+  const summary = `<div class="page">
+    <h1>RINGKASAN SEBUT HARGA KENDERAAN</h1>
+    <div class="siri">No. Siri : <b>${e(i.serial)}</b></div>
+    <table>${line("Syarikat", e(i.company))}${line("Jenis / Model Dipohon", e(i.model))}${line("Jenis Pembelian", e(i.purchaseType==="TRADE IN" ? `TRADE IN (${i.oldPlate||"-"})` : "BARU"))}${line("Nama Pemohon", e(i.requestedBy))}${line("Tarikh Permohonan", e(dmy(i.date)))}</table>
+    <table class="q"><tr><th style="width:9mm;">Bil</th><th>Vendor / Syarikat Penjual</th><th>Jenama / Model</th><th style="width:30mm;">Harga (RM)</th><th>Catatan</th><th style="width:16mm;">Muka</th></tr>
+      ${quotes.map((q,n)=>`<tr><td>${n+1}</td><td><b>${e(q.vendor)}</b>${Number(q.price)>0 && Number(q.price)===low?'<span class="tag">TERENDAH</span>':""}${q.recommended?'<span class="tag">★ DISYORKAN</span>':""}</td><td>${e(q.model)}</td><td style="text-align:right;font-weight:700;">${money(q.price)}</td><td>${e(q.remark)}</td><td>${q.file?startPage[n]:"—"}</td></tr>`).join("") || `<tr><td colspan="6" style="text-align:center;">Tiada sebut harga</td></tr>`}
+    </table>
+    ${photos.length ? `<div class="sec">Gambar Kenderaan</div><div class="photos">${photos.slice(0,4).map(src=>`<img src="${src}">`).join("")}</div>` : ""}
+  </div>`;
+  const qHtml = quotePages.map(({q,n,imgs})=>(imgs.length?imgs:[null]).map((src,k)=>`<div class="page">
+    <div class="qhead"><span>SEBUT HARGA ${n+1}${imgs.length>1?` (${k+1}/${imgs.length})`:""} — ${e(q.vendor)}</span><span>${money(q.price)}</span></div>
+    ${src ? `<img class="qimg" src="${src}">` : `<p style="margin-top:30mm;text-align:center;color:#555;">${q.file ? "Fail sebut harga tidak dapat dibuka." : "Tiada fail sebut harga dimuat naik."}</p>`}
+  </div>`).join("")).join("");
+  w.document.open();
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>${summary}${qHtml}${photos.length>4?`<div class="page"><div class="sec">Gambar Kenderaan (sambungan)</div><div class="photos">${photos.slice(4).map(src=>`<img src="${src}">`).join("")}</div></div>`:""}${page2}<script>window.onload=function(){window.print();}<\/script></body></html>`);
   w.document.close();
+}
+/* Turn an uploaded quotation / photo into printable images (data URLs). */
+async function purchaseFileToImages(f){
+  const r = await fetch("/api/files/" + encodeURIComponent(f.id), { credentials:"same-origin" });
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  const blob = await r.blob();
+  if(!/pdf/.test(f.type || blob.type)){
+    return [await new Promise((ok,ko)=>{ const fr = new FileReader(); fr.onload = ()=>ok(fr.result); fr.onerror = ko; fr.readAsDataURL(blob); })];
+  }
+  if(typeof pdfjsLib === "undefined") throw new Error("PDF reader not loaded");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.js";
+  const pdf = await pdfjsLib.getDocument({data: await blob.arrayBuffer()}).promise;
+  const out = [];
+  for(let n=1; n<=Math.min(pdf.numPages, 10); n++){
+    const pg = await pdf.getPage(n);
+    const vp = pg.getViewport({scale:2});
+    const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height;
+    await pg.render({canvasContext:c.getContext("2d"), viewport:vp}).promise;
+    out.push(c.toDataURL("image/jpeg", 0.88));
+  }
+  return out;
 }
 async function deletePurchaseRequest(stageKey, idx){
   if(currentRole!=="admin") return;
   const item = disposePipeline[stageKey][idx]; if(!item) return;
   if(!confirm(fleetI18n.tr("Delete this purchase request?"))) return;
   disposePipeline[stageKey].splice(idx,1);
+  [...(item.quotes||[]).map(q=>q.file).filter(Boolean), ...(item.photos||[])].forEach(f=>
+    fetch("/api/files/" + encodeURIComponent(f.id), { method:"DELETE", credentials:"same-origin", headers:{ "X-Requested-With":"fleet-app" } }).catch(()=>{}));
   disposeEditRef = "";
   await persistDisposePipeline();
   renderDispose();
