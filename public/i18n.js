@@ -420,7 +420,7 @@
     ["🇲🇾 Public Holidays (Calendar)","🇲🇾 Cuti Umum (Kalendar)"],
     ["Shown on the Renewal Calendar — tick the branches each holiday applies to","Dipaparkan dalam Kalendar Pembaharuan — tanda branch yang terlibat untuk setiap cuti"],
     ["Branches","Branch"],
-    ["Pick at least one branch.","Pilih sekurang-kurangnya satu branch."],
+    ["Tick the branches for this holiday","Tanda branch untuk cuti ini"],
     ["Shown on the Renewal Calendar. States: ALL, or e.g. Selangor, WP, Negeri Sembilan","Dipaparkan dalam Kalendar Pembaharuan. Negeri: ALL, atau cth. Selangor, WP, Negeri Sembilan"],
     ["+ Add Holiday","+ Tambah Cuti"],
     ["Islamic and lunar holiday dates are estimates until officially announced — please check against the gazetted list and adjust here.","Tarikh cuti Islam dan kalendar lunar adalah anggaran sehingga diumumkan secara rasmi — sila semak dengan senarai yang diwartakan dan betulkan di sini."],
@@ -658,6 +658,7 @@
   ];
 
   const TEMPLATES = [
+    ["Tick at least one branch for: {a}","Tanda sekurang-kurangnya satu branch untuk: {a}"],
     ["{a} renewal(s) this month · {b} in {c}","{a} pembaharuan bulan ini · {b} dalam {c}"],
     ["Delete the policy PDF for {a}?","Padam PDF polisi untuk {a}?"],
     ["Copying PDF {a} of {b}…","Menyalin PDF {a} daripada {b}…"],

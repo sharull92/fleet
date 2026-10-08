@@ -5517,7 +5517,7 @@ async function loadHolidays(){
 /* Each holiday applies to "ALL" branches or a list of branch codes. Older entries kept a
    "states" text — those are converted with BRANCH_STATE (e.g. Selangor → OKLG, OSJ, ...). */
 function holidayBranches(h){
-  if(Array.isArray(h.branches) && h.branches.length) return BRANCH_CODES.every(b=>h.branches.includes(b)) ? ["ALL"] : h.branches;
+  if(Array.isArray(h.branches)) return h.branches.includes("ALL") || (h.branches.length && BRANCH_CODES.every(b=>h.branches.includes(b))) ? ["ALL"] : h.branches;
   const st = String(h.states||"ALL").split(",").map(x=>x.trim().toUpperCase()).filter(Boolean);
   if(!st.length || st.includes("ALL")) return ["ALL"];
   const list = BRANCH_CODES.filter(b=>st.includes(String(BRANCH_STATE[b]||"Selangor").toUpperCase()));
@@ -5543,19 +5543,20 @@ function renderHolidays(){
     <td><input value="${escHtml(h.name||"")}" oninput="holidays[${i}].name=this.value" style="width:100%;"></td>
     <td><div class="hol-br">
       <label class="cal-tog"><input type="checkbox" ${all?"checked":""} onchange="setHolidayBranch(${i},'ALL',this.checked)"><b>${escHtml(fleetI18n.tr("All branches"))}</b></label>
-      ${BRANCH_CODES.map(b=>`<label class="cal-tog" style="${all?"opacity:.45;":""}"><input type="checkbox" ${all||h.branches.includes(b)?"checked":""} ${all?"disabled":""} onchange="setHolidayBranch(${i},'${b}',this.checked)">${escHtml(b)}</label>`).join("")}
+      ${BRANCH_CODES.map(b=>`<label class="cal-tog" style="${all?"opacity:.5;":""}"><input type="checkbox" ${all||h.branches.includes(b)?"checked":""} onchange="setHolidayBranch(${i},'${b}',this.checked)">${escHtml(b)}</label>`).join("")}
+      ${!all && !h.branches.length ? `<span style="font-size:10.5px;color:var(--warn);">${escHtml(fleetI18n.tr("Tick the branches for this holiday"))}</span>` : ""}
     </div></td>
     <td><button class="btn ghost" onclick="holidays.splice(${i},1);renderHolidays()">✕</button></td></tr>`;
   }).join("");
 }
 function setHolidayBranch(i, b, on){
   const h = holidays[i]; if(!h) return;
-  if(b==="ALL"){ h.branches = on ? ["ALL"] : BRANCH_CODES.slice(); }
+  if(b==="ALL"){ h.branches = on ? ["ALL"] : []; }          // untick "All" → start from an empty pick
+  else if(holidayAll(h)){ h.branches = BRANCH_CODES.filter(x=>x!==b); }   // untick one branch while "All" → all except it
   else {
-    const set = new Set(holidayAll(h) ? BRANCH_CODES : h.branches);
+    const set = new Set(h.branches);
     on ? set.add(b) : set.delete(b);
     h.branches = set.size===BRANCH_CODES.length ? ["ALL"] : [...set];
-    if(!h.branches.length){ A(fleetI18n.tr("Pick at least one branch.")); h.branches = [b]; }
   }
   renderHolidays();
 }
@@ -5563,6 +5564,8 @@ function addHolidayRow(){ holidays.unshift({date:"", name:"", branches:["ALL"]})
 async function saveHolidays(){
   if(currentRole!=="admin") return;
   holidays = holidays.filter(h=>h.date && String(h.name||"").trim());
+  const none = holidays.filter(h=>!holidayBranches(h).length);
+  if(none.length){ A(fleetI18n.tr(`Tick at least one branch for: ${none.map(h=>h.name).join(", ")}`)); renderHolidays(); return; }
   try{ await window.storage.set(HOLIDAYS_KEY, JSON.stringify({data:holidays, defaultsVersion:HOLIDAYS_DEFAULTS_VERSION}), true); }
   catch(e){ A(fleetI18n.tr("Could not save — check your connection and try again.")); return; }
   renderHolidays(); renderComplianceCalendar();
