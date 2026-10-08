@@ -814,7 +814,8 @@ body:not(.is-admin) .admin-only{display:none !important;}
               <div><label>JKKP Expiry</label><input id="av_jkkp" type="date"></div>
               <div><label>APAD Expiry</label><input id="av_apad" type="date"></div>
             </div>
-            <div class="form-actions">
+            <div class="form-actions" style="align-items:flex-end;">
+              <div style="flex:1;"><label>Reason / Remark</label><input id="av_remark" class="dsp-up" placeholder="e.g. NEW PURCHASE FOR PROJECT ABC" style="width:100%;"></div>
               <button class="btn ghost" onclick="toggleForm('addVehicleForm')">Cancel</button>
               <button class="btn yellow" onclick="addComplianceVehicle()">Simpan Kenderaan</button>
             </div>
@@ -2725,7 +2726,8 @@ async function addComplianceVehicle(){
     shellCard: null, subsidy: null
   });
 
-  ["av_company","av_category","av_plate","av_location","av_roadTax","av_inspection","av_insurance","av_jkkp","av_apad"].forEach(id=>document.getElementById(id).value="");
+  const remark = document.getElementById("av_remark").value.trim().toUpperCase();
+  ["av_company","av_category","av_plate","av_location","av_roadTax","av_inspection","av_insurance","av_jkkp","av_apad","av_remark"].forEach(id=>document.getElementById(id).value="");
   toggleForm("addVehicleForm");
   renderComplianceTable();
   renderInsurance();
@@ -2735,7 +2737,7 @@ async function addComplianceVehicle(){
   document.getElementById("rmSoonCount").textContent = complianceData.filter(d=>rowHasStatus(d,"soon")).length;
   await persistComplianceRegister();
   // New vehicle also lands in New / Dispose → "New — Delivered"; admin keys in price, purchase date etc. there.
-  disposePipeline.delivered.unshift({ kind:"new", cid:newId, plate, addedAt: APP_TODAY_ISO.split("-").reverse().join("/") });
+  disposePipeline.delivered.unshift({ kind:"new", cid:newId, plate, reason:remark, addedAt: APP_TODAY_ISO.split("-").reverse().join("/") });
   await persistDisposePipeline();
   renderDispose();
 }

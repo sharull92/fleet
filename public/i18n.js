@@ -423,6 +423,7 @@
     ["Disposal requested + approved","Pelupusan dimohon + diluluskan"],
     ["New vehicles minus disposed","Kenderaan baharu tolak yang dilupus"],
     ["Stage","Peringkat"],
+    ["e.g. NEW PURCHASE FOR PROJECT ABC","cth. PEMBELIAN BAHARU UNTUK PROJEK ABC"],
     ["Price / Sold (RM)","Harga / Jualan (RM)"],
     ["Purchase / Sold Date","Tarikh Beli / Jual"],
     ["Supplier / Buyer","Pembekal / Pembeli"],
