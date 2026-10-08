@@ -1233,22 +1233,36 @@ body:not(.is-admin) .admin-only{display:none !important;}
         </div>
 
         <div class="panel" id="purchaseRequestForm" style="display:none;background:var(--note-bg);box-shadow:none;border:1px solid var(--yellow-deep);margin-bottom:16px;">
-          <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">New Vehicle Purchase Request</h3></div>
-          <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1fr;">
-            <div><label>Requested By</label><input id="pr_by" class="dsp-up" placeholder="e.g. ABC"></div>
-            <div><label>Company</label><input id="pr_company" class="dsp-up" placeholder="e.g. AKLI"></div>
-            <div><label>Branch</label><select id="pr_branch"></select></div>
-            <div><label>Vehicle Category</label><input id="pr_category" class="dsp-up" placeholder="e.g. 4WD"></div>
+          <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:12.5px;">New Vehicle Purchase Request</h3><span class="sub" style="font-size:11px;color:var(--ink-soft);">Fill in the details below — the request form is printed for approval</span></div>
+          <div class="form-row" style="grid-template-columns:1fr 2fr 1.5fr 1fr;">
+            <div><label>Date</label><input id="pr_date" type="date"></div>
+            <div><label>Applicant Name</label><input id="pr_by" class="dsp-up" placeholder="e.g. ABC"></div>
+            <div><label>Position</label><input id="pr_position" class="dsp-up" placeholder="e.g. SR EXECUTIVE"></div>
+            <div><label>Department</label><input id="pr_dept" class="dsp-up" value="FLEET"></div>
           </div>
-          <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 2fr;">
-            <div><label>Quantity</label><input id="pr_qty" type="number" min="1" step="1" value="1"></div>
-            <div><label>Estimated Price (RM)</label><input id="pr_price" type="number" min="0" step="0.01" placeholder="0"></div>
-            <div><label>Required By</label><input id="pr_needBy" type="date"></div>
-            <div><label>Reason / Justification</label><input id="pr_reason" class="dsp-up" placeholder="e.g. NEW PROJECT / REPLACE OLD UNIT"></div>
+          <div style="font-weight:700;font-size:11.5px;margin:6px 0 8px;text-decoration:underline;">A - For Vehicle Purchase</div>
+          <div class="form-row" style="grid-template-columns:2fr 1fr 1.5fr;">
+            <div><label>Company</label><input id="pr_company" class="dsp-up" placeholder="e.g. TBA"></div>
+            <div><label>Purchase Type</label><select id="pr_type" onchange="document.getElementById('pr_oldWrap').style.visibility=this.value==='TRADE IN'?'visible':'hidden'"><option value="BARU">New</option><option value="TRADE IN">Trade In</option></select></div>
+            <div id="pr_oldWrap" style="visibility:hidden;"><label>Old Vehicle No. (trade in)</label><input id="pr_oldPlate" class="dsp-up" placeholder="e.g. ABC 1234"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr;">
+            <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:2fr 1fr 1fr 1fr;">
+            <div><label>Type / Model</label><input id="pr_model" class="dsp-up" placeholder="e.g. FE 335B / MITSUBISHI"></div>
+            <div><label>Year of Manufacture</label><input id="pr_year" type="number" min="1950" max="2100" placeholder="e.g. 2024"></div>
+            <div><label>Market Price (RM)</label><input id="pr_market" type="number" min="0" step="0.01" placeholder="0"></div>
+            <div><label>Offered Price (RM)</label><input id="pr_price" type="number" min="0" step="0.01" placeholder="0"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:2fr 1fr 1fr;">
+            <div><label>Seller Company Name &amp; Address</label><textarea id="pr_seller" class="dsp-up" rows="2" placeholder="e.g. ABC SDN BHD, LOT 1, JALAN ..."></textarea></div>
+            <div><label>Financing Type</label><select id="pr_finance" onchange="document.getElementById('pr_pctWrap').style.visibility=this.value==='BANK'?'visible':'hidden'"><option value="TUNAI">Cash</option><option value="BANK">Bank Financing</option></select></div>
+            <div id="pr_pctWrap" style="visibility:hidden;"><label>Financing Amount (%)</label><input id="pr_financePct" type="number" min="0" max="100" placeholder="e.g. 70"></div>
           </div>
           <div class="form-actions">
             <button class="btn ghost" onclick="togglePurchaseRequestForm()">Cancel</button>
-            <button class="btn yellow" onclick="submitPurchaseRequest()">Submit Request</button>
+            <button class="btn yellow" onclick="submitPurchaseRequest()">🖨 Submit &amp; Print</button>
           </div>
         </div>
 
@@ -2915,7 +2929,7 @@ function renderOverview(){
   hiringRecords.filter(h=>h.status==="New" && inGlobalScopeHiring(h)).forEach(h=>rows.push([escHtml(h.unit), "Hiring", "hiring", escHtml(T("Belum di-assign")+" — "+h.company), escHtml(h.tarikh), badge("New","warn")]));
   dailyMovements.filter(m=>m.date===APP_TODAY_ISO && (m.problems||[]).length && (!GLOBAL_BRANCH || m.branch===GLOBAL_BRANCH)).forEach(m=>
     rows.push([escHtml(m.plate)+" — "+escHtml(m.driver), "Daily Checklist", "external", escHtml((m.problems||[]).map(k=>fleetI18n.tr((DM_CHECK_ITEMS.find(x=>x[0]===k)||[k,k])[1])).join(", ")+(m.checkNote?" — "+m.checkNote:"")), escHtml(m.branch||"—"), badge("Check","warn")]));
-  if(!scoped) disposePipeline.requested.forEach(d=>rows.push([escHtml(`${d.category||d.veh||""}${Number(d.qty)>1?" ×"+d.qty:""}${d.company?" — "+d.company:""}`), "New / Dispose", "dispose", escHtml(fleetI18n.tr("New vehicle purchase request")+(d.reason?" — "+d.reason:"")), escHtml(d.branch||"—"), badge("Review","warn")]));
+  if(!scoped) disposePipeline.requested.forEach(d=>rows.push([escHtml(`${d.model||d.category||d.veh||""}${Number(d.qty)>1?" ×"+d.qty:""}${d.company?" — "+d.company:""}`), "New / Dispose", "dispose", escHtml(fleetI18n.tr("New vehicle purchase request")+(d.reason?" — "+d.reason:"")), escHtml(d.branch||"—"), badge("Review","warn")]));
   document.getElementById("attentionBody").innerHTML = rows.length
     ? rows.map(r=>`<tr><td>${r[0]}</td><td><a href="#" class="map-link" onclick="event.preventDefault();document.querySelector('.nav-btn[data-view=${r[2]}]').click()">${escHtml(fleetI18n.tr(r[1]))}</a></td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td></tr>`).join("")
     : `<tr><td colspan="5" style="color:var(--faint);text-align:center;">Nothing needs attention in ${scopeLabel}</td></tr>`;
@@ -5201,7 +5215,7 @@ let disposeStage = "", disposeEditRef = "";
    once removed from the register they keep a snapshot (rec). */
 function dispRec(i){
   return (i.cid!=null && complianceData.find(d=>d.id===i.cid)) || i.rec
-    || (i.kind==="request" ? {company:i.company, category:i.category + (Number(i.qty)>1 ? ` ×${i.qty}` : ""), location:i.branch, plate:""} : {});
+    || (i.kind==="request" ? {company:i.company, category:i.model || ((i.category||"") + (Number(i.qty)>1 ? ` ×${i.qty}` : "")), location:i.branch||i.dept||"", plate:i.serial||""} : {});
 }
 /* One set of columns for both directions: price / purchase date / supplier for new vehicles,
    sold value / date sold / buyer for disposed ones. */
@@ -5259,7 +5273,7 @@ function renderDisposeTable(){
          <td class="mono-cell">${escHtml(isoToDmy(m.date))||"—"}</td><td>${escHtml(m.party)||"—"}</td>`;
     const actions = editing
       ? `<span id="dspSaved" style="font-size:10.5px;color:var(--good);margin-right:6px;"></span><button type="button" class="btn" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✓ <span>${escHtml(fleetI18n.tr("Done"))}</span></button>`
-      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Print request form"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx})">🖨</button> <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
     return `<tr><td>${stageCell}</td>
       <td style="font-weight:600;">${escHtml(rec.plate || i.plate || i.veh || "")||"—"}${i.requestedBy?`<div style="font-size:10px;font-weight:400;color:var(--ink-soft);">${escHtml(fleetI18n.tr("By"))} ${escHtml(i.requestedBy)}</div>`:""}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
       <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.addedAt || i.removedAt || "—")}</td>
@@ -5292,30 +5306,122 @@ async function autoSaveDisposed(stageKey, idx){
   renderDisposeKpis();
 }
 /* ---- New vehicle purchase request (green KPI box) ---- */
+const PR_FIELDS = ["pr_by","pr_position","pr_company","pr_oldPlate","pr_reason","pr_model","pr_year","pr_market","pr_price","pr_seller","pr_financePct"];
 function togglePurchaseRequestForm(){
   const f = document.getElementById("purchaseRequestForm");
   const open = f.style.display==="none";
   f.style.display = open ? "block" : "none";
   if(open){
-    document.getElementById("pr_branch").innerHTML = `<option value="">— ${escHtml(fleetI18n.tr("Select branch"))} —</option>` + BRANCH_CODES.map(b=>`<option value="${b}">${b}</option>`).join("");
+    PR_FIELDS.forEach(id=>document.getElementById(id).value="");
+    document.getElementById("pr_date").value = APP_TODAY_ISO;
+    document.getElementById("pr_dept").value = "FLEET";
+    document.getElementById("pr_type").value = "BARU"; document.getElementById("pr_oldWrap").style.visibility = "hidden";
+    document.getElementById("pr_finance").value = "TUNAI"; document.getElementById("pr_pctWrap").style.visibility = "hidden";
     document.getElementById("pr_by").focus();
   }
+}
+/* Serial no. NV/<year>/<nnn>, running per year across every stage. */
+function nextPurchaseSerial(year){
+  const re = new RegExp(`^NV/${year}/(\\d+)$`);
+  const max = Object.values(disposePipeline).flat().reduce((m,i)=>{ const x = re.exec(i.serial||""); return x ? Math.max(m, +x[1]) : m; }, 0);
+  return `NV/${year}/${String(max+1).padStart(3,"0")}`;
 }
 async function submitPurchaseRequest(){
   if(currentRole!=="admin") return;
   const v = id => document.getElementById(id).value.trim();
   const up = id => v(id).toUpperCase();
-  if(!v("pr_category") || !v("pr_branch")){ alert(fleetI18n.tr("Please fill in at least Branch and Vehicle Category.")); return; }
-  const qty = Math.max(1, parseInt(v("pr_qty"),10) || 1);
-  const price = v("pr_price")==="" ? null : Number(v("pr_price"));
-  disposePipeline.requested.unshift({ kind:"request", requestedBy:up("pr_by"), company:up("pr_company"), branch:v("pr_branch"),
-    category:up("pr_category"), qty, price: price>0 ? price : null, needBy:v("pr_needBy"), reason:up("pr_reason"),
-    addedAt: APP_TODAY_ISO.split("-").reverse().join("/") });
-  ["pr_by","pr_company","pr_category","pr_price","pr_needBy","pr_reason"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("pr_qty").value = "1";
+  const num = id => v(id)==="" ? null : Number(v(id));
+  if(!v("pr_by") || !v("pr_model")){ alert(fleetI18n.tr("Please fill in at least Applicant Name and Type / Model.")); return; }
+  const date = v("pr_date") || APP_TODAY_ISO;
+  const item = { kind:"request", serial: nextPurchaseSerial(date.slice(0,4)), date,
+    requestedBy:up("pr_by"), position:up("pr_position"), dept:up("pr_dept"),
+    company:up("pr_company"), purchaseType:v("pr_type"), oldPlate: v("pr_type")==="TRADE IN" ? up("pr_oldPlate") : "",
+    reason:up("pr_reason"), model:up("pr_model"), year:v("pr_year"), marketPrice:num("pr_market"), price:num("pr_price"),
+    seller:up("pr_seller"), supplier: up("pr_seller").split(/[,\n]/)[0].trim(),
+    finance:v("pr_finance"), financePct: v("pr_finance")==="BANK" ? v("pr_financePct") : "",
+    addedAt: date.split("-").reverse().join("/") };
+  disposePipeline.requested.unshift(item);
   togglePurchaseRequestForm();
   await persistDisposePipeline();
   renderDispose();
+  printPurchaseRequest("requested", 0);
+}
+/* Printable request form, laid out like the company's paper form (BM). The applicant part is
+   filled from the request; the approval parts stay blank for signatures. */
+function printPurchaseRequest(stageKey, idx){
+  const i = (disposePipeline[stageKey]||[])[idx]; if(!i) return;
+  const e = x => escHtml(x==null ? "" : String(x));
+  const dmy = iso => iso ? iso.split("-").reverse().join("/") : "";
+  const money = n => n!=null && n!=="" ? Number(n).toLocaleString("en-MY",{minimumFractionDigits:2, maximumFractionDigits:2}) : "";
+  const pick = (val, a, b) => `<span class="${val===a[0]?"":"strike"}">${a[1]}</span> / <span class="${val===b[0]?"":"strike"}">${b[1]}</span>`;
+  const line = (label, value, extra="") => `<tr><td class="lb">${label}</td><td class="c">:</td><td class="val" ${extra}>${value||"&nbsp;"}</td></tr>`;
+  const reasonLines = String(i.reason||"").split(/\n/).filter(Boolean);
+  while(reasonLines.length < 4) reasonLines.push("");
+  const sellerLines = String(i.seller||"").split(/\n/);
+  while(sellerLines.length < 2) sellerLines.push("");
+  const blank = n => Array.from({length:n},()=>`<div class="ln">&nbsp;</div>`).join("");
+  const css = `
+  *{box-sizing:border-box;} body{font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#000;margin:0;}
+  .page{width:190mm;margin:0 auto;padding:6mm 4mm;page-break-after:always;} .page:last-child{page-break-after:auto;}
+  h1{font-size:14px;text-align:center;text-decoration:underline;margin:0 0 2px;line-height:1.5;}
+  .siri{text-align:right;margin:4px 0 10px;} .siri b{display:inline-block;min-width:38mm;border-bottom:1px solid #000;text-align:left;padding-left:4px;}
+  table{width:100%;border-collapse:collapse;} td{vertical-align:bottom;padding:5px 2px;}
+  td.lb{width:52mm;white-space:nowrap;} td.c{width:4mm;} td.val{border-bottom:1px solid #000;font-weight:600;}
+  .sec{font-weight:700;text-decoration:underline;margin:14px 0 4px;} .strike{text-decoration:line-through;font-weight:400;color:#555;}
+  .ln{border-bottom:1px solid #000;height:20px;font-weight:600;padding-top:3px;}
+  .sig{display:flex;justify-content:space-between;gap:8mm;margin-top:26px;} .sig>div{flex:1;font-size:11.5px;}
+  .sig .s{border-bottom:1px dotted #000;height:46px;margin-bottom:4px;} .sig .r{display:flex;gap:4px;margin-top:5px;} .sig .r span:last-child{flex:1;border-bottom:1px solid #000;font-weight:600;min-height:15px;}
+  .note{font-size:10.5px;margin-top:18px;} .two{display:grid;grid-template-columns:1.55fr 1fr;column-gap:6mm;} .two>table:last-child td.lb{width:32mm;}
+  @page{size:A4 portrait;margin:10mm;}`;
+  const page1 = `<div class="page">
+    <h1>BORANG PERMOHONAN PEMBELIAN KENDERAAN / PERALATAN<br>KERJA / ASET PEJABAT BERNILAI MELEBIHI RM 10,000.00 SEUNIT**</h1>
+    <div class="siri">No. Siri : <b>${e(i.serial)}</b></div>
+    <div class="two"><table>${line("1) Tarikh", e(dmy(i.date)))}${line("2) Nama Pemohon", e(i.requestedBy))}${line("4) Jawatan", e(i.position))}</table>
+      <table><tr><td style="height:24px"></td></tr>${line("3) Jabatan", e(i.dept), "")}</table></div>
+    <div class="sec">A - Bagi Pembelian Kenderaan</div>
+    <table>
+      ${line("1) Syarikat", e(i.company))}
+      ${line("2) Jenis Pembelian", `${pick(i.purchaseType,["BARU","Baru"],["TRADE IN","Trade In"])} ( nyatakan no. kenderaan lama : <u>&nbsp;${e(i.oldPlate)||"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
+      <tr><td class="lb" style="vertical-align:top;">3) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${reasonLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
+    </table>
+    <div class="two" style="margin-top:6px;">
+      <table>${line("4) Jenis / Model", e(i.model))}${line("6) Harga Pasaran", i.marketPrice!=null?"RM "+money(i.marketPrice):"")}</table>
+      <table>${line("5) Tahun Buatan", e(i.year))}${line("7) Harga Ditawarkan", i.price!=null?"RM "+money(i.price):"")}</table>
+    </div>
+    <table>
+      <tr><td class="lb" style="vertical-align:top;">8) Nama &amp; Alamat<br>&nbsp;&nbsp;&nbsp;&nbsp;Syarikat Penjual</td><td class="c" style="vertical-align:top;">:</td><td>${sellerLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
+      ${line("9) Jenis Pembiayaan", `${pick(i.finance,["TUNAI","Tunai"],["BANK","Pembiayaan Bank**"])} ( jumlah pembiayaan : <u>&nbsp;${i.financePct?e(i.financePct)+"%":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
+    </table>
+    <div class="sec">B - Bagi Pembelian Peralatan Kerja / Aset Pejabat**</div>
+    <table>
+      ${line("1) Nama Peralatan / Aset","")}
+      <tr><td class="lb" style="vertical-align:top;">2) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${blank(3)}</td></tr>
+    </table>
+    <div class="two"><table>${line("3) Jenis / Model","")}${line("5) Harga Pasaran","RM")}</table><table>${line("4) Tahun Buatan","")}${line("6) Harga Ditawarkan","RM")}</table></div>
+    <table>${line("7) Nama &amp; Alamat Syarikat Penjual","")}${line("8) Terma / Tempoh Bayaran","")}</table>
+    <div class="sig">
+      <div><div class="s"></div>Tandatangan Pemohon<div class="r"><span>Nama :</span><span>${e(i.requestedBy)}</span></div><div class="r"><span>Tarikh :</span><span>${e(dmy(i.date))}</span></div></div>
+      <div><div class="s"></div>Tandatangan Ketua Jabatan Pemohon<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
+      <div><div class="s"></div>T/Tangan Ketua Jab. Pengurusan Fleet<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
+    </div>
+    <div class="note">**Potong yang tidak berkenaan</div>
+  </div>`;
+  const page2 = `<div class="page">
+    <h1 style="text-align:left;">KEGUNAAN JABATAN PENTADBIRAN &amp; KELULUSAN PIHAK PENGURUSAN</h1>
+    <div class="two" style="margin-top:14px;"><table>${line("1) Tarikh Terima","")}</table><table>${line("2) Diterima Oleh","")}</table></div>
+    <p style="margin:16px 0 4px;">3) Permohonan Diluluskan / Tidak Diluluskan (nyatakan sebab jika tidak lulus)**</p>${blank(3)}
+    <p style="margin:18px 0 4px;">4) Bagi pembiayaan kenderaan dengan pihak Bank, tempoh pembiayaan yang dicadangkan ialah</p><div class="ln" style="width:60mm;"></div>
+    <div class="sig" style="margin-top:50px;">
+      <div><div class="s"></div>Pengarah Urusan Kanan / Pengarah Urusan<div class="r"><span>Tarikh :</span><span></span></div></div>
+      <div></div>
+      <div><div class="s"></div>Ketua Pegawai Eksekutif<div class="r"><span>Tarikh :</span><span></span></div></div>
+    </div>
+    <div class="note" style="margin-top:40px;">**Potong yang tidak berkenaan</div>
+  </div>`;
+  const w = window.open("", "_blank");
+  if(!w){ alert(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${e(i.serial)} — Permohonan Pembelian Kenderaan</title><style>${css}</style></head><body>${page1}${page2}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
 }
 async function deletePurchaseRequest(stageKey, idx){
   if(currentRole!=="admin") return;
