@@ -417,6 +417,12 @@
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
     ["📥 Import policy PDFs","📥 Import PDF polisi"],
+    ["🔗 Import from Google Sheet","🔗 Import dari Google Sheet"],
+    ["Paste the Google Sheet link (sharing: Anyone with the link can view). Each row needs the vehicle plate (or the PDF name starting with the plate) and the Google Drive link of the PDF.","Paste link Google Sheet (sharing: Anyone with the link can view). Setiap baris perlu ada no. plat kenderaan (atau nama PDF bermula dengan plat) dan link Google Drive PDF tersebut."],
+    ["That is not a Google Sheet link.","Itu bukan link Google Sheet."],
+    ["Reading the Google Sheet…","Membaca Google Sheet…"],
+    ["No rows with both a vehicle plate and a Google Drive link were found.","Tiada baris yang ada no. plat dan link Google Drive."],
+    ["Drive link but no matching vehicle:","Ada link Drive tetapi tiada kenderaan sepadan:"],
     ["View PDF","Lihat PDF"],
     ["Upload PDF","Muat naik PDF"],
     ["Replace","Ganti"],
@@ -601,6 +607,7 @@
   ];
 
   const TEMPLATES = [
+    ["Copying PDF {a} of {b}…","Menyalin PDF {a} daripada {b}…"],
     ["{a} is larger than 4 MB.","{a} lebih besar dari 4 MB."],
     ["Uploading {a} file(s)…","Memuat naik {a} fail…"],
     ["✓ {a} PDF(s) linked to vehicles.","✓ {a} PDF dipautkan kepada kenderaan."],

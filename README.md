@@ -41,6 +41,9 @@ penapis gaya Excel yang sama. Kotak ringkasan: kenderaan berinsurans, tamat, tam
 fail sekaligus dan padankan setiap fail ikut nama fail — sama dengan No. Polisi sedia ada (cth. `WB7392V - AUG 25-26.pdf`)
 atau bermula dengan no. plat. Fail disimpan di server (Supabase Storage, bucket peribadi `fleet-files` yang dicipta
 automatik; atau SQLite bila run sendiri), maksimum 4 MB setiap fail, admin sahaja boleh muat naik / buka.
+**🔗 Import dari Google Sheet:** paste link Google Sheet (sharing *Anyone with the link can view*) yang setiap barisnya
+ada no. plat (atau nama PDF bermula dengan plat) dan link Google Drive PDF polisi (fail Drive juga mesti *Anyone with
+the link*). Server salin setiap PDF terus dari Drive. Nama fail PDF lama dalam ruangan No. Polisi dikosongkan.
 
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 
@@ -154,6 +157,8 @@ iPhone: Safari → Share → **Add to Home Screen**.
 | `GET` | `/api/session` | Role semasa |
 | `GET` | `/api/export` | Backup semua data (admin) |
 | `GET` / `PUT` | `/api/files/:id` | Baca / muat naik PDF polisi (admin) |
+| `POST` | `/api/files/fromdrive` | Salin PDF dari Google Drive (admin) |
+| `GET` | `/api/gsheet/:id` | Baca Google Sheet (xlsx) untuk import (admin) |
 | `GET` | `/api/health` | Status konfigurasi server & storage |
 
 Request yang ubah data mesti hantar header `X-Requested-With: fleet-app` (perlindungan CSRF).

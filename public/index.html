@@ -799,6 +799,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div class="panel-head">
             <h3>Insurance Register</h3>
             <span class="sub" style="font-size:11px;color:var(--ink-soft);margin-left:auto;">Expiry date is shared with the Compliance Register — change it in either place</span>
+            <button type="button" class="btn ghost admin-only" onclick="importInsuranceFromSheet()">🔗 Import from Google Sheet</button>
             <label class="btn yellow admin-only" style="cursor:pointer;margin:0;display:inline-flex;align-items:center;text-transform:none;letter-spacing:0;">📥 Import policy PDFs<input type="file" accept="application/pdf,.pdf" multiple hidden onchange="importInsurancePdfs(this)"></label>
           </div>
           <div id="insPdfStatus" style="display:none;font-size:11.5px;margin:-6px 0 10px;white-space:pre-line;"></div>
@@ -2229,6 +2230,73 @@ async function uploadInsurancePdf(id, input){
   if(!rec || !file) return;
   try{ await putInsurancePdf(rec, file); await persistComplianceRegister(); renderInsurance(); }
   catch(e){ A(e.message); }
+}
+/* Import from a Google Sheet: each row with a vehicle plate and a Google Drive link to the
+   policy PDF. The server fetches the sheet (xlsx, keeps hyperlinks) and copies each PDF. */
+const DRIVE_ID_RE = /(?:\/file\/d\/|\/d\/|[?&]id=)([A-Za-z0-9_-]{20,})/;
+function insRecForText(text){
+  const key = utilPlateKey(text);
+  if(!key) return null;
+  return complianceData.find(d=>utilPlateKey(d.plate)===key) || matchInsurancePdf(String(text));
+}
+async function importInsuranceFromSheet(){
+  if(currentRole!=="admin") return;
+  const link = prompt(fleetI18n.tr("Paste the Google Sheet link (sharing: Anyone with the link can view). Each row needs the vehicle plate (or the PDF name starting with the plate) and the Google Drive link of the PDF."));
+  if(!link) return;
+  const m = String(link).match(/\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/);
+  const st = document.getElementById("insPdfStatus");
+  st.style.display = "block"; st.style.color = "var(--ink-soft)";
+  if(!m){ st.style.color = "var(--danger)"; st.textContent = fleetI18n.tr("That is not a Google Sheet link."); return; }
+  st.textContent = fleetI18n.tr("Reading the Google Sheet…");
+  let wb;
+  try{
+    const r = await fetch("/api/gsheet/" + m[1], { credentials:"same-origin" });
+    if(!r.ok){ let msg = "HTTP " + r.status; try{ msg = (await r.json()).error || msg; }catch(e){} throw new Error(msg); }
+    wb = XLSX.read(await r.arrayBuffer(), { type:"array" });
+  }catch(e){ st.style.color = "var(--danger)"; st.textContent = e.message; return; }
+
+  // collect (vehicle, Drive file id) pairs from every sheet / row
+  const jobs = new Map(), noLink = [], noVehicle = [];
+  wb.SheetNames.forEach(name=>{
+    const ws = wb.Sheets[name];
+    if(!ws["!ref"]) return;
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    for(let r=range.s.r; r<=range.e.r; r++){
+      let rec = null, driveId = null, label = "";
+      for(let c=range.s.c; c<=range.e.c; c++){
+        const cell = ws[XLSX.utils.encode_cell({r,c})];
+        if(!cell) continue;
+        const text = String(cell.w!=null ? cell.w : (cell.v!=null ? cell.v : "")).trim();
+        const target = (cell.l && cell.l.Target) || "";
+        const dm = (target.match(DRIVE_ID_RE) || text.match(DRIVE_ID_RE));
+        if(dm && !driveId) driveId = dm[1];
+        if(!rec && text && !/^https?:/i.test(text)){ const hit = insRecForText(text); if(hit){ rec = hit; label = text; } }
+      }
+      if(rec && driveId) jobs.set(rec.id, {rec, driveId});
+      else if(rec && !driveId && !jobs.has(rec.id)) noLink.push(rec.plate);
+      else if(!rec && driveId) noVehicle.push(`row ${r+1}`);
+    }
+  });
+  if(!jobs.size){ st.style.color = "var(--warn)"; st.textContent = fleetI18n.tr("No rows with both a vehicle plate and a Google Drive link were found."); return; }
+  const done = [], failed = [];
+  let i = 0;
+  for(const {rec, driveId} of jobs.values()){
+    st.textContent = fleetI18n.tr(`Copying PDF ${++i} of ${jobs.size}…`);
+    const id = `ins-${utilPlateKey(rec.plate)}-${Date.now().toString(36)}.pdf`;
+    try{
+      const r = await fetch("/api/files/fromdrive", { method:"POST", credentials:"same-origin",
+        headers:{ "Content-Type":"application/json", "X-Requested-With":"fleet-app" }, body: JSON.stringify({ driveId, id }) });
+      if(!r.ok){ let msg = "HTTP " + r.status; try{ msg = (await r.json()).error || msg; }catch(e){} throw new Error(msg); }
+      rec.insurancePolicyFile = id;
+      done.push(rec.plate);
+    }catch(e){ failed.push(`${rec.plate}: ${e.message}`); }
+  }
+  if(done.length) await persistComplianceRegister();
+  renderInsurance();
+  st.style.color = failed.length ? "var(--warn)" : "var(--good)";
+  st.textContent = fleetI18n.tr(`✓ ${done.length} PDF(s) linked to vehicles.`)
+    + (failed.length ? "\n" + fleetI18n.tr("Failed:") + " " + failed.join("; ") : "")
+    + (noVehicle.length ? "\n" + fleetI18n.tr("Drive link but no matching vehicle:") + " " + noVehicle.join(", ") : "");
 }
 /* Bulk import: each PDF is matched to a vehicle by its file name — the same name already in
    Policy No. (e.g. "WB7392V - AUG 25-26.pdf"), else the plate at the start of the file name. */
@@ -5303,6 +5371,11 @@ function dmCopyReport(){
   renderDispose();
   initDailyMovementForm();
   renderIssueChips();
+  if(currentRole==="admin"){
+    // Policy No. used to hold the PDF file name — clear those (the PDF itself is now attached)
+    const named = complianceData.filter(d=>/\.pdf\s*$/i.test(String(d.insurancePolicy||"")));
+    if(named.length){ named.forEach(d=>{ d.insurancePolicy = null; }); renderInsurance(); persistComplianceRegister(); }
+  }
   if(currentRole==="admin") document.querySelector('.nav-btn[data-view="overview"]').click();
   applyLanguage();
   const startView = (document.querySelector(".nav-btn.active")||{}).dataset?.view || "external";
