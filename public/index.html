@@ -5486,24 +5486,30 @@ async function printPurchaseRequest(stageKey, idx, mode){
       ${line("3) Jenis Pembelian", `${pick(i.purchaseType,["BARU","Baru"],["TRADE IN","Trade In"])} ( nyatakan no. kenderaan lama : <u>&nbsp;${e(i.oldPlate)||"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
       <tr><td class="lb" style="vertical-align:top;">4) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${reasonLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
     </table>
-    <div class="sig">
+    <div class="sig" style="margin-top:14px;">
       <div><div class="s"></div>Tandatangan Pemohon<div class="r"><span>Nama :</span><span>${e(i.requestedBy)}</span></div><div class="r"><span>Tarikh :</span><span>${e(dmy(i.date))}</span></div></div>
       <div><div class="s"></div>Tandatangan Ketua Jabatan Pemohon<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
-      <div><div class="s"></div>T/Tangan Ketua Jab. Pengurusan Fleet<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
     </div>
-    <div class="note">**Potong yang tidak berkenaan</div>
+    <div class="note" style="margin-top:10px;">**Potong yang tidak berkenaan</div>
   </div>`;
   const page2 = `<div class="page">
-    <h1 style="text-align:left;">KEGUNAAN JABATAN PENTADBIRAN &amp; KELULUSAN PIHAK PENGURUSAN</h1>
-    <div class="two" style="margin-top:14px;"><table>${line("1) Tarikh Terima","")}</table><table>${line("2) Diterima Oleh","")}</table></div>
-    <p style="margin:16px 0 4px;">3) Permohonan Diluluskan / Tidak Diluluskan (nyatakan sebab jika tidak lulus)**</p>${blank(3)}
-    <p style="margin:18px 0 4px;">4) Bagi pembiayaan kenderaan dengan pihak Bank, tempoh pembiayaan yang dicadangkan ialah</p><div class="ln" style="width:60mm;"></div>
-    <div class="sig" style="margin-top:50px;">
+    <h1>BORANG PERMOHONAN PEMBELIAN KENDERAAN — ULASAN &amp; KELULUSAN</h1>
+    <div class="siri">No. Siri : <b>${e(i.serial)}</b></div>
+    <table>${line("Syarikat", e(i.company))}${line("Jenis / Model", e(i.model))}${line("Nama Pemohon", e(i.requestedBy))}</table>
+    <div class="sec">B - Ulasan / Komen Jabatan Fleet</div>
+    ${blank(5)}
+    <div class="sig" style="margin-top:8px;justify-content:flex-end;">
+      <div style="flex:0 0 62mm;"><div class="s"></div>T/Tangan Ketua Jab. Pengurusan Fleet<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
+    </div>
+    <div class="sec">C - Bagi Pihak Pengurusan</div>
+    <div style="margin:4px 0 2px;">Permohonan Diluluskan / Tidak Diluluskan (nyatakan sebab jika tidak lulus)**</div>
+    ${blank(4)}
+    <div style="margin:14px 0 2px;">Bagi pembiayaan kenderaan dengan pihak Bank, tempoh pembiayaan yang dicadangkan ialah : <span style="display:inline-block;width:45mm;border-bottom:1px solid #000;">&nbsp;</span></div>
+    <div class="sig" style="margin-top:8px;">
       <div><div class="s"></div>Pengarah Urusan Kanan / Pengarah Urusan<div class="r"><span>Tarikh :</span><span></span></div></div>
-      <div></div>
       <div><div class="s"></div>Ketua Pegawai Eksekutif<div class="r"><span>Tarikh :</span><span></span></div></div>
     </div>
-    <div class="note" style="margin-top:40px;">**Potong yang tidak berkenaan</div>
+    <div class="note" style="margin-top:16px;">**Potong yang tidak berkenaan</div>
   </div>`;
   const w = window.open("", "_blank");
   if(!w){ alert(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
