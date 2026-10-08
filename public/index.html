@@ -2196,7 +2196,7 @@ function renderInsurance(){
       <td style="font-weight:600;">${escHtml(d.company)}</td><td class="mono-cell">${escHtml(d.plate)}</td><td>${escHtml(d.category)}</td><td>${escHtml(d.location)}</td>
       <td>${inp(d,"insurer",130,'placeholder="e.g. Etiqa"')}</td>
       <td>${inp(d,"insurancePolicy",190,'class="mono-cell"')}<div style="display:flex;gap:6px;align-items:center;margin-top:4px;">
-        ${d.insurancePolicyFile ? `<a class="map-link" href="/api/files/${encodeURIComponent(d.insurancePolicyFile)}" target="_blank" rel="noopener">📄 ${escHtml(fleetI18n.tr("View PDF"))}</a>` : ""}
+        ${d.insurancePolicyFile ? `<a class="map-link" href="/api/files/${encodeURIComponent(d.insurancePolicyFile)}" target="_blank" rel="noopener">📄 ${escHtml(fleetI18n.tr("View PDF"))}</a><button type="button" class="btn ghost" style="padding:2px 8px;font-size:10.5px;color:var(--danger);" title="${escHtml(fleetI18n.tr("Delete this PDF"))}" onclick="deleteInsurancePdf(${d.id})">✕</button>` : ""}
         <label class="btn ghost" style="cursor:pointer;margin:0;padding:2px 8px;font-size:10.5px;display:inline-flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;white-space:nowrap;" title="${escHtml(fleetI18n.tr("Upload the policy PDF for this vehicle"))}">📎 ${escHtml(fleetI18n.tr(d.insurancePolicyFile ? "Replace" : "Upload PDF"))}<input type="file" accept="application/pdf,.pdf" hidden onchange="uploadInsurancePdf(${d.id}, this)"></label>
       </div></td>
       <td>${cover(d)}</td>
@@ -2222,6 +2222,17 @@ async function putInsurancePdf(rec, file){
   if(!r.ok){ let msg = "HTTP " + r.status; try{ msg = (await r.json()).error || msg; }catch(e){} throw new Error(`${file.name}: ${msg}`); }
   rec.insurancePolicyFile = id;
   if(!rec.insurancePolicy) rec.insurancePolicy = file.name;
+}
+async function deleteInsurancePdf(id){
+  if(currentRole!=="admin") return;
+  const rec = complianceData.find(d=>d.id===id);
+  if(!rec || !rec.insurancePolicyFile) return;
+  if(!confirm(fleetI18n.tr(`Delete the policy PDF for ${rec.plate}?`))) return;
+  const fileId = rec.insurancePolicyFile;
+  rec.insurancePolicyFile = null;
+  await persistComplianceRegister();
+  renderInsurance();
+  try{ await fetch("/api/files/" + encodeURIComponent(fileId), { method:"DELETE", credentials:"same-origin", headers:{ "X-Requested-With":"fleet-app" } }); }catch(e){}
 }
 async function uploadInsurancePdf(id, input){
   if(currentRole!=="admin") return;

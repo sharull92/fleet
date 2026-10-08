@@ -156,7 +156,7 @@ iPhone: Safari → Share → **Add to Home Screen**.
 | `POST` | `/api/login` / `/api/logout` | Login / logout admin |
 | `GET` | `/api/session` | Role semasa |
 | `GET` | `/api/export` | Backup semua data (admin) |
-| `GET` / `PUT` | `/api/files/:id` | Baca / muat naik PDF polisi (admin) |
+| `GET` / `PUT` / `DELETE` | `/api/files/:id` | Baca / muat naik / padam PDF polisi (admin) |
 | `POST` | `/api/files/fromdrive` | Salin PDF dari Google Drive (admin) |
 | `GET` | `/api/gsheet/:id` | Baca Google Sheet (xlsx) untuk import (admin) |
 | `GET` | `/api/health` | Status konfigurasi server & storage |

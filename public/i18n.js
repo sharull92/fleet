@@ -424,6 +424,7 @@
     ["No rows with both a vehicle plate and a Google Drive link were found.","Tiada baris yang ada no. plat dan link Google Drive."],
     ["Drive link but no matching vehicle:","Ada link Drive tetapi tiada kenderaan sepadan:"],
     ["View PDF","Lihat PDF"],
+    ["Delete this PDF","Padam PDF ini"],
     ["Upload PDF","Muat naik PDF"],
     ["Replace","Ganti"],
     ["Upload the policy PDF for this vehicle","Muat naik PDF polisi untuk kenderaan ini"],
@@ -607,6 +608,7 @@
   ];
 
   const TEMPLATES = [
+    ["Delete the policy PDF for {a}?","Padam PDF polisi untuk {a}?"],
     ["Copying PDF {a} of {b}…","Menyalin PDF {a} daripada {b}…"],
     ["{a} is larger than 4 MB.","{a} lebih besar dari 4 MB."],
     ["Uploading {a} file(s)…","Memuat naik {a} fail…"],
