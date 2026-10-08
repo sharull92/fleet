@@ -5392,13 +5392,6 @@ function printPurchaseRequest(stageKey, idx){
       <tr><td class="lb" style="vertical-align:top;">8) Nama &amp; Alamat<br>&nbsp;&nbsp;&nbsp;&nbsp;Syarikat Penjual</td><td class="c" style="vertical-align:top;">:</td><td>${sellerLines.map(l=>`<div class="ln">${e(l)}</div>`).join("")}</td></tr>
       ${line("9) Jenis Pembiayaan", `${pick(i.finance,["TUNAI","Tunai"],["BANK","Pembiayaan Bank**"])} ( jumlah pembiayaan : <u>&nbsp;${i.financePct?e(i.financePct)+"%":"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"}&nbsp;</u> )`)}
     </table>
-    <div class="sec">B - Bagi Pembelian Peralatan Kerja / Aset Pejabat**</div>
-    <table>
-      ${line("1) Nama Peralatan / Aset","")}
-      <tr><td class="lb" style="vertical-align:top;">2) Sebab / Tujuan<br>&nbsp;&nbsp;&nbsp;&nbsp;Pembelian (sertakan<br>&nbsp;&nbsp;&nbsp;&nbsp;lampiran jika perlu)</td><td class="c" style="vertical-align:top;">:</td><td>${blank(3)}</td></tr>
-    </table>
-    <div class="two"><table>${line("3) Jenis / Model","")}${line("5) Harga Pasaran","RM")}</table><table>${line("4) Tahun Buatan","")}${line("6) Harga Ditawarkan","RM")}</table></div>
-    <table>${line("7) Nama &amp; Alamat Syarikat Penjual","")}${line("8) Terma / Tempoh Bayaran","")}</table>
     <div class="sig">
       <div><div class="s"></div>Tandatangan Pemohon<div class="r"><span>Nama :</span><span>${e(i.requestedBy)}</span></div><div class="r"><span>Tarikh :</span><span>${e(dmy(i.date))}</span></div></div>
       <div><div class="s"></div>Tandatangan Ketua Jabatan Pemohon<div class="r"><span>Nama :</span><span></span></div><div class="r"><span>Tarikh :</span><span></span></div></div>
