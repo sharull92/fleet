@@ -5475,7 +5475,7 @@ async function printPurchaseRequest(stageKey, idx, mode){
   .two{display:grid;grid-template-columns:1.55fr 1fr;column-gap:6mm;} .two>table:last-child td.lb{width:32mm;}
   @page{size:A4 portrait;margin:10mm;}`;
   const page1 = `<div class="page">
-    <h1>BORANG PERMOHONAN PEMBELIAN KENDERAAN / PERALATAN<br>KERJA / ASET PEJABAT BERNILAI MELEBIHI RM 10,000.00 SEUNIT**</h1>
+    <h1>BORANG PERMOHONAN PEMBELIAN KENDERAAN<br>BERNILAI MELEBIHI RM 10,000.00 SEUNIT</h1>
     <div class="siri">No. Siri : <b>${e(i.serial)}</b></div>
     <div class="two"><table>${line("1) Tarikh", e(dmy(i.date)))}${line("2) Nama Pemohon", e(i.requestedBy))}${line("4) Jawatan", e(i.position))}</table>
       <table><tr><td style="height:24px"></td></tr>${line("3) Jabatan", e(i.dept), "")}</table></div>
