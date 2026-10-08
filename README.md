@@ -20,7 +20,7 @@ server** (Supabase Postgres di Vercel, atau SQLite bila run sendiri), jadi semua
 | Backup | — | Butang **⬇ Download Backup** di Settings (admin) → fail JSON semua data |
 | Bahasa | English sahaja (campur BM) | Butang **BM / EN** di atas — semua teks, popup & carta tukar terus; pilihan diingat (`public/i18n.js`) |
 | Tema | Cerah sahaja | Butang **🌙 / ☀️** — mod gelap & cerah, ikut tetapan peranti pada kali pertama |
-| Akses halaman | Semua halaman terbuka; admin login dalam Compliance Register | Butang **🔒 Log Masuk Admin** di bawah menu kiri. Tanpa login hanya **01 Pemandu** & **02 Pemohon — Permohonan Kerja** dipaparkan; 00 Dashboard & 03–10 untuk admin sahaja (02 Daftar Pematuhan, 03 Insurans). Pilihan "Branch anda / Read only" dibuang |
+| Akses halaman | Semua halaman terbuka; admin login dalam Compliance Register | Butang **🔒 Log Masuk Admin** di bawah menu kiri. Tanpa login hanya **01 Pemandu** & **02 Pemohon — Permohonan Kenderaan / Sewa** dipaparkan; 00 Dashboard & 03–10 untuk admin sahaja (02 Daftar Pematuhan, 03 Insurans). Pilihan "Branch anda / Read only" dibuang |
 
 ## Daftar Pematuhan — penapis gaya Excel
 
@@ -39,7 +39,7 @@ penapis gaya Excel yang sama. Kotak ringkasan: kenderaan berinsurans, tamat, tam
 
 ## Tampal dari WhatsApp (Log Permintaan Kerja)
 
-Di **02 Pemohon — Permohonan Kerja → Log Permintaan Kerja**, tekan
+Di **02 Pemohon — Permohonan Kenderaan / Sewa → Log Permintaan Kerja**, tekan
 **📋 Tampal dari WhatsApp**, copy mesej dari group WhatsApp dan paste — borang diisi serta-merta.
 Pilih **Branch Anda**, semak, tekan **Hantar Permintaan**.
 
