@@ -63,6 +63,8 @@
     ["Utilization","Penggunaan"],
     ["New / Dispose","Baharu / Pelupusan"],
     ["Settings — WhatsApp","Tetapan — WhatsApp"],
+    ["Settings","Tetapan"],
+    ["WhatsApp contacts, drivers & public holidays","Kenalan WhatsApp, pemandu & cuti umum"],
     ["Data shared across all staff","Data dikongsi semua staf"],
     ["Fleet Dashboard","Papan Pemuka Fleet"],
     ["Company-owned fleet — overview across all modules","Fleet milik syarikat — ringkasan semua modul"],

@@ -504,7 +504,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
       <button class="nav-btn admin-only" data-view="hiring"><span class="num">07</span>Hiring Management</button>
       <button class="nav-btn admin-only" data-view="utilization"><span class="num">08</span>Utilization</button>
       <button class="nav-btn admin-only" data-view="dispose"><span class="num">09</span>New / Dispose</button>
-      <button class="nav-btn admin-only" data-view="settings"><span class="num">10</span>Settings — WhatsApp</button>
+      <button class="nav-btn admin-only" data-view="settings"><span class="num">10</span>Settings</button>
     </nav>
     <div class="sidebar-admin">
       <button type="button" class="admin-login-btn" id="cr_loginBtn" onclick="openAdminLogin()">🔒 Admin Login</button>
@@ -1229,7 +1229,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
       <!-- ============ 6. SETTINGS — WHATSAPP CONTACTS ============ -->
       <section class="view" id="view-settings">
-        <div class="section-plate"><span class="rivet"></span><h2>Settings — WhatsApp Contacts</h2><span class="sub">No admin &amp; PIC setiap branch — untuk notify auto bila ada repair/hiring request</span></div>
+        <div class="section-plate"><span class="rivet"></span><h2>Settings</h2><span class="sub">No admin &amp; PIC setiap branch — untuk notify auto bila ada repair/hiring request</span></div>
 
         <div id="settingsLockedMsg" class="panel" style="display:none;">
           <div class="panel-head"><h3>🔒 Admin sahaja</h3></div>
@@ -2725,7 +2725,7 @@ const titles = {
   hiring:["Hiring Management","External hire-ins & internal hiring requests"],
   utilization:["Utilization","Own-asset usage rate & forecast"],
   dispose:["New / Dispose","Acquisition and disposal pipeline for company vehicles"],
-  settings:["Settings — WhatsApp Contacts","No admin & PIC setiap branch untuk notify request"],
+  settings:["Settings","WhatsApp contacts, drivers & public holidays"],
 };
 document.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.addEventListener("click",()=>{
