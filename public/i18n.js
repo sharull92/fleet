@@ -416,6 +416,8 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["— Select your branch first —","— Pilih branch anda dahulu —"],
+    ["No vehicles registered for this branch","Tiada kenderaan berdaftar untuk branch ini"],
     ["📥 Import policy PDFs","📥 Import PDF polisi"],
     ["🔗 Import from Google Sheet","🔗 Import dari Google Sheet"],
     ["Paste the Google Sheet link (sharing: Anyone with the link can view). Each row needs the vehicle plate (or the PDF name starting with the plate) and the Google Drive link of the PDF.","Paste link Google Sheet (sharing: Anyone with the link can view). Setiap baris perlu ada no. plat kenderaan (atau nama PDF bermula dengan plat) dan link Google Drive PDF tersebut."],

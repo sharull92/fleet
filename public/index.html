@@ -614,7 +614,7 @@ body:not(.is-admin) .admin-only{display:none !important;}
           </div>
 
           <div class="form-row">
-            <div><label>Branch Anda</label><select id="tk_branch"><option value="">— Pilih branch —</option></select></div>
+            <div><label>Branch Anda</label><select id="tk_branch" onchange="document.getElementById('tk_vehicle').innerHTML = vehicleSelect(this.value)"><option value="">— Pilih branch —</option></select></div>
             <div><label>Vehicle</label><select id="tk_vehicle"></select></div>
           </div>
           <div class="form-row">
@@ -1871,14 +1871,17 @@ const disposePipeline = {
   disposed:[],
 };
 
-function vehicleSelect(){
-  // Workshop Ticket uses the full compliance register, merged with fleet status/type.
-  const merged = new Map();
-  fleet.forEach(v=>merged.set(v.plate,{plate:v.plate,type:v.type,status:v.status,company:v.dept||"Fleet"}));
-  complianceData.forEach(v=>{
-    if(!merged.has(v.plate)) merged.set(v.plate,{plate:v.plate,type:v.category||"—",status:"active",company:v.company||"—"});
-  });
-  return [...merged.values()].sort((a,b)=>a.plate.localeCompare(b.plate)).map(v=>{
+/* Vehicles belonging to a branch (from the register location), for the driver forms. */
+function branchVehicles(branch){
+  return complianceData.filter(v=>v.plate && branch && (locationBranch(v.location)===branch || v.location===branch));
+}
+function vehicleSelect(branch){
+  // Workshop Ticket: only the vehicles of the chosen branch (register), with fleet status/type.
+  if(!branch) return `<option value="">${escHtml(fleetI18n.tr("— Select your branch first —"))}</option>`;
+  const status = new Map(fleet.map(v=>[v.plate, v.status]));
+  const list = branchVehicles(branch).map(v=>({plate:v.plate, type:v.category||"—", status:status.get(v.plate)||"active"}));
+  if(!list.length) return `<option value="">${escHtml(fleetI18n.tr("No vehicles registered for this branch"))}</option>`;
+  return `<option value="">${escHtml(fleetI18n.tr("— Select vehicle —"))}</option>` + list.sort((a,b)=>a.plate.localeCompare(b.plate)).map(v=>{
     const statusLabel = v.status==="repair" ? "🔴 In Workshop" : v.status==="idle" ? "🟡 Idle" : v.status==="hired-out" ? "🔵 Hired Out" : "🟢 Available";
     return `<option value="${v.plate} — ${v.type}">${v.plate} — ${v.type} · ${statusLabel}</option>`;
   }).join("");
@@ -2856,7 +2859,7 @@ function renderRepair(){
   populateComplianceFilters();
   renderComplianceTable();
 
-  document.getElementById("tk_vehicle").innerHTML = vehicleSelect();
+  document.getElementById("tk_vehicle").innerHTML = vehicleSelect(document.getElementById("tk_branch").value);
   const tkDateEl = document.getElementById("tk_date");
   tkDateEl.min = APP_TODAY_ISO;   // start empty (dd/mm/yyyy); past dates are rejected on submit
   populateTicketFilters();
@@ -2974,6 +2977,7 @@ async function addTicket(){
     A("Sila pilih branch anda.");
     return;
   }
+  if(!vehicle){ A(fleetI18n.tr("Please choose the vehicle.")); return; }
   const issues = tk_issueList.map(it=>({group:it.group, desc:normText(it.desc||"")})).filter(it=>it.group || it.desc);
   if(issues.length===0){
     A("Sila isi sekurang-kurangnya satu issue.");
@@ -5076,9 +5080,8 @@ function dmFillVehicles(){
   const br = document.getElementById("dm_branch").value;
   const sel = document.getElementById("dm_plate");
   const cur = sel.value;
-  const list = complianceData.filter(v=>v.plate && (!br || locationBranch(v.location)===br || v.location===br));
-  const use = list.length ? list : complianceData.filter(v=>v.plate);
-  sel.innerHTML = `<option value="">${escHtml(fleetI18n.tr("— Select vehicle —"))}</option>` +
+  const use = branchVehicles(br);
+  sel.innerHTML = `<option value="">${escHtml(fleetI18n.tr(!br ? "— Select your branch first —" : use.length ? "— Select vehicle —" : "No vehicles registered for this branch"))}</option>` +
     use.slice().sort((a,b)=>a.plate.localeCompare(b.plate)).map(v=>`<option value="${escHtml(v.plate)}">${escHtml(v.plate)} — ${escHtml(v.category||"")}</option>`).join("");
   if(cur) sel.value = cur;
 }
@@ -5089,7 +5092,14 @@ function dmDriverPicked(){
     el.value = d.name;
     if(d.phone && !document.getElementById("dm_phone").value) document.getElementById("dm_phone").value = d.phone;
     const sel = document.getElementById("dm_plate");
-    if(d.plate && !sel.value){ if(![...sel.options].some(o=>o.value===d.plate)){ document.getElementById("dm_branch").value=""; dmFillVehicles(); } sel.value = d.plate; }
+    if(d.plate && !sel.value){
+      const brSel = document.getElementById("dm_branch");
+      if(!brSel.value){   // no branch yet → take the branch of the driver's usual vehicle
+        const reg = complianceData.find(v=>utilPlateKey(v.plate)===utilPlateKey(d.plate));
+        if(reg){ brSel.value = locationBranch(reg.location); dmFillVehicles(); }
+      }
+      if([...sel.options].some(o=>o.value===d.plate)) sel.value = d.plate;   // only within the chosen branch
+    }
   }
 }
 function renderDmCheck(){
@@ -5109,6 +5119,7 @@ function dmGoTicket(d){
   if(!tk) return;
   if(d.branch) tk.value = d.branch;
   const vs = document.getElementById("tk_vehicle");
+  vs.innerHTML = vehicleSelect(tk.value);
   const opt = [...vs.options].find(o=>o.value.split(" — ")[0]===d.plate);
   if(opt) vs.value = opt.value;
   if(typeof tk_issueList!=="undefined"){
