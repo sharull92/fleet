@@ -819,6 +819,10 @@ body:not(.is-admin) .admin-only{display:none !important;}
             <div><label>Reason / Purpose of Purchase</label><textarea id="pr_reason" class="dsp-up" rows="3" placeholder="e.g. FOR PROJECT OPERATIONS OUTSIDE TOWN"></textarea></div>
           </div>
           <div id="pr_quoteSection" style="display:none;">
+            <div class="form-row" style="grid-template-columns:1fr 3fr;margin-top:8px;">
+              <div><label>Stage</label><select id="pr_stage"><option value="requested">Purchase Requested</option><option value="approved">Purchase Approved</option><option value="inProgress">New — In Progress</option><option value="delivered">New — Delivered</option></select></div>
+              <div></div>
+            </div>
             <div style="font-weight:700;font-size:11.5px;margin:10px 0 4px;text-decoration:underline;">Quotations (3 – 5 vendors)</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Upload each vendor's quotation (PDF or photo). Tick ★ for the recommended vendor.</div>
             <div id="pr_quotes"></div>
@@ -5301,7 +5305,7 @@ function renderDisposeTable(){
          <td class="mono-cell">${escHtml(isoToDmy(m.date))||"—"}</td><td>${escHtml(m.party)||"—"}</td>`;
     const actions = editing
       ? `<span id="dspSaved" style="font-size:10.5px;color:var(--good);margin-right:6px;"></span><button type="button" class="btn" style="${btn}" onclick="disposeEditRef='';renderDisposeTable()">✓ <span>${escHtml(fleetI18n.tr("Done"))}</span></button>`
-      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="disposeEditRef='${ref}';renderDisposeTable()">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span></button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Edit request / upload quotations"))}" onclick="togglePurchaseRequestForm('${ref}')">📎${(i.quotes||[]).length?` ${i.quotes.length}`:""}</button> <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Step 1 — print request form (page 1) for the head of department to sign"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'form')">🖨 1</button> <button type="button" class="btn ghost" style="${btn}" ${(i.quotes||[]).length?"":"disabled"} title="${escHtml(fleetI18n.tr("Step 3 — print quotation summary, quotations and the management approval page"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'full')">🖨 2</button> <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
+      : `<button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr(i.kind==="request"?"Edit request / upload quotations":m.isNew?"Enter purchase details":"Enter sold value"))}" onclick="${i.kind==="request" ? `togglePurchaseRequestForm('${ref}')` : `disposeEditRef='${ref}';renderDisposeTable()`}">✎ <span>${escHtml(fleetI18n.tr("Edit"))}</span>${i.kind==="request" && (i.quotes||[]).length ? ` · 📎${i.quotes.length}` : ""}</button>${i.rec && r.stageKey==="disposed" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Restore to register"))}" onclick="restoreDisposedVehicle(${r.idx})">↩</button>` : ""}${i.kind==="request" ? ` <button type="button" class="btn ghost" style="${btn}" title="${escHtml(fleetI18n.tr("Step 1 — print request form (page 1) for the head of department to sign"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'form')">🖨 1</button> <button type="button" class="btn ghost" style="${btn}" ${(i.quotes||[]).length?"":"disabled"} title="${escHtml(fleetI18n.tr("Step 3 — print quotation summary, quotations and the management approval page"))}" onclick="printPurchaseRequest('${r.stageKey}',${r.idx},'full')">🖨 2</button> <button type="button" class="btn ghost" style="${btn}color:#C1443C;" title="${escHtml(fleetI18n.tr("Delete request"))}" onclick="deletePurchaseRequest('${r.stageKey}',${r.idx})">✕</button>` : ""}`;
     return `<tr><td>${stageCell}</td>
       <td style="font-weight:600;">${escHtml(rec.plate || i.plate || i.veh || "")||"—"}${i.requestedBy?`<div style="font-size:10px;font-weight:400;color:var(--ink-soft);">${escHtml(fleetI18n.tr("By"))} ${escHtml(i.requestedBy)}</div>`:""}</td><td>${escHtml(rec.company||"—")}</td><td>${escHtml(rec.category||"—")}</td>
       <td class="mono-cell">${escHtml(rec.location||"—")}</td><td class="mono-cell">${escHtml(i.addedAt || i.removedAt || "—")}</td>
@@ -5360,6 +5364,7 @@ function togglePurchaseRequestForm(editRef, slot){
   prPhotos = item ? JSON.parse(JSON.stringify(item.photos||[])) : [];
   prRemovedFiles = [];
   if(item && !prQuotes.length) prQuotes = [{},{},{}];
+  if(item) set("pr_stage", sk);
   document.getElementById("pr_quoteSection").style.display = item ? "block" : "none";
   document.querySelector("#purchaseRequestForm h3").textContent = item ? `${fleetI18n.tr("Edit Purchase Request")} — ${item.serial}` : fleetI18n.tr("New Vehicle Purchase Request");
   document.getElementById("pr_submitBtn").textContent = item ? "💾 " + fleetI18n.tr("Save") : fleetI18n.tr("🖨 Submit & Print");
@@ -5445,6 +5450,11 @@ async function submitPurchaseRequest(){
       oldPlate: v("pr_type")==="TRADE IN" ? up("pr_oldPlate") : "",
       quotes: prQuotes.filter(q=>q.vendor || q.price!=null || q.file || q.model), photos: prPhotos });
     item.addedAt = item.date.split("-").reverse().join("/");
+    // the recommended (else cheapest) quotation becomes the purchase price / supplier
+    const rec = item.quotes.find(q=>q.recommended) || item.quotes.filter(q=>Number(q.price)>0).sort((a,b)=>a.price-b.price)[0];
+    if(rec){ if(Number(rec.price)>0) item.price = Number(rec.price); if(rec.vendor) item.supplier = rec.vendor; }
+    const toStage = v("pr_stage");
+    if(toStage && toStage!==sk && disposePipeline[toStage]){ disposePipeline[sk].splice(+si,1); disposePipeline[toStage].unshift(item); }
     const removed = prRemovedFiles.slice();
     togglePurchaseRequestForm();
     await persistDisposePipeline();
