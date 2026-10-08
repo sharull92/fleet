@@ -30,6 +30,13 @@ dan boleh ditapis ikut **status** (Tamat Tempoh / Hampir Tamat / OK / Tiada tari
 senarai ikut tapisan lajur lain. Butang ▾ bertukar kuning bila lajur ditapis; **✕ Kosongkan semua tapisan**
 di bawah jadual.
 
+## Kalendar Pembaharuan (Daftar Pematuhan)
+
+Di bawah jadual Daftar Pematuhan: kalendar bulanan (Ahad–Sabtu) setiap tarikh tamat Cukai Jalan, Pemeriksaan,
+Insurans, JKKP & APAD — warna ikut status (merah tamat, oren ≤ 30 hari, hijau OK). Pilih bulan / tahun (◀ ▶),
+tanda jenis & branch (cth. Cukai Jalan + OSJ & OPJ), dan **🖨 Cetak setahun** untuk 12 muka surat A4 landskap.
+Kalendar dibina terus dari data daftar, jadi berubah serta-merta bila tarikh dikemas kini.
+
 ## 03 Insurans
 
 Daftar insurans setiap kenderaan: Syarikat Insurans, No. Polisi, Perlindungan (Komprehensif / Pihak Ketiga,

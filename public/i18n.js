@@ -416,6 +416,14 @@
     ["Fleet Utilization — Monthly Trend","Penggunaan Fleet — Trend Bulanan"],
     ["Fleet Utilization — Selected Month","Penggunaan Fleet — Bulan Dipilih"],
     ["+ Add unit","+ Tambah unit"],
+    ["📅 Renewal Calendar","📅 Kalendar Pembaharuan"],
+    ["Built from the register above — updates as soon as a date is changed","Dibina dari daftar di atas — dikemas kini serta-merta bila tarikh ditukar"],
+    ["Today","Hari ini"],
+    ["🖨 Print year","🖨 Cetak setahun"],
+    ["Renewal","Pembaharuan"],
+    ["Road Tax, Inspection, Insurance, JKKP & APAD","Cukai Jalan, Pemeriksaan, Insurans, JKKP & APAD"],
+    ["Due ≤ 30 days","Tamat ≤ 30 hari"],
+    ["SUN","AHAD"],["MON","ISN"],["TUE","SEL"],["WED","RAB"],["THU","KHA"],["FRI","JUM"],["SAT","SAB"],
     ["Workshop Ticket","Tiket Bengkel"],
     ["Road tax","Cukai jalan"],
     ["— Select your branch first —","— Pilih branch anda dahulu —"],
@@ -612,6 +620,7 @@
   ];
 
   const TEMPLATES = [
+    ["{a} renewal(s) this month · {b} in {c}","{a} pembaharuan bulan ini · {b} dalam {c}"],
     ["Delete the policy PDF for {a}?","Padam PDF polisi untuk {a}?"],
     ["Copying PDF {a} of {b}…","Menyalin PDF {a} daripada {b}…"],
     ["{a} is larger than 4 MB.","{a} lebih besar dari 4 MB."],

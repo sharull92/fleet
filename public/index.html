@@ -343,6 +343,26 @@ body:not(.is-admin) .admin-only{display:none !important;}
 
 /* ---- Excel-style column filter ---- */
 .xl-th{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.cal-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;}
+.cal-bar select{width:auto;padding:5px 8px;}
+.cal-bar .btn{padding:5px 10px;font-size:11.5px;}
+.cal-sep{width:1px;height:22px;background:var(--line);margin:0 4px;}
+.cal-tog{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;margin-right:6px;cursor:pointer;text-transform:none;letter-spacing:0;}
+.cal-tog input{width:auto;margin:0;}
+.cal-title{text-align:center;margin:4px 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
+.cal-table{width:100%;border-collapse:collapse;table-layout:fixed;}
+.cal-table th{background:var(--panel-2);border:1px solid var(--line);padding:5px;text-align:center;font-size:10.5px;}
+.cal-table td{border:1px solid var(--line);vertical-align:top;padding:0;height:96px;}
+.cal-table td.out{background:var(--panel-2);opacity:.5;}
+.cal-day{background:var(--panel-2);text-align:right;font-weight:700;font-size:11.5px;padding:2px 6px;border-bottom:1px solid var(--line);}
+.cal-table td.today .cal-day{background:var(--yellow);color:#17181A;}
+.cal-items{max-height:120px;overflow:auto;padding:3px;display:flex;flex-direction:column;gap:2px;}
+.cal-chip{display:inline-block;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;line-height:1.35;border:1px solid transparent;}
+.cal-chip.ok{background:rgba(63,125,92,.14);color:#3F7D5C;border-color:rgba(63,125,92,.35);}
+.cal-chip.soon{background:rgba(185,121,26,.15);color:#B9791A;border-color:rgba(185,121,26,.4);}
+.cal-chip.overdue{background:rgba(193,68,60,.14);color:#C1443C;border-color:rgba(193,68,60,.4);}
+.cal-legend{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:11px;color:var(--ink-soft);}
+@media (max-width:700px){ .cal-table td{height:70px;} .cal-chip{font-size:9px;} }
 /* Wide registers: fit the panel width instead of scrolling sideways (phones still scroll). */
 .fit-table th,.fit-table td{padding-left:5px;padding-right:5px;font-size:11.5px;overflow-wrap:break-word;}
 .fit-table .btn{white-space:normal;line-height:1.25;}
@@ -790,7 +810,29 @@ body:not(.is-admin) .admin-only{display:none !important;}
           <div style="display:flex;align-items:center;gap:10px;margin-top:8px;"><div id="complianceCount" style="font-size:11px;color:var(--ink-soft);"></div><button type="button" class="btn ghost" id="crClearAllBtn" style="display:none;padding:3px 9px;font-size:10.5px;" onclick="xlClearAll('compliance')">✕ Clear all filters</button></div>
         </div>
 
-      </section>
+              <div class="panel" id="crCalPanel">
+          <div class="panel-head">
+            <h3>📅 Renewal Calendar</h3>
+            <span class="sub" style="font-size:11px;color:var(--ink-soft);">Built from the register above — updates as soon as a date is changed</span>
+          </div>
+          <div class="cal-bar">
+            <button type="button" class="btn ghost" onclick="calShift(-1)">◀</button>
+            <select id="cal_month" onchange="renderComplianceCalendar()"></select>
+            <select id="cal_year" onchange="renderComplianceCalendar()"></select>
+            <button type="button" class="btn ghost" onclick="calShift(1)">▶</button>
+            <button type="button" class="btn ghost" onclick="calToday()">Today</button>
+            <span class="cal-sep"></span>
+            <span id="cal_types"></span>
+            <span class="cal-sep"></span>
+            <span id="cal_branches"></span>
+            <button type="button" class="btn yellow" style="margin-left:auto;" onclick="printComplianceCalendar()">🖨 Print year</button>
+          </div>
+          <h4 id="cal_title" class="cal-title"></h4>
+          <div id="cal_grid"></div>
+          <div class="cal-legend"><span class="cal-chip overdue">Overdue</span><span class="cal-chip soon">Due ≤ 30 days</span><span class="cal-chip ok">OK</span><span id="cal_count" style="margin-left:auto;"></span></div>
+        </div>
+
+</section>
 
       <!-- ============ INSURANCE ============ -->
       <section class="view" id="view-insurance">
@@ -1750,6 +1792,7 @@ async function persistComplianceRegister(){
   try{
     await window.storage.set(CR_STORAGE_KEY, JSON.stringify({data:complianceData, nextId:complianceNextId}), true);
     setSyncStatus("✓ Tersimpan " + nowTimeStr());
+    try{ renderComplianceCalendar(); }catch(e){}
   }catch(e){
     console.warn("Tak dapat simpan compliance register ke shared storage:", e);
     setSyncStatus("⚠ Gagal simpan — cuba refresh & ulang", true);
@@ -5378,6 +5421,115 @@ function dmCopyReport(){
   navigator.clipboard.writeText(text).then(done).catch(()=>{ window.prompt(fleetI18n.tr("Copy this report:"), text); });
 }
 
+/* ===================== COMPLIANCE RENEWAL CALENDAR =====================
+   Month calendar of every expiry date in the Compliance Register (road tax, inspection,
+   insurance, JKKP, APAD). Built live from complianceData, so it follows every edit. */
+const CAL_TYPES = [["roadTax","Road Tax","RT"],["inspection","Inspection","INSP"],["insurance","Insurance","INS"],["jkkp","JKKP","JKKP"],["apad","APAD","APAD"]];
+let calTypesOn = new Set(CAL_TYPES.map(t=>t[0]));
+let calBranchesOn = null;   // null = all branches
+let calInit = false;
+const CAL_MONTHS_EN = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const calMonthName = m => fleetI18n.lang==="ms" ? MALAY_MONTHS[m].toUpperCase() : CAL_MONTHS_EN[m].toUpperCase();
+function calEvents(){
+  const out = [];
+  complianceData.forEach(d=>{
+    const br = locationBranch(d.location);
+    if(calBranchesOn && !calBranchesOn.has(br)) return;
+    CAL_TYPES.forEach(([k,label,short])=>{
+      if(!calTypesOn.has(k) || !d[k]) return;
+      const iso = dmyToIso(d[k]);
+      if(!iso) return;
+      out.push({iso, plate:d.plate, company:d.company, branch:br, type:k, label, short, status:d[k+"Status"]||calcComplianceStatus(d[k])||"ok"});
+    });
+  });
+  return out;
+}
+function calInitControls(){
+  const now = new Date(APP_TODAY_ISO);
+  const ySel = document.getElementById("cal_year"), mSel = document.getElementById("cal_month");
+  const years = new Set([now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1]);
+  complianceData.forEach(d=>CAL_TYPES.forEach(([k])=>{ const iso = d[k] && dmyToIso(d[k]); if(iso) years.add(+iso.slice(0,4)); }));
+  const keepY = ySel.value, keepM = mSel.value;
+  ySel.innerHTML = [...years].filter(y=>y>2000 && y<2100).sort().map(y=>`<option value="${y}">${y}</option>`).join("");
+  mSel.innerHTML = CAL_MONTHS_EN.map((m,i)=>`<option value="${i}">${escHtml(fleetI18n.lang==="ms" ? MALAY_MONTHS[i] : m)}</option>`).join("");
+  ySel.value = keepY || String(now.getFullYear()); mSel.value = keepM || String(now.getMonth());
+  document.getElementById("cal_types").innerHTML = CAL_TYPES.map(([k,label])=>
+    `<label class="cal-tog"><input type="checkbox" ${calTypesOn.has(k)?"checked":""} onchange="calToggleType('${k}',this.checked)">${escHtml(fleetI18n.tr(label))}</label>`).join("");
+  const branches = [...new Set(complianceData.map(d=>locationBranch(d.location)))].filter(b=>b && b!=="—").sort();
+  document.getElementById("cal_branches").innerHTML = branches.map(b=>
+    `<label class="cal-tog"><input type="checkbox" ${!calBranchesOn || calBranchesOn.has(b)?"checked":""} onchange="calToggleBranch('${b}',this.checked)">${escHtml(b)}</label>`).join("");
+  calInit = true;
+}
+function calToggleType(k, on){ on ? calTypesOn.add(k) : calTypesOn.delete(k); renderComplianceCalendar(); }
+function calToggleBranch(b, on){
+  const all = [...new Set(complianceData.map(d=>locationBranch(d.location)))].filter(x=>x && x!=="—");
+  if(!calBranchesOn) calBranchesOn = new Set(all);
+  on ? calBranchesOn.add(b) : calBranchesOn.delete(b);
+  if(calBranchesOn.size===all.length) calBranchesOn = null;
+  renderComplianceCalendar();
+}
+function calShift(n){
+  const mSel = document.getElementById("cal_month"), ySel = document.getElementById("cal_year");
+  let m = +mSel.value + n, y = +ySel.value;
+  if(m<0){ m = 11; y--; } if(m>11){ m = 0; y++; }
+  if(![...ySel.options].some(o=>+o.value===y)) ySel.insertAdjacentHTML(n<0?"afterbegin":"beforeend", `<option value="${y}">${y}</option>`);
+  mSel.value = String(m); ySel.value = String(y);
+  renderComplianceCalendar();
+}
+function calToday(){ const n = new Date(APP_TODAY_ISO); document.getElementById("cal_month").value = String(n.getMonth()); document.getElementById("cal_year").value = String(n.getFullYear()); renderComplianceCalendar(); }
+function calTitle(m, y){
+  const types = CAL_TYPES.filter(t=>calTypesOn.has(t[0])).map(t=>fleetI18n.tr(t[1]).toUpperCase());
+  const brs = calBranchesOn ? [...calBranchesOn].sort().join(" & ") : fleetI18n.tr("All branches").toUpperCase();
+  return `${fleetI18n.tr("Renewal")} ${types.length===CAL_TYPES.length ? fleetI18n.tr("Road Tax, Inspection, Insurance, JKKP & APAD").toUpperCase() : types.join(", ")} — ${brs} — ${calMonthName(m)} ${y}`;
+}
+function calMonthHtml(m, y, events, forPrint){
+  const first = new Date(y, m, 1).getDay(), days = new Date(y, m+1, 0).getDate();
+  const byDay = {};
+  events.forEach(e=>{ const [ey,em,ed] = e.iso.split("-").map(Number); if(ey===y && em===m+1) (byDay[ed] = byDay[ed] || []).push(e); });
+  const dows = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+  let html = `<table class="cal-table"><thead><tr>${dows.map(d=>`<th>${forPrint?d:escHtml(fleetI18n.tr(d))}</th>`).join("")}</tr></thead><tbody><tr>`;
+  for(let i=0;i<first;i++) html += `<td class="out"></td>`;
+  for(let d=1; d<=days; d++){
+    const iso = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const list = (byDay[d]||[]).sort((a,b)=>a.plate.localeCompare(b.plate));
+    html += `<td class="${iso===APP_TODAY_ISO&&!forPrint?"today":""}"><div class="cal-day">${d}</div><div class="cal-items">${list.map(e=>
+      `<span class="cal-chip ${e.status}" title="${escHtml(`${e.company} — ${e.plate} · ${fleetI18n.tr(e.label)} · ${e.branch}`)}">${escHtml(e.plate)} · ${e.short}</span>`).join("")}</div></td>`;
+    if((first+d)%7===0 && d<days) html += `</tr><tr>`;
+  }
+  const tail = (7 - (first+days)%7) % 7;
+  for(let i=0;i<tail;i++) html += `<td class="out"></td>`;
+  return html + `</tr></tbody></table>`;
+}
+function renderComplianceCalendar(){
+  if(!document.getElementById("cal_grid")) return;
+  if(!calInit) calInitControls();
+  const m = +document.getElementById("cal_month").value, y = +document.getElementById("cal_year").value;
+  const events = calEvents();
+  const inMonth = events.filter(e=>e.iso.startsWith(`${y}-${String(m+1).padStart(2,"0")}`));
+  document.getElementById("cal_title").textContent = calTitle(m, y);
+  document.getElementById("cal_grid").innerHTML = calMonthHtml(m, y, events, false);
+  document.getElementById("cal_count").textContent = fleetI18n.tr(`${inMonth.length} renewal(s) this month · ${events.filter(e=>e.iso.startsWith(String(y))).length} in ${y}`);
+}
+window.addEventListener("fleet:lang", ()=>{ calInit = false; try{ renderComplianceCalendar(); }catch(e){} });
+function printComplianceCalendar(){
+  const y = +document.getElementById("cal_year").value;
+  const events = calEvents();
+  const css = `body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;}
+  .page{page-break-after:always;break-after:page;padding:6mm;} .page:last-child{page-break-after:auto;break-after:auto;}
+  h2{text-align:center;font-size:15px;margin:0 0 6px;}
+  .cal-table{width:100%;border-collapse:collapse;table-layout:fixed;} .cal-table th{border:1px solid #000;padding:4px;font-size:11px;background:#fff;}
+  .cal-table td{border:1px solid #000;vertical-align:top;padding:0;height:88px;} .cal-table td.out{background:#f2f2f2;}
+  .cal-day{background:#bfbfbf;text-align:right;font-weight:700;font-size:12px;padding:1px 5px;border-bottom:1px solid #000;}
+  .cal-items{padding:2px;display:flex;flex-direction:column;gap:1px;} .cal-chip{font-size:9.5px;font-weight:600;padding:0 3px;border:1px solid #999;border-radius:3px;}
+  .cal-chip.overdue{color:#b00020;border-color:#b00020;} .cal-chip.soon{color:#8a5a00;border-color:#8a5a00;} .cal-chip.ok{color:#1d5c3a;}
+  @page{size:A4 landscape;margin:8mm;}`;
+  const pages = Array.from({length:12},(_,m)=>`<div class="page"><h2>${escHtml(calTitle(m, y))}</h2>${calMonthHtml(m, y, events, true)}</div>`).join("");
+  const w = window.open("", "_blank");
+  if(!w){ A(fleetI18n.tr("Please allow pop-ups to print the report.")); return; }
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Renewal Calendar ${y}</title><style>${css}</style></head><body>${pages}<script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
 /* ===================== INIT ===================== */
 (async function initDashboard(){
   try{
@@ -5405,6 +5557,7 @@ function dmCopyReport(){
   renderDispose();
   initDailyMovementForm();
   renderIssueChips();
+  renderComplianceCalendar();
   if(currentRole==="admin"){
     // Policy No. used to hold the PDF file name — clear those (the PDF itself is now attached)
     const named = complianceData.filter(d=>/\.pdf\s*$/i.test(String(d.insurancePolicy||"")));
